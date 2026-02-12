@@ -6,7 +6,7 @@ import type { LatLng } from 'leaflet';
 import { saveAs } from 'file-saver';
 import type { GeoJsonObject } from 'geojson';
 
-import { detectBuildingsFromSatelliteImage } from '@/ai/flows/detect-buildings-flow';
+import { detectBuildings, downloadShapefile } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   SidebarProvider,
@@ -27,6 +27,7 @@ const MapComponent = dynamic(
 export default function SatelliteVisionPage() {
   const [colabUrl, setColabUrl] = React.useState<string>('');
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+  const [imageFile, setImageFile] = React.useState<File | null>(null);
   const [imageDimensions, setImageDimensions] = React.useState<{
     width: number;
     height: number;
@@ -40,6 +41,7 @@ export default function SatelliteVisionPage() {
   const handleFileDrop = React.useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file && (file.type === 'image/png' || file.type === 'image/jpeg')) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
@@ -73,7 +75,7 @@ export default function SatelliteVisionPage() {
     setPoints([]);
   }, []);
 
-  const handleDetect = React.useCallback(async () => {
+  const runDetection = React.useCallback(async (detectionPoints: LatLng[]) => {
     if (!colabUrl) {
       toast({
         variant: 'destructive',
@@ -82,7 +84,7 @@ export default function SatelliteVisionPage() {
       });
       return;
     }
-    if (!imageUrl) {
+    if (!imageFile) {
       toast({
         variant: 'destructive',
         title: 'Missing Image',
@@ -90,30 +92,20 @@ export default function SatelliteVisionPage() {
       });
       return;
     }
-    if (points.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'No points selected',
-        description: 'Please click on the image to select points of interest.',
-      });
-      return;
-    }
-
+    
     setIsLoading(true);
     try {
-      const result = await detectBuildingsFromSatelliteImage({
-        imageDataUri: imageUrl,
-        // In CRS.Simple, lat is Y, lng is X. The AI model expects x, y.
-        coordinates: points.map((p) => ({ x: p.lng, y: p.lat })),
-        colabServerUrl: colabUrl,
-      });
-      
-      const parsedGeoJson = JSON.parse(result.geoJson);
-      setGeoJson(parsedGeoJson);
+      const geoJsonData = await detectBuildings(
+        colabUrl,
+        imageFile,
+        detectionPoints.map((p) => ({ x: p.lng, y: p.lat }))
+      );
+
+      setGeoJson(geoJsonData);
 
       toast({
         title: 'Detection Complete',
-        description: 'Building outlines have been rendered on the map.',
+        description: `Detected ${geoJsonData.features.length} building footprints.`,
       });
     } catch (error) {
       console.error(error);
@@ -126,7 +118,24 @@ export default function SatelliteVisionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [colabUrl, imageUrl, points, toast]);
+  }, [colabUrl, imageFile, toast]);
+
+  const handleDetect = React.useCallback(async () => {
+    if (points.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No points selected',
+        description: 'Please click on the image to select points of interest.',
+      });
+      return;
+    }
+    runDetection(points);
+  }, [points, runDetection, toast]);
+  
+  const handleAutoDetect = React.useCallback(() => {
+    // For auto-detect, we pass an empty array for points.
+    runDetection([]);
+  }, [runDetection]);
 
   const handleDownload = React.useCallback(async () => {
     if (!colabUrl) {
@@ -148,19 +157,7 @@ export default function SatelliteVisionPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${colabUrl}/download_shp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ geojson_data: geoJson }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
+      const blob = await downloadShapefile(colabUrl);
       saveAs(blob, 'detected_buildings.zip');
       toast({
         title: 'Download Started',
@@ -188,6 +185,7 @@ export default function SatelliteVisionPage() {
           setColabUrl={setColabUrl}
           onFileDrop={handleFileDrop}
           onDetect={handleDetect}
+          onAutoDetect={handleAutoDetect}
           onDownload={handleDownload}
           onClearPoints={handleClearPoints}
           isLoading={isLoading}

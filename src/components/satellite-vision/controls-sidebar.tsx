@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, MapPin, BrainCircuit, Download, Trash2, Loader2, Satellite } from 'lucide-react';
+import { UploadCloud, MapPin, BrainCircuit, Download, Trash2, Loader2, Satellite, Sparkles } from 'lucide-react';
 
 import {
   SidebarHeader,
@@ -21,6 +21,7 @@ type ControlsSidebarProps = {
   setColabUrl: (url: string) => void;
   onFileDrop: (files: File[]) => void;
   onDetect: () => void;
+  onAutoDetect: () => void;
   onDownload: () => void;
   onClearPoints: () => void;
   isLoading: boolean;
@@ -34,6 +35,7 @@ export function ControlsSidebar({
   setColabUrl,
   onFileDrop,
   onDetect,
+  onAutoDetect,
   onDownload,
   onClearPoints,
   isLoading,
@@ -93,10 +95,10 @@ export function ControlsSidebar({
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>3. Select Points</SidebarGroupLabel>
+          <SidebarGroupLabel>3. Select Points (Interactive Mode)</SidebarGroupLabel>
            <div className="text-sm text-muted-foreground p-2 rounded-md bg-background flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 shrink-0"/>
-                <span>Click on the loaded image to place markers on buildings of interest.</span>
+                <span>Click on the loaded image to place markers on buildings for targeted detection.</span>
            </div>
             <Button 
                 variant="outline" 
@@ -120,7 +122,18 @@ export function ControlsSidebar({
             ) : (
               <BrainCircuit className="mr-2 h-4 w-4" />
             )}
-            Detect Buildings
+            Detect (from markers)
+          </Button>
+          <Button 
+              onClick={onAutoDetect} 
+              disabled={!hasImage || isLoading}
+          >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Auto-Detect All (Village Mode)
           </Button>
           <Button
             variant="secondary"
