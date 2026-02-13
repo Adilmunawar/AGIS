@@ -27,6 +27,7 @@ export default function SatelliteVisionPage() {
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
+  const [searchCoords, setSearchCoords] = React.useState<{ lat: number; lon: number } | null>(null);
 
   const { toast } = useToast();
 
@@ -121,12 +122,17 @@ export default function SatelliteVisionPage() {
           setColabUrl={setColabUrl}
           onDetect={handleDetect}
           onDownload={handleDownload}
+          onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
           hasGeoJson={!!geoJson}
         />
       </Sidebar>
       <SidebarInset>
-        <MapComponent geoJsonData={geoJson} setBBox={setCurrentBBox} />
+        <MapComponent 
+          geoJsonData={geoJson} 
+          setBBox={setCurrentBBox}
+          searchResult={searchCoords}
+        />
       </SidebarInset>
     </SidebarProvider>
   );
