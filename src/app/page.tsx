@@ -2,11 +2,10 @@
 
 import * as React from 'react';
 import dynamic from 'next/dynamic';
-import type { LatLng } from 'leaflet';
 import { saveAs } from 'file-saver';
 import type { GeoJsonObject } from 'geojson';
 
-import { detectBuildings, downloadShapefile } from '@/lib/api';
+import { detectFromBounds, downloadShapefile, type BBox } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   SidebarProvider,
@@ -15,67 +14,23 @@ import {
 } from '@/components/ui/sidebar';
 import { ControlsSidebar } from '@/components/satellite-vision/controls-sidebar';
 
-// Dynamically import the map component to avoid SSR issues with Leaflet
 const MapComponent = dynamic(
   () => import('@/components/satellite-vision/map-component'),
   {
     ssr: false,
-    loading: () => <div className="flex h-full w-full items-center justify-center bg-muted"><p>Loading Map...</p></div>,
+    loading: () => <div className="h-full w-full bg-muted animate-pulse" />,
   }
 );
 
 export default function SatelliteVisionPage() {
   const [colabUrl, setColabUrl] = React.useState<string>('');
-  const [imageUrl, setImageUrl] = React.useState<string | null>(null);
-  const [imageFile, setImageFile] = React.useState<File | null>(null);
-  const [imageDimensions, setImageDimensions] = React.useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const [points, setPoints] = React.useState<LatLng[]>([]);
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
 
   const { toast } = useToast();
 
-  const handleFileDrop = React.useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file && (file.type === 'image/png' || file.type === 'image/jpeg')) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          setImageDimensions({ width: img.width, height: img.height });
-          setImageUrl(e.target?.result as string);
-          setPoints([]);
-          setGeoJson(null);
-          toast({
-            title: 'Image Loaded',
-            description: 'Click on the image to place markers for detection.',
-          });
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid File Type',
-        description: 'Please upload a .png or .jpg file.',
-      });
-    }
-  }, [toast]);
-
-  const handleMapClick = React.useCallback((latlng: LatLng) => {
-    setPoints((prev) => [...prev, latlng]);
-  }, []);
-
-  const handleClearPoints = React.useCallback(() => {
-    setPoints([]);
-  }, []);
-
-  const runDetection = React.useCallback(async (detectionPoints: LatLng[]) => {
+  const handleDetect = React.useCallback(async () => {
     if (!colabUrl) {
       toast({
         variant: 'destructive',
@@ -84,28 +39,27 @@ export default function SatelliteVisionPage() {
       });
       return;
     }
-    if (!imageFile) {
+    if (!currentBBox) {
       toast({
         variant: 'destructive',
-        title: 'Missing Image',
-        description: 'Please upload a satellite image.',
+        title: 'Map not ready',
+        description:
+          'Please wait for the map to load or move the map to set a boundary.',
       });
       return;
     }
-    
+
     setIsLoading(true);
     try {
-      const geoJsonData = await detectBuildings(
-        colabUrl,
-        imageFile,
-        detectionPoints.map((p) => ({ x: p.lng, y: p.lat }))
-      );
+      const geoJsonData = await detectFromBounds(colabUrl, currentBBox);
 
       setGeoJson(geoJsonData);
 
       toast({
         title: 'Detection Complete',
-        description: `Detected ${geoJsonData.features.length} building footprints.`,
+        description: `Detected ${
+          geoJsonData.features?.length ?? 0
+        } building footprints.`,
       });
     } catch (error) {
       console.error(error);
@@ -118,24 +72,7 @@ export default function SatelliteVisionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [colabUrl, imageFile, toast]);
-
-  const handleDetect = React.useCallback(async () => {
-    if (points.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'No points selected',
-        description: 'Please click on the image to select points of interest.',
-      });
-      return;
-    }
-    runDetection(points);
-  }, [points, runDetection, toast]);
-  
-  const handleAutoDetect = React.useCallback(() => {
-    // For auto-detect, we pass an empty array for points.
-    runDetection([]);
-  }, [runDetection]);
+  }, [colabUrl, currentBBox, toast]);
 
   const handleDownload = React.useCallback(async () => {
     if (!colabUrl) {
@@ -150,7 +87,7 @@ export default function SatelliteVisionPage() {
       toast({
         variant: 'destructive',
         title: 'No Data to Download',
-        description: 'Please run the detection first to generate building data.',
+        description: 'Please run a detection first to generate building data.',
       });
       return;
     }
@@ -176,32 +113,20 @@ export default function SatelliteVisionPage() {
     }
   }, [colabUrl, geoJson, toast]);
 
-
   return (
     <SidebarProvider>
       <Sidebar>
         <ControlsSidebar
           colabUrl={colabUrl}
           setColabUrl={setColabUrl}
-          onFileDrop={handleFileDrop}
           onDetect={handleDetect}
-          onAutoDetect={handleAutoDetect}
           onDownload={handleDownload}
-          onClearPoints={handleClearPoints}
           isLoading={isLoading}
-          hasImage={!!imageUrl}
-          hasPoints={points.length > 0}
           hasGeoJson={!!geoJson}
         />
       </Sidebar>
       <SidebarInset>
-        <MapComponent
-          imageUrl={imageUrl}
-          imageDimensions={imageDimensions}
-          points={points}
-          geoJson={geoJson}
-          onMapClick={handleMapClick}
-        />
+        <MapComponent geoJsonData={geoJson} setBBox={setCurrentBBox} />
       </SidebarInset>
     </SidebarProvider>
   );

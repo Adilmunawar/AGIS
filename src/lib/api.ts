@@ -1,28 +1,22 @@
 'use client';
 
-export async function detectBuildings(
-  colabUrl: string,
-  imageFile: File,
-  points: { x: number; y: number }[] = []
-) {
-  // 1. Prepare FormData (Standard way to upload files)
-  const formData = new FormData();
-  formData.append('image', imageFile);
-  
-  // If points exist, send them. If empty, backend assumes "Automatic Mode"
-  if (points.length > 0) {
-    formData.append('points', JSON.stringify(points));
-  }
+export interface BBox {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
 
-  // 2. Call the Backend
-  // Note: We use the '/detect' endpoint which matches your Flask app
-  const response = await fetch(`${colabUrl}/detect`, {
+export async function detectFromBounds(colabUrl: string, bbox: BBox) {
+  const response = await fetch(`${colabUrl}/detect_bbox`, {
     method: 'POST',
-    body: formData,
     headers: {
-      // Ngrok often shows a warning page for free accounts. This header skips it.
+      'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
     },
+    body: JSON.stringify({
+      bbox: [bbox.west, bbox.south, bbox.east, bbox.north],
+    }),
   });
 
   if (!response.ok) {
@@ -30,21 +24,20 @@ export async function detectBuildings(
     throw new Error(`Server Error: ${response.status} - ${errorText}`);
   }
 
-  // 3. Return the GeoJSON
   return await response.json();
 }
 
 export async function downloadShapefile(colabUrl: string) {
-    const response = await fetch(`${colabUrl}/download_shp`, {
-        method: 'GET',
-        headers: {
-            'ngrok-skip-browser-warning': 'true',
-        },
-    });
+  const response = await fetch(`${colabUrl}/download_shp`, {
+    method: 'GET',
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+    },
+  });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Download failed: ${response.status} - ${errorText}`);
-    }
-    return response.blob();
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Download failed: ${response.status} - ${errorText}`);
+  }
+  return response.blob();
 }

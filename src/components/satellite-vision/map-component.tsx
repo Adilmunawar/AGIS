@@ -1,105 +1,109 @@
 'use client';
 
-import * as React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MapContainer,
-  ImageOverlay,
-  Marker,
-  GeoJSON as LeafletGeoJSON,
+  TileLayer,
+  GeoJSON,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
-import L, { LatLng, LatLngBoundsExpression } from 'leaflet';
-import type { GeoJsonObject } from 'geojson';
-import { UploadCloud } from 'lucide-react';
-
-// Fix for default icon not showing in React-Leaflet
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+import 'leaflet-defaulticon-compatibility';
+import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
+import type { BBox } from '@/lib/api';
 
+interface MapProps {
+  geoJsonData: any;
+  setBBox: (bbox: BBox) => void;
+}
 
-type MapComponentProps = {
-  imageUrl: string | null;
-  imageDimensions: { width: number; height: number } | null;
-  points: LatLng[];
-  geoJson: GeoJsonObject | null;
-  onMapClick: (latlng: LatLng) => void;
-};
-
-// Component to handle map click events
-function MapEvents({ onMapClick }: { onMapClick: (latlng: LatLng) => void }) {
-  useMapEvents({
-    click(e) {
-      onMapClick(e.latlng);
+// Component to track map movement
+function MapTracker({ setBBox }: { setBBox: (bbox: BBox) => void }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const bounds = map.getBounds();
+      setBBox({
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      });
     },
+    // Set initial bounds
+    load: () => {
+       const bounds = map.getBounds();
+      setBBox({
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      });
+    }
   });
   return null;
 }
 
-// Component to update map view when image changes
-function MapUpdater({ bounds }: { bounds: LatLngBoundsExpression | null }) {
-  const map = useMap();
-  React.useEffect(() => {
-    if (bounds) {
-      map.fitBounds(bounds);
-    }
-  }, [bounds, map]);
-  return null;
-}
+export default function MapComponent({ geoJsonData, setBBox }: MapProps) {
+  const [geoKey, setGeoKey] = useState(0);
 
-export default function MapComponent({
-  imageUrl,
-  imageDimensions,
-  points,
-  geoJson,
-  onMapClick,
-}: MapComponentProps) {
-  const bounds = imageDimensions
-    ? ([[0, 0], [imageDimensions.height, imageDimensions.width]] as LatLngBoundsExpression)
-    : null;
-    
+  // Style for buildings
   const geoJsonStyle = {
-    color: '#DC2626', // Red color for polygons
+    color: '#ff0000', // Red outline
     weight: 2,
-    opacity: 0.8,
-    fillOpacity: 0.3,
+    fillColor: '#3388ff',
+    fillOpacity: 0.2,
   };
 
-  return (
-    <div className="h-full w-full bg-muted">
-      <MapContainer
-        center={[0, 0]}
-        zoom={1}
-        scrollWheelZoom={true}
-        className="h-full w-full"
-        crs={L.CRS.Simple}
-        minZoom={-5}
-      >
-        {imageUrl && bounds && (
-          <>
-            <ImageOverlay url={imageUrl} bounds={bounds} />
-            <MapUpdater bounds={bounds} />
-            <MapEvents onMapClick={onMapClick} />
-            {points.map((point, idx) => (
-              <Marker key={idx} position={point} />
-            ))}
-            {geoJson && <LeafletGeoJSON data={geoJson} style={geoJsonStyle} />}
-          </>
-        )}
+  // Popup for Area
+  const onEachFeature = (feature: any, layer: any) => {
+    if (feature.properties) {
+      const marla = feature.properties.area_marla
+        ? feature.properties.area_marla.toFixed(2)
+        : 'N/A';
+      const sqm = feature.properties.area_sqm
+        ? feature.properties.area_sqm.toFixed(2)
+        : 'N/A';
+      layer.bindPopup(`
+        <div style="font-family: sans-serif; font-size: 14px;">
+          <div style="font-weight: bold; margin-bottom: 4px;">Building Details</div>
+          <div style="font-size: 12px;">Area: ${sqm} m²</div>
+          <div style="font-size: 12px;">Marla: ${marla}</div>
+        </div>
+      `);
+    }
+  };
 
-        {!imageUrl && (
-            <div className="flex h-full w-full flex-col items-center justify-center text-center text-muted-foreground">
-                <UploadCloud className="mb-4 h-16 w-16" />
-                <h2 className="text-xl font-medium">No Image Uploaded</h2>
-                <p className="mt-1">Please upload a satellite image using the controls on the left.</p>
-            </div>
-        )}
-      </MapContainer>
-    </div>
+  useEffect(() => {
+    setGeoKey((prev) => prev + 1); // Force redraw when data changes
+  }, [geoJsonData]);
+
+  return (
+    <MapContainer
+      center={[31.5204, 74.3587]} // Default: Lahore
+      zoom={18}
+      style={{ height: '100%', width: '100%', background: '#000' }}
+    >
+      {/* 1. Google Satellite Layer */}
+      <TileLayer
+        url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+        attribution="&copy; Google Satellite"
+        maxZoom={22}
+      />
+
+      {/* 2. Tracker to update BBOX state */}
+      <MapTracker setBBox={setBBox} />
+
+      {/* 3. Results Layer */}
+      {geoJsonData && (
+        <GeoJSON
+          key={geoKey}
+          data={geoJsonData}
+          style={geoJsonStyle}
+          onEachFeature={onEachFeature}
+        />
+      )}
+    </MapContainer>
   );
 }

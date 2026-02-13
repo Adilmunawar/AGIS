@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useDropzone } from 'react-dropzone';
-import { UploadCloud, MapPin, BrainCircuit, Download, Trash2, Loader2, Satellite, Sparkles } from 'lucide-react';
+import { Download, Loader2, Satellite, Search } from 'lucide-react';
 
 import {
   SidebarHeader,
@@ -14,47 +13,30 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Card, CardContent } from '@/components/ui/card';
 
 type ControlsSidebarProps = {
   colabUrl: string;
   setColabUrl: (url: string) => void;
-  onFileDrop: (files: File[]) => void;
   onDetect: () => void;
-  onAutoDetect: () => void;
   onDownload: () => void;
-  onClearPoints: () => void;
   isLoading: boolean;
-  hasImage: boolean;
-  hasPoints: boolean;
   hasGeoJson: boolean;
 };
 
 export function ControlsSidebar({
   colabUrl,
   setColabUrl,
-  onFileDrop,
   onDetect,
-  onAutoDetect,
   onDownload,
-  onClearPoints,
   isLoading,
-  hasImage,
-  hasPoints,
   hasGeoJson,
 }: ControlsSidebarProps) {
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: onFileDrop,
-    accept: { 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'] },
-    multiple: false,
-  });
-
   return (
     <>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
-            <Satellite className="text-primary" />
-            <h1 className="text-xl font-semibold">Satellite Vision</h1>
+          <Satellite className="text-primary" />
+          <h1 className="text-xl font-semibold">Satellite Vision</h1>
         </div>
         <Separator />
       </SidebarHeader>
@@ -72,68 +54,27 @@ export function ControlsSidebar({
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>2. Upload Image</SidebarGroupLabel>
-          <Card
-            {...getRootProps()}
-            className={`cursor-pointer border-2 border-dashed transition-colors ${
-              isDragActive ? 'border-primary bg-accent' : 'hover:border-primary/50'
-            }`}
-          >
-            <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-              <input {...getInputProps()} />
-              <UploadCloud className="mb-2 h-8 w-8 text-muted-foreground" />
-              {isDragActive ? (
-                <p className="font-semibold text-primary">Drop the image here...</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Drag & drop a satellite image here, or click to select
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground/80 mt-1">PNG or JPG</p>
-            </CardContent>
-          </Card>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>3. Select Points (Interactive Mode)</SidebarGroupLabel>
-           <div className="text-sm text-muted-foreground p-2 rounded-md bg-background flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5 shrink-0"/>
-                <span>Click on the loaded image to place markers on buildings for targeted detection.</span>
-           </div>
-            <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={onClearPoints} 
-                disabled={!hasPoints || isLoading}
-                className="w-full mt-2"
-            >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Clear Markers
-            </Button>
+          <SidebarGroupLabel>2. Detect</SidebarGroupLabel>
+          <div className="flex items-start gap-2 rounded-md bg-background p-2 text-sm text-muted-foreground">
+            <Search className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Pan and zoom the map to your area of interest, then click the
+              detect button below.
+            </span>
+          </div>
         </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>
         <Separator />
         <div className="flex flex-col gap-2 p-4">
-          <Button onClick={onDetect} disabled={!hasImage || !hasPoints || isLoading}>
+          <Button onClick={onDetect} disabled={isLoading}>
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <BrainCircuit className="mr-2 h-4 w-4" />
+              <Search className="mr-2 h-4 w-4" />
             )}
-            Detect (from markers)
-          </Button>
-          <Button 
-              onClick={onAutoDetect} 
-              disabled={!hasImage || isLoading}
-          >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Auto-Detect All (Village Mode)
+            Detect Buildings in View
           </Button>
           <Button
             variant="secondary"
