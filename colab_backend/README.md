@@ -18,10 +18,13 @@ Copy and run this command in a new cell. **This is a required step.** Wait for i
 ### 3. Add Ngrok Authtoken
 
 1.  Get your free authtoken from [your ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken).
-2.  Run this command in a new cell, replacing `<YOUR_NGROK_AUTHTOKEN>` with your actual token.
+2.  In the command below, **replace the placeholder text `PASTE_YOUR_TOKEN_HERE`** with your actual token from the ngrok dashboard.
+3.  Run the updated command in a new cell.
 
 ```bash
-!ngrok config add-authtoken <YOUR_NGROK_AUTHTOKEN>
+# Important: Replace PASTE_YOUR_TOKEN_HERE with your real token.
+# Do not include the < > angle brackets.
+!ngrok config add-authtoken PASTE_YOUR_TOKEN_HERE
 ```
 
 ### 4. Run the Backend Script
