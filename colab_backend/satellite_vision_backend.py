@@ -19,7 +19,7 @@ import subprocess
 # We try to import a core dependency. If it fails, we install all packages
 # and stop. The user must then re-run the cell.
 try:
-    import geopandas
+    import segment_geospatial
     print("--- Dependencies are already installed. ---")
     run_server = True
 except ImportError:
@@ -182,3 +182,5 @@ if run_server:
         
         # Run Flask app in a separate thread so it doesn't block the cell
         threading.Thread(target=run_app).start()
+
+    
