@@ -1,16 +1,24 @@
 # ==============================================================================
 # SATELLITE VISION - GOOGLE COLAB BACKEND
-# ==============================================================================
 #
-# INSTRUCTIONS:
+# INSTRUCTIONS (Please follow these steps in order):
+#
 # 1. Open a new Google Colab notebook.
-# 2. Set the runtime to GPU (Runtime > Change runtime type > T4 GPU).
-# 3. Install dependencies by running this in a cell:
+#
+# 2. Set the runtime to use a GPU for faster processing:
+#    - Menu: Runtime > Change runtime type
+#    - Hardware accelerator: T4 GPU
+#
+# 3. In a new cell, install the required libraries. Run this cell and wait for it to finish.
 #    !pip install segment-geospatial leafmap geopandas pyngrok flask-cors rasterio flask
-# 4. Authenticate ngrok by running this in a cell (replace with your token):
+#
+# 4. Authenticate ngrok. Get your token from https://dashboard.ngrok.com/get-started/your-authtoken
+#    In a new cell, run the following command, replacing <YOUR_NGROK_AUTHTOKEN> with your actual token.
 #    !ngrok config add-authtoken <YOUR_NGROK_AUTHTOKEN>
-# 5. Paste this entire script into a final cell and run it.
-# 6. Copy the ngrok URL it outputs and paste it into the frontend application.
+#
+# 5. In a final new cell, paste this entire script and run it.
+#    Copy the ngrok URL it outputs (e.g., https://xxxxxxxx.ngrok-free.app) and
+#    paste it into the "Connect Server" input in the web application.
 #
 # ==============================================================================
 
@@ -18,6 +26,7 @@ import os
 import io
 import zipfile
 import threading
+import tempfile
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from pyngrok import ngrok
@@ -194,21 +203,17 @@ def download_shp_endpoint():
         # In-memory buffer to hold the zip file
         zip_buffer = io.BytesIO()
 
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-            # Create a temporary in-memory directory structure for the shapefile
-            # Fiona (used by geopandas) requires a path-like object
-            with gpd.io.file.fiona.drivers():
-                 # Use in-memory virtual filesystem for writing shapefile components
-                shapefile_vfs_path = '/vsimem/detected_buildings.shp'
-                gdf.to_file(shapefile_vfs_path, driver='ESRI Shapefile')
+        # Use a temporary directory to safely create the shapefile components
+        with tempfile.TemporaryDirectory() as tmpdir:
+            shapefile_path = os.path.join(tmpdir, 'detected_buildings.shp')
+            # Save the GeoDataFrame to a shapefile
+            gdf.to_file(shapefile_path, driver='ESRI Shapefile', crs=gdf.crs)
 
-                # Add all shapefile components to the zip file from memory
-                for ext in ['shp', 'shx', 'dbf', 'prj', 'cpg']:
-                    vfs_filepath = f'/vsimem/detected_buildings.{ext}'
-                    # fiona may not write all file types, so check existence
-                    if os.path.exists(vfs_filepath):
-                         with open(vfs_filepath, 'rb') as f:
-                            zf.writestr(f'detected_buildings.{ext}', f.read())
+            # Zip all the generated shapefile components
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(tmpdir):
+                    for file in files:
+                        zf.write(os.path.join(root, file), arcname=file)
         
         zip_buffer.seek(0)
         print(" -> Shapefile zipped and ready for download.")
@@ -227,15 +232,19 @@ def download_shp_endpoint():
 # --- Server Startup ---
 def run_app():
     """Function to run the Flask app."""
-    app.run(port=PORT)
+    # Using 'use_reloader=False' is important to prevent the script from running twice in Colab.
+    app.run(port=PORT, use_reloader=False)
 
 if __name__ == '__main__':
     # When running in Colab, this block will execute.
     
+    # Terminate any existing ngrok tunnels
+    ngrok.kill()
+    
     # 1. Start ngrok tunnel in the background.
     # This will create a public URL that forwards to our local Flask app.
     public_url = ngrok.connect(PORT)
-    print(f"Backend is live! Connect the frontend to this URL: {public_url}")
+    print(f"* Backend is live! Connect the frontend to this URL: {public_url}")
     
     # 2. Start the Flask app in a separate thread.
     # This prevents the app from blocking the main Colab execution thread.
