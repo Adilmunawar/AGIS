@@ -218,11 +218,13 @@ export function ControlsSidebar({
           <div className="flex items-start gap-2 rounded-md bg-secondary/20 p-2 text-sm text-muted-foreground border">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span>
-              <strong>Two ways to select an area:</strong>
+              <strong>Area Selection &amp; Tools:</strong>
               <br />
-              1. Pan and zoom the map.
+              - For detection, use the <strong>Rectangle</strong> or <strong>Polygon</strong> tool.
               <br />
-              2. Use the <strong>Drawing Tools</strong> (top-left) to draw a precise Rectangle or Polygon.
+              - To measure distance, use the <strong>Polyline</strong> (line) tool.
+              <br />
+              - Click any drawn shape to see its measurements.
             </span>
           </div>
         </SidebarGroup>
