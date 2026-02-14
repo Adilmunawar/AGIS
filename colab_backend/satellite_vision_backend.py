@@ -1,24 +1,23 @@
-import subprocess
 import sys
-import os
+import subprocess
 
-# This block ensures all required libraries are automatically installed in the Colab environment.
-print("--- Checking and installing dependencies ---")
 try:
+    import geopandas
+except ImportError:
+    print("--- Installing dependencies... ---")
     subprocess.check_call([
         sys.executable, "-m", "pip", "install", "-q",
         "segment-geospatial", "leafmap", "geopandas",
         "pyngrok", "flask-cors", "rasterio", "flask"
     ])
-    print("--- Dependencies are ready. ---")
-except subprocess.CalledProcessError as e:
-    print(f"Failed to install dependencies: {e}")
-    sys.exit(1)
+    print("\n--- Dependencies installed. Please run this cell again. ---")
+    sys.exit()
 
 import io
 import zipfile
 import threading
 import tempfile
+import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from pyngrok import ngrok
@@ -117,6 +116,7 @@ def run_app():
     app.run(port=PORT, use_reloader=False)
 
 if __name__ == '__main__':
+    print("--- Dependencies ready, starting server... ---")
     ngrok.kill()
     public_url = ngrok.connect(PORT)
     print(f"* Backend is live! Connect the frontend to this URL: {public_url}")

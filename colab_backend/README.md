@@ -19,6 +19,7 @@ Follow these steps in a new Google Colab notebook.
 
 ### 3. Run the Backend Script
 
-1.  Copy the entire content of `satellite_vision_backend.py` into a final cell.
-2.  Run this cell. The script will now **automatically install** all required libraries first.
-3.  After the installation, it will output a public `https://...` ngrok URL. Paste this URL into the "Connect Server" input in your web app and start detecting.
+1.  Copy the entire content of `satellite_vision_backend.py` into a final cell and run it.
+2.  **The first time you run it,** it will install all dependencies and then stop.
+3.  **Run the same cell a second time** to start the backend server.
+4.  It will output a public `https://...` ngrok URL. Paste this URL into the "Connect Server" input in your web app.
