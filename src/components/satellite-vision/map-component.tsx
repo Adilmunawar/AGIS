@@ -86,10 +86,10 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
         const marla = feature.properties.area_marla ? feature.properties.area_marla.toFixed(2) : 'N/A';
         const sqm = feature.properties.area_sqm ? feature.properties.area_sqm.toFixed(2) : 'N/A';
         layer.bindPopup(`
-          <div style="font-family: sans-serif; font-size: 14px;">
-            <div style="font-weight: bold; margin-bottom: 4px;">Building Details</div>
-            <div style="font-size: 12px;">Area: ${sqm} m²</div>
-            <div style="font-size: 12px;">Marla: ${marla}</div>
+          <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5;">
+            <div style="font-weight: 700; margin-bottom: 4px; color: hsl(var(--primary));">Building Details</div>
+            <div style="font-size: 13px;"><b>Area:</b> ${sqm} m²</div>
+            <div style="font-size: 13px;"><b>Marla:</b> ${marla}</div>
           </div>
         `);
       }
@@ -178,7 +178,7 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
           onDeleted={onDeleted}
           draw={{
             rectangle: true,
-            polygon: false,
+            polygon: true,
             polyline: false,
             circle: false,
             circlemarker: false,

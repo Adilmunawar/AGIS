@@ -214,16 +214,15 @@ export function ControlsSidebar({
 
         {/* 3. Instructions */}
         <SidebarGroup>
-          <SidebarGroupLabel>3. Area Selection</SidebarGroupLabel>
+          <SidebarGroupLabel>3. Select Area & Detect</SidebarGroupLabel>
           <div className="flex items-start gap-2 rounded-md bg-secondary/20 p-2 text-sm text-muted-foreground border">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span>
-              <strong>Two ways to detect:</strong>
+              <strong>Two ways to select an area:</strong>
               <br />
-              1. Pan map to view & click Detect.
+              1. Pan and zoom the map.
               <br />
-              2. Use the <strong>Square Tool</strong> (top-left of map) to draw
-              an exact box.
+              2. Use the <strong>Drawing Tools</strong> (top-left) to draw a precise Rectangle or Polygon.
             </span>
           </div>
         </SidebarGroup>
