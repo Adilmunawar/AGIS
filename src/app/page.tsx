@@ -32,6 +32,8 @@ export default function SatelliteVisionPage() {
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
+  const currentBBoxRef = React.useRef<BBox | null>(null);
+
   const [searchCoords, setSearchCoords] =
     React.useState<{ lat: number; lon: number } | null>(null);
   const [manualFeatures, setManualFeatures] =
@@ -39,6 +41,11 @@ export default function SatelliteVisionPage() {
   const [isDrawing, setIsDrawing] = React.useState(false);
 
   const { toast } = useToast();
+
+  const handleSetBBox = React.useCallback((bbox: BBox | null) => {
+    setCurrentBBox(bbox);
+    currentBBoxRef.current = bbox;
+  }, []);
 
   const handleDetect = React.useCallback(async () => {
     if (!colabUrl) {
@@ -132,7 +139,7 @@ export default function SatelliteVisionPage() {
       });
       return;
     }
-    if (!currentBBox) {
+    if (!currentBBoxRef.current) {
       toast({
         variant: 'destructive',
         title: 'No Area Selected',
@@ -143,7 +150,7 @@ export default function SatelliteVisionPage() {
 
     setIsLoading(true);
     try {
-      const blob = await downloadSatelliteImage(colabUrl, currentBBox);
+      const blob = await downloadSatelliteImage(colabUrl, currentBBoxRef.current);
       saveAs(blob, 'satellite_area.tif');
       toast({
         title: 'Image Download Started',
@@ -160,7 +167,7 @@ export default function SatelliteVisionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [colabUrl, currentBBox, toast]);
+  }, [colabUrl, toast]);
 
   const handleDownloadDigitized = React.useCallback(() => {
     if (
@@ -204,6 +211,7 @@ export default function SatelliteVisionPage() {
           onDetect={handleDetect}
           onDownload={handleDownload}
           onDownloadDigitized={handleDownloadDigitized}
+          onDownloadImage={handleDownloadImage}
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
           hasGeoJson={!!geoJson}
@@ -214,12 +222,11 @@ export default function SatelliteVisionPage() {
       <SidebarInset>
         <MapComponent
           geoJsonData={geoJson}
-          setBBox={setCurrentBBox}
+          setBBox={handleSetBBox}
           searchResult={searchCoords}
           isDrawing={isDrawing}
           setIsDrawing={setIsDrawing}
           onManualFeaturesChange={setManualFeatures}
-          onDownloadImage={handleDownloadImage}
         />
       </SidebarInset>
     </SidebarProvider>

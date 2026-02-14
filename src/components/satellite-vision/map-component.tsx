@@ -18,17 +18,15 @@ import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import type { BBox } from '@/lib/api';
 import { CoordinatesControl } from './coordinates-control';
-import { MapToolbarExtensions } from './map-toolbar-extensions';
 
 // --- Interfaces ---
 interface MapProps {
   geoJsonData: any;
-  setBBox: (bbox: BBox) => void;
+  setBBox: (bbox: BBox | null) => void;
   searchResult?: { lat: number; lon: number } | null;
   isDrawing: boolean;
   setIsDrawing: (isDrawing: boolean) => void;
   onManualFeaturesChange: (features: any) => void;
-  onDownloadImage: () => void;
 }
 
 // --- Helper Components ---
@@ -36,7 +34,7 @@ function MapTracker({
   setBBox,
   isDrawing,
 }: {
-  setBBox: (bbox: BBox) => void;
+  setBBox: (bbox: BBox | null) => void;
   isDrawing: boolean;
 }) {
   const map = useMapEvents({
@@ -125,7 +123,6 @@ export default function MapComponent({
   isDrawing,
   setIsDrawing,
   onManualFeaturesChange,
-  onDownloadImage,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const featureGroupRef = useRef<any>(null);
@@ -235,6 +232,8 @@ export default function MapComponent({
           east: bounds.getEast(),
           north: bounds.getNorth(),
         });
+      } else {
+        setBBox(null);
       }
     }
     updateFeatures();
@@ -327,7 +326,6 @@ export default function MapComponent({
         />
       )}
       <CoordinatesControl />
-      <MapToolbarExtensions onDownloadImage={onDownloadImage} hasSelection={isDrawing} />
     </MapContainer>
   );
 }

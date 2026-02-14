@@ -8,6 +8,7 @@ import {
   Search,
   MapPin,
   FileJson,
+  ImageDown,
 } from 'lucide-react';
 
 import {
@@ -28,6 +29,7 @@ type ControlsSidebarProps = {
   onDetect: () => void;
   onDownload: () => void;
   onDownloadDigitized: () => void;
+  onDownloadImage: () => void;
   onSearchLocation: (lat: number, lon: number) => void;
   isLoading: boolean;
   hasGeoJson: boolean;
@@ -41,6 +43,7 @@ export function ControlsSidebar({
   onDetect,
   onDownload,
   onDownloadDigitized,
+  onDownloadImage,
   onSearchLocation,
   isLoading,
   hasGeoJson,
@@ -246,9 +249,17 @@ export function ControlsSidebar({
           <SidebarGroupLabel>4. Digitize & Export</SidebarGroupLabel>
           <div className="flex flex-col gap-2">
             <p className="text-sm text-muted-foreground">
-              Draw shapes on the map to manually digitize features, then export
-              them as a GeoJSON file.
+              Draw on the map to select an area or digitize features, then export your work.
             </p>
+            <Button
+              variant="outline"
+              onClick={onDownloadImage}
+              disabled={isLoading || !hasSelection}
+              title={!hasSelection ? "Draw a rectangle or polygon on the map first" : "Download GeoTIFF image of the selected area"}
+            >
+              <ImageDown className="mr-2 h-4 w-4" />
+              Download Area Image (.tif)
+            </Button>
             <Button
               variant="outline"
               onClick={onDownloadDigitized}
