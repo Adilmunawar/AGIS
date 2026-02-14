@@ -16,9 +16,10 @@ This backend is designed to run in a single Google Colab cell.
     !ngrok config add-authtoken PASTE_YOUR_TOKEN_HERE
     ```
 
-### 3. Run the Backend
+### 3. Run the Backend Script
 
 1.  Copy the **entire content** of the `satellite_vision_backend.py` file.
-2.  Paste it into a **new single cell** in your notebook and run it.
-3.  The script will install its own dependencies and start the server.
-4.  It will output a public `https://...` ngrok URL. Paste this URL into your web app's "Connect Server" input.
+2.  Paste it into a **new single cell** in your notebook.
+3.  **Run the cell.** It will install all necessary dependencies and then stop.
+4.  **Run the same cell a second time.** This will start the backend server.
+5.  The script will output a public `https://...` ngrok URL. Paste this URL into your web app's "Connect Server" input.
