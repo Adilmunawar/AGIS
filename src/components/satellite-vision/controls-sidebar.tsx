@@ -291,7 +291,7 @@ export function ControlsSidebar({
             className="w-full"
           >
             <Download className="mr-2 h-4 w-4" />
-            Download Detected Shapefile
+            Download Detected GeoJSON
           </Button>
         </div>
       </SidebarFooter>

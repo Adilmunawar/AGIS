@@ -7,7 +7,7 @@ import type { GeoJsonObject } from 'geojson';
 
 import {
   detectFromBounds,
-  downloadShapefile,
+  downloadGeoJson,
   downloadSatelliteImage,
   type BBox,
   type GeoPoint,
@@ -67,6 +67,7 @@ export default function SatelliteVisionPage() {
     }
 
     setIsLoading(true);
+    setGeoJson(null);
     try {
       const geoJsonData = await detectFromBounds(colabUrl, currentBBox, points);
 
@@ -91,7 +92,7 @@ export default function SatelliteVisionPage() {
     }
   }, [colabUrl, currentBBox, points, toast]);
 
-  const handleDownload = React.useCallback(async () => {
+  const handleDownloadGeoJson = React.useCallback(async () => {
     if (!colabUrl) {
       toast({
         variant: 'destructive',
@@ -111,11 +112,11 @@ export default function SatelliteVisionPage() {
 
     setIsLoading(true);
     try {
-      const blob = await downloadShapefile(colabUrl);
-      saveAs(blob, 'detected_buildings.zip');
+      const blob = await downloadGeoJson(colabUrl);
+      saveAs(blob, 'detected_buildings.geojson');
       toast({
         title: 'Download Started',
-        description: 'Your shapefile is being downloaded.',
+        description: 'Your GeoJSON file is being downloaded.',
       });
     } catch (error) {
       console.error(error);
@@ -209,7 +210,7 @@ export default function SatelliteVisionPage() {
           colabUrl={colabUrl}
           setColabUrl={setColabUrl}
           onDetect={handleDetect}
-          onDownload={handleDownload}
+          onDownload={handleDownloadGeoJson}
           onDownloadDigitized={handleDownloadDigitized}
           onDownloadImage={handleDownloadImage}
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}

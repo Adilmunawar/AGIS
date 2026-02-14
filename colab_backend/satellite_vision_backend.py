@@ -64,7 +64,6 @@ except ImportError:
 if run_server:
     # --- Step 2: Import all libraries ---
     import io
-    import zipfile
     import threading
     import tempfile
     import os
@@ -223,8 +222,8 @@ if run_server:
             zip_path = shutil.make_archive(zip_path_base, 'zip', shp_dir)
             return send_file(zip_path, as_attachment=True, download_name="detected_buildings.zip")
         except Exception as e:
-            print(f"[ERROR] Shapefile creation failed: {e}")
-            return jsonify({"error": "Failed to create shapefile", "details": str(e)}), 500
+            print(f"[ERROR] GeoJSON creation failed: {e}")
+            return jsonify({"error": "Failed to create GeoJSON file", "details": str(e)}), 500
 
 
     def run_app():
