@@ -109,3 +109,34 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Leaflet Draw UI Customization */
+.leaflet-draw-handle,
+.leaflet-editing-icon {
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--card));
+  border-radius: 9999px;
+  width: 12px !important;
+  height: 12px !important;
+  margin-left: -6px !important; /* center the icon */
+  margin-top: -6px !important; /* center the icon */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.leaflet-draw-tooltip {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--card-foreground));
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  font-family: 'Inter', sans-serif;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Hide the default tooltip arrow which doesn't look good with rounded corners */
+.leaflet-draw-tooltip-top:before,
+.leaflet-draw-tooltip-bottom:before,
+.leaflet-draw-tooltip-left:before,
+.leaflet-draw-tooltip-right:before {
+  display: none;
+}

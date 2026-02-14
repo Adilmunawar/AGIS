@@ -77,7 +77,7 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
   const geoJsonStyle = {
     color: '#ff0000',
     weight: 2,
-    fillColor: '#3388ff',
+    fillColor: 'hsl(var(--primary))',
     fillOpacity: 0.2,
   };
 
@@ -86,10 +86,16 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
         const marla = feature.properties.area_marla ? feature.properties.area_marla.toFixed(2) : 'N/A';
         const sqm = feature.properties.area_sqm ? feature.properties.area_sqm.toFixed(2) : 'N/A';
         layer.bindPopup(`
-          <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5;">
-            <div style="font-weight: 700; margin-bottom: 4px; color: hsl(var(--primary));">Building Details</div>
-            <div style="font-size: 13px;"><b>Area:</b> ${sqm} m²</div>
-            <div style="font-size: 13px;"><b>Marla:</b> ${marla}</div>
+          <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--foreground)); min-width: 180px;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Building Details</div>
+            <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid hsl(var(--border));">
+                <span style="color: hsl(var(--muted-foreground));">Area (sqm)</span>
+                <span style="font-weight: 500;">${sqm} m²</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-top: 4px;">
+                <span style="color: hsl(var(--muted-foreground));">Area (Marla)</span>
+                <span style="font-weight: 500;">${marla}</span>
+            </div>
           </div>
         `);
       }
@@ -118,23 +124,54 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
 
   const onDeleted = () => {
     setIsDrawing(false);
-    // When deleted, BBox will reset to map view on next move, 
-    // or you can force an update here if needed.
-    const map = featureGroupRef.current._map;
+    // When a drawing is deleted, we revert to using the map's viewport.
+    // The MapTracker component will update the BBox on the next map move,
+    // but we can trigger an immediate update here for better responsiveness.
+    const map = featureGroupRef.current?._map;
     if (map) {
-      const bounds = map.getBounds();
-      setBBox({
-        west: bounds.getWest(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        north: bounds.getNorth(),
-      });
+        const bounds = map.getBounds();
+        setBBox({
+            west: bounds.getWest(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            north: bounds.getNorth(),
+        });
     }
   };
 
   useEffect(() => {
     setGeoKey((prev) => prev + 1);
   }, [geoJsonData]);
+
+  const drawOptions = {
+    rectangle: {
+      shapeOptions: {
+        color: 'hsl(var(--primary))',
+        fillColor: 'hsl(var(--primary))',
+        fillOpacity: 0.1,
+        weight: 2,
+      },
+      showArea: true,
+      metric: true,
+      imperial: false,
+    },
+    polygon: {
+      allowIntersection: false,
+      shapeOptions: {
+        color: 'hsl(var(--primary))',
+        fillColor: 'hsl(var(--primary))',
+        fillOpacity: 0.1,
+        weight: 2,
+      },
+      showArea: true,
+      metric: true,
+      imperial: false,
+    },
+    polyline: false,
+    circle: false,
+    circlemarker: false,
+    marker: false,
+  };
 
   return (
     <MapContainer
@@ -176,14 +213,7 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
           position="topleft"
           onCreated={onCreated}
           onDeleted={onDeleted}
-          draw={{
-            rectangle: true,
-            polygon: true,
-            polyline: false,
-            circle: false,
-            circlemarker: false,
-            marker: false,
-          }}
+          draw={drawOptions}
         />
       </FeatureGroup>
 
