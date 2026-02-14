@@ -1,7 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Loader2, Satellite, Search, MapPin } from 'lucide-react';
+import {
+  Download,
+  Loader2,
+  Satellite,
+  Search,
+  MapPin,
+  ImageDown,
+  FileJson,
+} from 'lucide-react';
 
 import {
   SidebarHeader,
@@ -20,9 +28,13 @@ type ControlsSidebarProps = {
   setColabUrl: (url: string) => void;
   onDetect: () => void;
   onDownload: () => void;
-  onSearchLocation: (lat: number, lon: number) => void; // Callback to fly map
+  onDownloadImage: () => void;
+  onDownloadDigitized: () => void;
+  onSearchLocation: (lat: number, lon: number) => void;
   isLoading: boolean;
   hasGeoJson: boolean;
+  hasSelection: boolean;
+  hasManualFeatures: boolean;
 };
 
 export function ControlsSidebar({
@@ -30,9 +42,13 @@ export function ControlsSidebar({
   setColabUrl,
   onDetect,
   onDownload,
+  onDownloadImage,
+  onDownloadDigitized,
   onSearchLocation,
   isLoading,
   hasGeoJson,
+  hasSelection,
+  hasManualFeatures,
 }: ControlsSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isSearching, setIsSearching] = React.useState(false);
@@ -163,7 +179,7 @@ export function ControlsSidebar({
           />
         </SidebarGroup>
 
-        {/* 2. Navigation (New!) */}
+        {/* 2. Navigation */}
         <SidebarGroup>
           <SidebarGroupLabel>2. Navigate</SidebarGroupLabel>
           <div className="relative" ref={searchContainerRef}>
@@ -219,13 +235,41 @@ export function ControlsSidebar({
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span>
               <strong>Area Selection &amp; Tools:</strong>
-              <br />
-              - For detection, use the <strong>Rectangle</strong> or <strong>Polygon</strong> tool.
-              <br />
-              - To measure distance, use the <strong>Polyline</strong> (line) tool.
-              <br />
-              - Click any drawn shape to see its measurements.
+              <br />- For detection, use the <strong>Rectangle</strong> or{' '}
+              <strong>Polygon</strong> tool.
+              <br />- To measure distance, use the <strong>Polyline</strong>{' '}
+              (line) tool.
+              <br />- Click any drawn shape to see its measurements.
             </span>
+          </div>
+        </SidebarGroup>
+
+        {/* 4. Digitize & Export */}
+        <SidebarGroup>
+          <SidebarGroupLabel>4. Digitize & Export</SidebarGroupLabel>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">
+              Draw shapes on the map to manually digitize features, then export
+              them.
+            </p>
+            <Button
+              variant="outline"
+              onClick={onDownloadImage}
+              disabled={isLoading || !hasSelection}
+              title={!hasSelection ? "Draw a shape on the map to select an area first" : "Download satellite image of the selected area"}
+            >
+              <ImageDown className="mr-2 h-4 w-4" />
+              Download Area Image (.tif)
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onDownloadDigitized}
+              disabled={isLoading || !hasManualFeatures}
+              title={!hasManualFeatures ? "Draw one or more shapes on the map first" : "Download your manually drawn shapes"}
+            >
+              <FileJson className="mr-2 h-4 w-4" />
+              Download Digitized Layer (.geojson)
+            </Button>
           </div>
         </SidebarGroup>
       </SidebarContent>
@@ -233,7 +277,7 @@ export function ControlsSidebar({
       <SidebarFooter>
         <Separator />
         <div className="flex flex-col gap-2 p-4">
-          <Button onClick={onDetect} disabled={isLoading} className="w-full">
+          <Button onClick={onDetect} disabled={isLoading || !hasSelection} className="w-full">
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -248,7 +292,7 @@ export function ControlsSidebar({
             className="w-full"
           >
             <Download className="mr-2 h-4 w-4" />
-            Download Shapefile
+            Download Detected Shapefile
           </Button>
         </div>
       </SidebarFooter>

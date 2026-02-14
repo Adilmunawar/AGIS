@@ -41,3 +41,22 @@ export async function downloadShapefile(colabUrl: string) {
   }
   return response.blob();
 }
+
+export async function downloadSatelliteImage(colabUrl: string, bbox: BBox) {
+  const response = await fetch(`${colabUrl}/download_image`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+    body: JSON.stringify({
+      bbox: [bbox.west, bbox.south, bbox.east, bbox.north],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Image download failed: ${response.status} - ${errorText}`);
+  }
+  return response.blob();
+}

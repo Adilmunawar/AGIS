@@ -164,6 +164,35 @@ if run_server:
             print(f"[ERROR] Shapefile creation failed: {e}")
             return jsonify({"error": "Failed to create shapefile", "details": str(e)}), 500
 
+    @app.route('/download_image', methods=['POST'])
+    def download_image_endpoint():
+        data = request.get_json()
+        if not data or 'bbox' not in data:
+            return jsonify({"error": "Invalid 'bbox' in request"}), 400
+        
+        bbox = data['bbox']
+        
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".tif", delete=True) as tmp_file:
+                image_path = tmp_file.name
+                print(f"Downloading satellite image for BBox: {bbox} to {image_path}")
+                leafmap.geotiff_from_bbox(
+                    output=image_path, bbox=bbox, zoom=19, source='Satellite', overwrite=True
+                )
+                print("-> Image download complete.")
+                
+                return send_file(
+                    image_path,
+                    mimetype='image/tiff',
+                    as_attachment=True,
+                    download_name='satellite_area.tif'
+                )
+
+        except Exception as e:
+            print(f"[ERROR] Image download failed: {e}")
+            return jsonify({"error": "Failed to create image", "details": str(e)}), 500
+
+
     def run_app():
         # Use reloader=False to prevent the app from starting twice
         app.run(port=PORT, use_reloader=False)
@@ -182,5 +211,3 @@ if run_server:
         
         # Run Flask app in a separate thread so it doesn't block the cell
         threading.Thread(target=run_app).start()
-
-    

@@ -24,10 +24,19 @@ interface MapProps {
   geoJsonData: any;
   setBBox: (bbox: BBox) => void;
   searchResult?: { lat: number; lon: number } | null;
+  isDrawing: boolean;
+  setIsDrawing: (isDrawing: boolean) => void;
+  onManualFeaturesChange: (features: any) => void;
 }
 
 // --- Helper Components ---
-function MapTracker({ setBBox, isDrawing }: { setBBox: (bbox: BBox) => void, isDrawing: boolean }) {
+function MapTracker({
+  setBBox,
+  isDrawing,
+}: {
+  setBBox: (bbox: BBox) => void;
+  isDrawing: boolean;
+}) {
   const map = useMapEvents({
     moveend: () => {
       if (!isDrawing) {
@@ -44,18 +53,22 @@ function MapTracker({ setBBox, isDrawing }: { setBBox: (bbox: BBox) => void, isD
       if (!isDrawing) {
         const bounds = map.getBounds();
         setBBox({
-            west: bounds.getWest(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            north: bounds.getNorth(),
-          });
+          west: bounds.getWest(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          north: bounds.getNorth(),
+        });
       }
-    }
+    },
   });
   return null;
 }
 
-function MapController({ coords }: { coords?: { lat: number; lon: number } | null }) {
+function MapController({
+  coords,
+}: {
+  coords?: { lat: number; lon: number } | null;
+}) {
   const map = useMap();
   useEffect(() => {
     if (coords) {
@@ -88,7 +101,7 @@ const createLengthPopup = (layer: L.Polyline) => {
   const latlngs = layer.getLatLngs() as L.LatLng[];
   let totalDistance = 0;
   for (let i = 0; i < latlngs.length - 1; i++) {
-      totalDistance += latlngs[i].distanceTo(latlngs[i + 1]);
+    totalDistance += latlngs[i].distanceTo(latlngs[i + 1]);
   }
   const distanceKm = (totalDistance / 1000).toFixed(2);
   return `
@@ -102,11 +115,16 @@ const createLengthPopup = (layer: L.Polyline) => {
   `;
 };
 
-
 // --- Main Component ---
-export default function MapComponent({ geoJsonData, setBBox, searchResult }: MapProps) {
+export default function MapComponent({
+  geoJsonData,
+  setBBox,
+  searchResult,
+  isDrawing,
+  setIsDrawing,
+  onManualFeaturesChange,
+}: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
-  const [isDrawing, setIsDrawing] = useState(false);
   const featureGroupRef = useRef<any>(null);
 
   const geoJsonStyle = {
@@ -118,9 +136,13 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
 
   const onEachFeature = (feature: any, layer: any) => {
     if (feature.properties) {
-        const marla = feature.properties.area_marla ? feature.properties.area_marla.toFixed(2) : 'N/A';
-        const sqm = feature.properties.area_sqm ? feature.properties.area_sqm.toFixed(2) : 'N/A';
-        layer.bindPopup(`
+      const marla = feature.properties.area_marla
+        ? feature.properties.area_marla.toFixed(2)
+        : 'N/A';
+      const sqm = feature.properties.area_sqm
+        ? feature.properties.area_sqm.toFixed(2)
+        : 'N/A';
+      layer.bindPopup(`
           <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--foreground)); min-width: 180px;">
             <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Building Details</div>
             <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid hsl(var(--border));">
@@ -133,7 +155,13 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
             </div>
           </div>
         `);
-      }
+    }
+  };
+
+  const updateFeatures = () => {
+    if (featureGroupRef.current) {
+      onManualFeaturesChange(featureGroupRef.current.toGeoJSON());
+    }
   };
 
   const onCreated = (e: any) => {
@@ -141,30 +169,31 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
     const type = e.layerType;
 
     if (type === 'rectangle' || type === 'polygon') {
-        setIsDrawing(true);
-        const bounds = layer.getBounds();
+      setIsDrawing(true);
+      const bounds = layer.getBounds();
 
-        if (featureGroupRef.current) {
-            featureGroupRef.current.eachLayer((l: any) => {
-                if (l !== layer && !(l instanceof L.Polyline)) {
-                    featureGroupRef.current.removeLayer(l);
-                }
-            });
-        }
-        
-        setBBox({
-            west: bounds.getWest(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            north: bounds.getNorth(),
+      if (featureGroupRef.current) {
+        featureGroupRef.current.eachLayer((l: any) => {
+          if (l !== layer && !(l instanceof L.Polyline)) {
+            featureGroupRef.current.removeLayer(l);
+          }
         });
-        
-        layer.bindPopup(createAreaPopup(layer)).openPopup();
+      }
+
+      setBBox({
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      });
+
+      layer.bindPopup(createAreaPopup(layer)).openPopup();
     } else if (type === 'polyline') {
-        layer.bindPopup(createLengthPopup(layer)).openPopup();
+      layer.bindPopup(createLengthPopup(layer)).openPopup();
     }
+    updateFeatures();
   };
-  
+
   const onEdited = (e: any) => {
     e.layers.eachLayer((layer: any) => {
       if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
@@ -173,35 +202,39 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
         // Also update the BBox
         const bounds = layer.getBounds();
         setBBox({
-            west: bounds.getWest(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            north: bounds.getNorth(),
+          west: bounds.getWest(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          north: bounds.getNorth(),
         });
       } else if (layer instanceof L.Polyline) {
         layer.setPopupContent(createLengthPopup(layer));
         layer.openPopup();
       }
     });
+    updateFeatures();
   };
 
   const onDeleted = (e: any) => {
     const deletedLayers = e.layers.getLayers();
-    const wasROIdeleted = deletedLayers.some((l: any) => !(l instanceof L.Polyline));
+    const wasROIdeleted = deletedLayers.some(
+      (l: any) => !(l instanceof L.Polyline)
+    );
 
     if (wasROIdeleted) {
-        setIsDrawing(false);
-        const map = featureGroupRef.current?._map;
-        if (map) {
-            const bounds = map.getBounds();
-            setBBox({
-                west: bounds.getWest(),
-                south: bounds.getSouth(),
-                east: bounds.getEast(),
-                north: bounds.getNorth(),
-            });
-        }
+      setIsDrawing(false);
+      const map = featureGroupRef.current?._map;
+      if (map) {
+        const bounds = map.getBounds();
+        setBBox({
+          west: bounds.getWest(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          north: bounds.getNorth(),
+        });
+      }
     }
+    updateFeatures();
   };
 
   useEffect(() => {
@@ -209,33 +242,87 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
   }, [geoJsonData]);
 
   const drawOptions = {
-    rectangle: { shapeOptions: { color: 'hsl(var(--primary))', fillColor: 'hsl(var(--primary))', fillOpacity: 0.1, weight: 2 }, showArea: true, metric: true, imperial: false },
-    polygon: { allowIntersection: false, shapeOptions: { color: 'hsl(var(--primary))', fillColor: 'hsl(var(--primary))', fillOpacity: 0.1, weight: 2 }, showArea: true, metric: true, imperial: false },
-    polyline: { shapeOptions: { color: 'hsl(var(--primary))', weight: 2 }, showLength: true, metric: true, imperial: false },
+    rectangle: {
+      shapeOptions: {
+        color: 'hsl(var(--primary))',
+        fillColor: 'hsl(var(--primary))',
+        fillOpacity: 0.1,
+        weight: 2,
+      },
+      showArea: true,
+      metric: true,
+      imperial: false,
+    },
+    polygon: {
+      allowIntersection: false,
+      shapeOptions: {
+        color: 'hsl(var(--primary))',
+        fillColor: 'hsl(var(--primary))',
+        fillOpacity: 0.1,
+        weight: 2,
+      },
+      showArea: true,
+      metric: true,
+      imperial: false,
+    },
+    polyline: {
+      shapeOptions: { color: 'hsl(var(--primary))', weight: 2 },
+      showLength: true,
+      metric: true,
+      imperial: false,
+    },
     circle: false,
     circlemarker: false,
     marker: false,
   };
 
   return (
-    <MapContainer center={[31.5204, 74.3587]} zoom={16} style={{ height: '100%', width: '100%', background: '#111' }}>
+    <MapContainer
+      center={[31.5204, 74.3587]}
+      zoom={16}
+      style={{ height: '100%', width: '100%', background: '#111' }}
+    >
       <LayersControl position="topright">
         <LayersControl.BaseLayer checked name="Google Satellite">
-          <TileLayer url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" attribution="Google Satellite" maxZoom={22} />
+          <TileLayer
+            url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+            attribution="Google Satellite"
+            maxZoom={22}
+          />
         </LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Google Hybrid">
-          <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="Google Hybrid" maxZoom={22} />
+          <TileLayer
+            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+            attribution="Google Hybrid"
+            maxZoom={22}
+          />
         </LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="OpenStreetMap">
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OpenStreetMap" />
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="OpenStreetMap"
+          />
         </LayersControl.BaseLayer>
       </LayersControl>
       <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
       <MapController coords={searchResult} />
       <FeatureGroup ref={featureGroupRef}>
-        <EditControl position="topleft" onCreated={onCreated} onEdited={onEdited} onDeleted={onDeleted} draw={drawOptions} />
+        <EditControl
+          position="topleft"
+          onCreated={onCreated}
+          onEdited={onEdited}
+          onDeleted={onDeleted}
+          draw={drawOptions}
+        />
       </FeatureGroup>
-      {geoJsonData && <GeoJSON key={geoKey} data={geoJsonData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
+      {geoJsonData && (
+        <GeoJSON
+          key={geoKey}
+          data={geoJsonData}
+          style={geoJsonStyle}
+          onEachFeature={onEachFeature}
+        />
+      )}
       <CoordinatesControl />
     </MapContainer>
   );

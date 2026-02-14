@@ -5,7 +5,12 @@ import dynamic from 'next/dynamic';
 import { saveAs } from 'file-saver';
 import type { GeoJsonObject } from 'geojson';
 
-import { detectFromBounds, downloadShapefile, type BBox } from '@/lib/api';
+import {
+  detectFromBounds,
+  downloadShapefile,
+  downloadSatelliteImage,
+  type BBox,
+} from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   SidebarProvider,
@@ -27,7 +32,11 @@ export default function SatelliteVisionPage() {
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
-  const [searchCoords, setSearchCoords] = React.useState<{ lat: number; lon: number } | null>(null);
+  const [searchCoords, setSearchCoords] =
+    React.useState<{ lat: number; lon: number } | null>(null);
+  const [manualFeatures, setManualFeatures] =
+    React.useState<GeoJsonObject | null>(null);
+  const [isDrawing, setIsDrawing] = React.useState(false);
 
   const { toast } = useToast();
 
@@ -114,6 +123,78 @@ export default function SatelliteVisionPage() {
     }
   }, [colabUrl, geoJson, toast]);
 
+  const handleDownloadImage = React.useCallback(async () => {
+    if (!colabUrl) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing URL',
+        description: 'Please provide the Colab server URL.',
+      });
+      return;
+    }
+    if (!currentBBox) {
+      toast({
+        variant: 'destructive',
+        title: 'No Area Selected',
+        description: 'Please draw a rectangle or polygon to define an area.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const blob = await downloadSatelliteImage(colabUrl, currentBBox);
+      saveAs(blob, 'satellite_area.tif');
+      toast({
+        title: 'Image Download Started',
+        description: 'The high-resolution satellite image is downloading.',
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Download Failed',
+        description:
+          error instanceof Error ? error.message : 'An unknown error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [colabUrl, currentBBox, toast]);
+
+  const handleDownloadDigitized = React.useCallback(() => {
+    if (
+      !manualFeatures ||
+      !manualFeatures.features ||
+      manualFeatures.features.length === 0
+    ) {
+      toast({
+        variant: 'destructive',
+        title: 'No Digitized Features',
+        description: 'Draw some shapes on the map first to digitize features.',
+      });
+      return;
+    }
+
+    try {
+      const geoJsonString = JSON.stringify(manualFeatures, null, 2);
+      const blob = new Blob([geoJsonString], { type: 'application/json' });
+      saveAs(blob, 'digitized_layer.geojson');
+      toast({
+        title: 'Download Started',
+        description: 'Your digitized GeoJSON layer is downloading.',
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Export Failed',
+        description:
+          error instanceof Error ? error.message : 'An unknown error occurred.',
+      });
+    }
+  }, [manualFeatures, toast]);
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -122,16 +203,23 @@ export default function SatelliteVisionPage() {
           setColabUrl={setColabUrl}
           onDetect={handleDetect}
           onDownload={handleDownload}
+          onDownloadImage={handleDownloadImage}
+          onDownloadDigitized={handleDownloadDigitized}
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
           hasGeoJson={!!geoJson}
+          hasSelection={isDrawing}
+          hasManualFeatures={!!manualFeatures?.features?.length}
         />
       </Sidebar>
       <SidebarInset>
-        <MapComponent 
-          geoJsonData={geoJson} 
+        <MapComponent
+          geoJsonData={geoJson}
           setBBox={setCurrentBBox}
           searchResult={searchCoords}
+          isDrawing={isDrawing}
+          setIsDrawing={setIsDrawing}
+          onManualFeaturesChange={setManualFeatures}
         />
       </SidebarInset>
     </SidebarProvider>
