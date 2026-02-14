@@ -23,15 +23,15 @@ try:
     print("--- Dependencies are already installed. ---")
     run_server = True
 except ImportError:
-    print("--- Installing required packages... ---")
+    print("--- Installing required packages... This may take a few minutes. ---")
     # Using sys.executable ensures we use the pip associated with the current kernel
+    # Verbose install to help with debugging.
     subprocess.run(
         [
             sys.executable,
             "-m",
             "pip",
             "install",
-            "-q", # quiet install
             "flask",
             "flask-cors",
             "pyngrok",
@@ -227,19 +227,19 @@ if run_server:
 
 
     def run_app():
-        # Use reloader=False to prevent the app from starting twice
+        # use_reloader=False is important for notebook environments
         app.run(port=PORT, use_reloader=False)
 
     # --- Step 4: Start the server and ngrok tunnel ---
     if __name__ == '__main__':
         print("--- Starting Flask server and ngrok tunnel... ---")
-        # Kill any existing ngrok tunnels to ensure a clean start
-        ngrok.kill()
-        # Start ngrok tunnel
-        public_url = ngrok.connect(PORT)
-        print("==============================================================================")
+        ngrok.kill() # Ensure no old tunnels are running
+        public_url = ngrok.connect(PORT).public_url
+        print("=" * 80)
         print(f" * BACKEND IS LIVE! *")
         print(f" * Copy this URL and paste it into your web application: {public_url}")
         print("==============================================================================")
 
         threading.Thread(target=run_app).start()
+
+    
