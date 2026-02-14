@@ -17,6 +17,7 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import type { BBox } from '@/lib/api';
+import { CoordinatesControl } from './coordinates-control';
 
 // --- Interfaces ---
 interface MapProps {
@@ -235,6 +236,7 @@ export default function MapComponent({ geoJsonData, setBBox, searchResult }: Map
         <EditControl position="topleft" onCreated={onCreated} onEdited={onEdited} onDeleted={onDeleted} draw={drawOptions} />
       </FeatureGroup>
       {geoJsonData && <GeoJSON key={geoKey} data={geoJsonData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
+      <CoordinatesControl />
     </MapContainer>
   );
 }
