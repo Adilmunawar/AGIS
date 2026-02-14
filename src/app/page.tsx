@@ -32,7 +32,6 @@ export default function SatelliteVisionPage() {
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
-  const currentBBoxRef = React.useRef<BBox | null>(null);
 
   const [searchCoords, setSearchCoords] =
     React.useState<{ lat: number; lon: number } | null>(null);
@@ -44,7 +43,6 @@ export default function SatelliteVisionPage() {
 
   const handleSetBBox = React.useCallback((bbox: BBox | null) => {
     setCurrentBBox(bbox);
-    currentBBoxRef.current = bbox;
   }, []);
 
   const handleDetect = React.useCallback(async () => {
@@ -139,7 +137,7 @@ export default function SatelliteVisionPage() {
       });
       return;
     }
-    if (!currentBBoxRef.current) {
+    if (!currentBBox) {
       toast({
         variant: 'destructive',
         title: 'No Area Selected',
@@ -150,7 +148,7 @@ export default function SatelliteVisionPage() {
 
     setIsLoading(true);
     try {
-      const blob = await downloadSatelliteImage(colabUrl, currentBBoxRef.current);
+      const blob = await downloadSatelliteImage(colabUrl, currentBBox);
       saveAs(blob, 'satellite_area.tif');
       toast({
         title: 'Image Download Started',
@@ -167,7 +165,7 @@ export default function SatelliteVisionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [colabUrl, toast]);
+  }, [colabUrl, toast, currentBBox]);
 
   const handleDownloadDigitized = React.useCallback(() => {
     if (
