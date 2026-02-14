@@ -18,6 +18,7 @@ import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import type { BBox } from '@/lib/api';
 import { CoordinatesControl } from './coordinates-control';
+import { MapToolbarExtensions } from './map-toolbar-extensions';
 
 // --- Interfaces ---
 interface MapProps {
@@ -27,6 +28,7 @@ interface MapProps {
   isDrawing: boolean;
   setIsDrawing: (isDrawing: boolean) => void;
   onManualFeaturesChange: (features: any) => void;
+  onDownloadImage: () => void;
 }
 
 // --- Helper Components ---
@@ -123,6 +125,7 @@ export default function MapComponent({
   isDrawing,
   setIsDrawing,
   onManualFeaturesChange,
+  onDownloadImage,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const featureGroupRef = useRef<any>(null);
@@ -324,6 +327,7 @@ export default function MapComponent({
         />
       )}
       <CoordinatesControl />
+      <MapToolbarExtensions onDownloadImage={onDownloadImage} hasSelection={isDrawing} />
     </MapContainer>
   );
 }

@@ -203,7 +203,6 @@ export default function SatelliteVisionPage() {
           setColabUrl={setColabUrl}
           onDetect={handleDetect}
           onDownload={handleDownload}
-          onDownloadImage={handleDownloadImage}
           onDownloadDigitized={handleDownloadDigitized}
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
@@ -220,6 +219,7 @@ export default function SatelliteVisionPage() {
           isDrawing={isDrawing}
           setIsDrawing={setIsDrawing}
           onManualFeaturesChange={setManualFeatures}
+          onDownloadImage={handleDownloadImage}
         />
       </SidebarInset>
     </SidebarProvider>

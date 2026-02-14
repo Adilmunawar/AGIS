@@ -140,3 +140,40 @@ body {
 .leaflet-draw-tooltip-right:before {
   display: none;
 }
+
+.custom-leaflet-toolbar {
+  position: absolute;
+  top: 100px;
+  left: 10px;
+  z-index: 1000;
+}
+
+.custom-leaflet-toolbar .leaflet-bar button {
+  background-color: white;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.custom-leaflet-toolbar .leaflet-bar button:hover {
+  background-color: #f4f4f4;
+}
+
+.custom-leaflet-toolbar .leaflet-bar button:disabled {
+  background-color: #f4f4f4;
+  cursor: not-allowed;
+}
+
+.custom-leaflet-toolbar .leaflet-bar button:disabled svg {
+  color: #a0a0a0;
+}
+
+.custom-leaflet-toolbar .leaflet-bar button:last-child {
+  border-bottom: none;
+}

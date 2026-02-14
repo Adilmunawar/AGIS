@@ -7,7 +7,6 @@ import {
   Satellite,
   Search,
   MapPin,
-  ImageDown,
   FileJson,
 } from 'lucide-react';
 
@@ -28,7 +27,6 @@ type ControlsSidebarProps = {
   setColabUrl: (url: string) => void;
   onDetect: () => void;
   onDownload: () => void;
-  onDownloadImage: () => void;
   onDownloadDigitized: () => void;
   onSearchLocation: (lat: number, lon: number) => void;
   isLoading: boolean;
@@ -42,7 +40,6 @@ export function ControlsSidebar({
   setColabUrl,
   onDetect,
   onDownload,
-  onDownloadImage,
   onDownloadDigitized,
   onSearchLocation,
   isLoading,
@@ -250,17 +247,8 @@ export function ControlsSidebar({
           <div className="flex flex-col gap-2">
             <p className="text-sm text-muted-foreground">
               Draw shapes on the map to manually digitize features, then export
-              them.
+              them as a GeoJSON file.
             </p>
-            <Button
-              variant="outline"
-              onClick={onDownloadImage}
-              disabled={isLoading || !hasSelection}
-              title={!hasSelection ? "Draw a shape on the map to select an area first" : "Download satellite image of the selected area"}
-            >
-              <ImageDown className="mr-2 h-4 w-4" />
-              Download Area Image (.tif)
-            </Button>
             <Button
               variant="outline"
               onClick={onDownloadDigitized}
