@@ -2,7 +2,7 @@ import sys
 import subprocess
 
 try:
-    import geopandas
+    import segment_geospatial
 except ImportError:
     print("--- Installing dependencies... ---")
     subprocess.check_call([
