@@ -1,27 +1,3 @@
-# ==============================================================================
-# SATELLITE VISION - GOOGLE COLAB BACKEND
-#
-# INSTRUCTIONS (Please follow these steps in order):
-#
-# 1. Open a new Google Colab notebook.
-#
-# 2. Set the runtime to use a GPU for faster processing:
-#    - Menu: Runtime > Change runtime type
-#    - Hardware accelerator: T4 GPU
-#
-# 3. In a new cell, install the required libraries. Run this cell and wait for it to finish.
-#    !pip install segment-geospatial leafmap geopandas pyngrok flask-cors rasterio flask
-#
-# 4. Authenticate ngrok. Get your token from https://dashboard.ngrok.com/get-started/your-authtoken
-#    In a new cell, run the following command, replacing <YOUR_NGROK_AUTHTOKEN> with your actual token.
-#    !ngrok config add-authtoken <YOUR_NGROK_AUTHTOKEN>
-#
-# 5. In a final new cell, paste this entire script and run it.
-#    Copy the ngrok URL it outputs (e.g., https://xxxxxxxx.ngrok-free.app) and
-#    paste it into the "Connect Server" input in the web application.
-#
-# ==============================================================================
-
 import os
 import io
 import zipfile
@@ -37,107 +13,82 @@ from segment_geospatial import SamGeo
 
 # --- Configuration ---
 PORT = 8080
-# Use UTM Zone 43N for Pakistan for accurate area calculation in meters.
-# This is crucial for converting to Marla correctly.
+# Use UTM Zone 43N (Pakistan) for accurate area calculation in meters.
 CRS = "EPSG:32643"
 # 1 Marla = 25.2929 square meters
 SQM_TO_MARLA = 25.2929
 
 # --- Global State ---
-# This will store the last detection result in memory so the /download_shp
-# endpoint can access it.
+# Stores the last detection result in memory for the /download_shp endpoint.
 last_geojson_result = None
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-# Allow Cross-Origin-Resource-Sharing for requests from the web app.
+# Allow CORS for requests from the web app.
 CORS(app)
 
 # --- AI & Geospatial Core Logic ---
 def perform_detection(bbox):
     """
-    Main function to run the building detection pipeline.
-    
-    Args:
-        bbox (list): A list of [west, south, east, north] coordinates.
-
-    Returns:
-        geopandas.GeoDataFrame: A GeoDataFrame containing detected building polygons.
+    Runs the full building detection pipeline on a given bounding box.
     """
     print(f"Received detection request for BBox: {bbox}")
 
-    # 1. Download high-resolution satellite imagery for the bounding box.
-    # We use a zoom level of 19 for good detail.
+    # 1. Download satellite imagery for the bounding box.
     print("Step 1/5: Downloading satellite imagery...")
     image_path = "satellite_image.tif"
     leafmap.geotiff_from_bbox(
         output=image_path,
         bbox=bbox,
         zoom=19,
-        source='Satellite', # Google Satellite imagery
+        source='Satellite',
         overwrite=True,
     )
     print(" -> Imagery downloaded.")
 
-    # 2. Initialize the Geospatial Segmentation Model.
-    # This automatically downloads the Segment Anything Model (SAM) weights.
+    # 2. Initialize the segmentation model (SAM).
     print("Step 2/5: Initializing AI model...")
     sam = SamGeo(
-        model_type="vit_h",  # vit_h is the high-quality model
-        automatic=True,      # We want the model to find all objects automatically
-        device="cuda",       # Use the GPU for speed
+        model_type="vit_h",
+        automatic=True,
+        device="cuda",
     )
     print(" -> Model initialized.")
 
-    # 3. Perform segmentation on the downloaded image.
-    # This is the core AI step where the model finds all objects.
+    # 3. Run AI segmentation to find objects in the image.
     print("Step 3/5: Running AI segmentation...")
-    # We save the output masks to a temporary file.
     output_masks = "segmentation_masks.tif"
     sam.generate(source=image_path, output=output_masks, foreground=True, erosion_kernel=(3,3))
     print(" -> Segmentation complete.")
 
-    # 4. Convert the raster masks (pixels) to vector polygons (GeoJSON).
-    print("Step 4/5: Converting raster results to vector polygons...")
+    # 4. Convert raster masks to vector polygons.
+    print("Step 4/5: Converting raster to vector...")
     output_geojson = "detected_buildings.geojson"
     sam.raster_to_vector(output_masks, output_geojson)
     print(" -> Vector conversion complete.")
 
-    # 5. Load the results into a GeoDataFrame for final processing.
+    # 5. Load results into a GeoDataFrame for processing.
     print("Step 5/5: Loading and cleaning results...")
     gdf = gpd.read_file(output_geojson)
 
     # Clean up temporary files
-    if os.path.exists(image_path):
-        os.remove(image_path)
-    if os.path.exists(output_masks):
-        os.remove(output_masks)
-    if os.path.exists(output_geojson):
-        os.remove(output_geojson)
-        
+    for path in [image_path, output_masks, output_geojson]:
+        if os.path.exists(path):
+            os.remove(path)
+            
     print(" -> Detection pipeline finished.")
     return gdf
 
 def calculate_areas(gdf):
     """
-    Calculates the area of each polygon in a GeoDataFrame.
-    
-    Args:
-        gdf (geopandas.GeoDataFrame): The input GeoDataFrame.
-
-    Returns:
-        geopandas.GeoDataFrame: The GeoDataFrame with new 'area_sqm' and 'area_marla' columns.
+    Calculates the area for each polygon in a GeoDataFrame.
     """
     if gdf.empty:
         return gdf
 
-    # Project the data to the specified CRS (UTM Zone 43N) to get area in square meters.
+    # Project to the specified CRS to get area in square meters.
     gdf_proj = gdf.to_crs(CRS)
-    
-    # Calculate area in square meters
     gdf['area_sqm'] = gdf_proj.geometry.area
-    
-    # Calculate area in Marla
     gdf['area_marla'] = gdf['area_sqm'] / SQM_TO_MARLA
     
     return gdf
@@ -146,38 +97,27 @@ def calculate_areas(gdf):
 
 @app.route("/")
 def index():
-    return "<h1>Satellite Vision Colab Backend</h1><p>The backend is running. Please connect from the web application.</p>"
+    return "<h1>Satellite Vision Colab Backend</h1><p>The backend is running. Connect from the web app.</p>"
 
 @app.route('/detect_bbox', methods=['POST'])
 def detect_bbox_endpoint():
     """
-    API endpoint to handle detection requests from the frontend.
-    Expects a JSON body with a 'bbox' key.
+    API endpoint for detection requests from the frontend.
     """
     global last_geojson_result
     
-    if not request.is_json:
-        return jsonify({"error": "Request must be JSON"}), 400
-
     data = request.get_json()
-    bbox = data.get('bbox')
-
-    if not bbox or len(bbox) != 4:
+    if not data or 'bbox' not in data:
         return jsonify({"error": "Invalid or missing 'bbox' in request body"}), 400
 
     try:
-        # Run the full detection pipeline
-        detected_gdf = perform_detection(bbox)
-
-        # Calculate areas for the detected polygons
+        detected_gdf = perform_detection(data['bbox'])
         results_gdf = calculate_areas(detected_gdf)
 
-        # Store the result as GeoJSON in our global variable
+        # Store result for download endpoint
         last_geojson_result = results_gdf.to_json()
 
         print(f"Detection successful. Found {len(results_gdf)} building footprints.")
-        
-        # Return the GeoJSON to the frontend
         return last_geojson_result, 200, {'Content-Type': 'application/json'}
 
     except Exception as e:
@@ -188,28 +128,23 @@ def detect_bbox_endpoint():
 def download_shp_endpoint():
     """
     API endpoint to handle shapefile download requests.
-    Uses the last stored detection result.
     """
     global last_geojson_result
     
     if last_geojson_result is None:
-        return "No detection has been run yet. Please run a detection first.", 404
+        return "No detection has been run yet.", 404
 
     try:
         print("Shapefile download requested. Converting GeoJSON...")
-        # Convert the stored GeoJSON string back to a GeoDataFrame
         gdf = gpd.read_file(last_geojson_result)
 
         # In-memory buffer to hold the zip file
         zip_buffer = io.BytesIO()
 
-        # Use a temporary directory to safely create the shapefile components
         with tempfile.TemporaryDirectory() as tmpdir:
             shapefile_path = os.path.join(tmpdir, 'detected_buildings.shp')
-            # Save the GeoDataFrame to a shapefile
             gdf.to_file(shapefile_path, driver='ESRI Shapefile', crs=gdf.crs)
 
-            # Zip all the generated shapefile components
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
                 for root, _, files in os.walk(tmpdir):
                     for file in files:
@@ -231,31 +166,15 @@ def download_shp_endpoint():
 
 # --- Server Startup ---
 def run_app():
-    """Function to run the Flask app."""
-    # Using 'use_reloader=False' is important to prevent the script from running twice in Colab.
+    # use_reloader=False is important in Colab to prevent the script from running twice.
     app.run(port=PORT, use_reloader=False)
 
 if __name__ == '__main__':
-    # When running in Colab, this block will execute.
-    
-    # Terminate any existing ngrok tunnels
     ngrok.kill()
     
-    # 1. Start ngrok tunnel in the background.
-    # This will create a public URL that forwards to our local Flask app.
+    # Start ngrok tunnel to expose the local Flask app.
     public_url = ngrok.connect(PORT)
     print(f"* Backend is live! Connect the frontend to this URL: {public_url}")
     
-    # 2. Start the Flask app in a separate thread.
-    # This prevents the app from blocking the main Colab execution thread.
-    flask_thread = threading.Thread(target=run_app)
-    flask_thread.start()
-
-# Keep the main thread alive to allow background tasks to run.
-# The ngrok tunnel and Flask app will continue running until this script is stopped.
-try:
-    while True:
-        pass
-except KeyboardInterrupt:
-    print("Shutting down backend server...")
-    ngrok.kill()
+    # Start the Flask app in a background thread.
+    threading.Thread(target=run_app).start()
