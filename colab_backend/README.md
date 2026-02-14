@@ -17,9 +17,16 @@ Follow these steps in a new Google Colab notebook.
 !ngrok config add-authtoken PASTE_YOUR_TOKEN_HERE
 ```
 
-### 3. Run the Backend Script
+### 3. Install Dependencies
+
+Copy and run the following command in a new cell. This will install all the necessary libraries. It may take a few minutes.
+
+```bash
+!pip install -q segment-geospatial leafmap geopandas pyngrok flask-cors rasterio flask
+```
+
+### 4. Run the Backend Script
 
 1.  Copy the entire content of `satellite_vision_backend.py` into a final cell and run it.
-2.  **The first time you run it,** it will install all dependencies and then stop.
-3.  **Run the same cell a second time** to start the backend server.
-4.  It will output a public `https://...` ngrok URL. Paste this URL into the "Connect Server" input in your web app.
+2.  The script will start the backend server and output a public `https://...` ngrok URL.
+3.  Paste this URL into the "Connect Server" input in your web app.

@@ -1,18 +1,3 @@
-import sys
-import subprocess
-
-try:
-    import segment_geospatial
-except ImportError:
-    print("--- Installing dependencies... ---")
-    subprocess.check_call([
-        sys.executable, "-m", "pip", "install", "-q",
-        "segment-geospatial", "leafmap", "geopandas",
-        "pyngrok", "flask-cors", "rasterio", "flask"
-    ])
-    print("\n--- Dependencies installed. Please run this cell again. ---")
-    sys.exit()
-
 import io
 import zipfile
 import threading
@@ -116,7 +101,7 @@ def run_app():
     app.run(port=PORT, use_reloader=False)
 
 if __name__ == '__main__':
-    print("--- Dependencies ready, starting server... ---")
+    print("--- Starting Server ---")
     ngrok.kill()
     public_url = ngrok.connect(PORT)
     print(f"* Backend is live! Connect the frontend to this URL: {public_url}")
