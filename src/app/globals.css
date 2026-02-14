@@ -143,7 +143,7 @@ body {
 
 .custom-leaflet-toolbar {
   position: absolute;
-  top: 100px;
+  top: 240px;
   left: 10px;
   z-index: 1000;
 }
