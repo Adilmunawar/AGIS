@@ -36,33 +36,109 @@ export function ControlsSidebar({
 }: ControlsSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isSearching, setIsSearching] = React.useState(false);
+  const [suggestions, setSuggestions] = React.useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const searchContainerRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const handleSearch = async () => {
+  React.useEffect(() => {
+    if (searchQuery.length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const fetchSuggestions = async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(
+            searchQuery
+          )}`
+        );
+        const data = await response.json();
+        setSuggestions(data || []);
+        setShowSuggestions(true);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Search suggestion fetch failed.',
+          variant: 'destructive',
+        });
+        setSuggestions([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, toast]);
+
+  const handleDirectSearch = async () => {
     if (!searchQuery) return;
+    setShowSuggestions(false);
     setIsSearching(true);
     try {
-      // Use OpenStreetMap Nominatim API (Free)
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
           searchQuery
         )}`
       );
       const data = await response.json();
 
       if (data && data.length > 0) {
-        const { lat, lon } = data[0];
+        const { lat, lon, display_name } = data[0];
         onSearchLocation(parseFloat(lat), parseFloat(lon));
-        toast({ title: 'Found location', description: `Flying to ${data[0].display_name}` });
+        setSearchQuery(display_name); // Update input with full name
+        toast({
+          title: 'Found location',
+          description: `Flying to ${display_name}`,
+        });
       } else {
-        toast({ title: 'Not found', description: 'Could not find that location.', variant: 'destructive' });
+        toast({
+          title: 'Not found',
+          description: 'Could not find that location.',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
-      toast({ title: 'Error', description: 'Search failed.', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Search failed.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSearching(false);
     }
   };
+
+  const handleSuggestionClick = (suggestion: any) => {
+    const { lat, lon, display_name } = suggestion;
+    onSearchLocation(parseFloat(lat), parseFloat(lon));
+    setSearchQuery(display_name);
+    setShowSuggestions(false);
+    toast({
+      title: 'Found location',
+      description: `Flying to ${display_name}`,
+    });
+  };
+
+  // Effect to handle clicks outside of the search container to close suggestions
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [searchContainerRef]);
 
   return (
     <>
@@ -90,16 +166,49 @@ export function ControlsSidebar({
         {/* 2. Navigation (New!) */}
         <SidebarGroup>
           <SidebarGroupLabel>2. Navigate</SidebarGroupLabel>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Search (e.g. Lahore, DHA Phase 6)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <Button size="icon" variant="outline" onClick={handleSearch} disabled={isSearching}>
-                {isSearching ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
-            </Button>
+          <div className="relative" ref={searchContainerRef}>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search (e.g. Lahore, DHA Phase 6)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleDirectSearch();
+                  if (e.key === 'Escape') setShowSuggestions(false);
+                }}
+                onFocus={() =>
+                  searchQuery.length >= 3 &&
+                  suggestions.length > 0 &&
+                  setShowSuggestions(true)
+                }
+                autoComplete="off"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={handleDirectSearch}
+                disabled={isSearching || !searchQuery.trim()}
+              >
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute top-full mt-1 w-full rounded-md border bg-background shadow-lg z-50">
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.place_id}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md"
+                  >
+                    {suggestion.display_name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </SidebarGroup>
 
@@ -109,9 +218,12 @@ export function ControlsSidebar({
           <div className="flex items-start gap-2 rounded-md bg-secondary/20 p-2 text-sm text-muted-foreground border">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span>
-              <strong>Two ways to detect:</strong><br/>
-              1. Pan map to view & click Detect.<br/>
-              2. Use the <strong>Square Tool</strong> (top-left of map) to draw an exact box.
+              <strong>Two ways to detect:</strong>
+              <br />
+              1. Pan map to view & click Detect.
+              <br />
+              2. Use the <strong>Square Tool</strong> (top-left of map) to draw
+              an exact box.
             </span>
           </div>
         </SidebarGroup>
