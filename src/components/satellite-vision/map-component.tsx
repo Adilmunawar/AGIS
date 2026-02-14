@@ -9,6 +9,8 @@ import {
   LayersControl,
   useMap,
   useMapEvents,
+  Marker,
+  Popup,
 } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
@@ -16,13 +18,14 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
-import type { BBox } from '@/lib/api';
+import type { BBox, GeoPoint } from '@/lib/api';
 import { CoordinatesControl } from './coordinates-control';
 
 // --- Interfaces ---
 interface MapProps {
   geoJsonData: any;
   setBBox: (bbox: BBox | null) => void;
+  setPoints: (points: GeoPoint[]) => void; // New Prop
   searchResult?: { lat: number; lon: number } | null;
   isDrawing: boolean;
   setIsDrawing: (isDrawing: boolean) => void;
@@ -30,6 +33,27 @@ interface MapProps {
 }
 
 // --- Helper Components ---
+
+// 1. Click Handler (The New Logic)
+function MapClickHandler({
+  isDrawing,
+  setPoints,
+}: {
+  isDrawing: boolean;
+  setPoints: React.Dispatch<React.SetStateAction<GeoPoint[]>>;
+}) {
+  useMapEvents({
+    click(e) {
+      // Only allow clicking if NOT drawing a rectangle/polygon
+      if (!isDrawing) {
+        // Add point to state
+        setPoints((prev) => [...prev, { lat: e.latlng.lat, lng: e.latlng.lng }]);
+      }
+    },
+  });
+  return null;
+}
+
 function MapTracker({
   setBBox,
   isDrawing,
@@ -72,7 +96,7 @@ function MapController({
   const map = useMap();
   useEffect(() => {
     if (coords) {
-      map.flyTo([coords.lat, coords.lon], 16, { duration: 1.5 });
+      map.flyTo([coords.lat, coords.lon], 18, { duration: 1.5 });
     }
   }, [coords, map]);
   return null;
@@ -119,13 +143,20 @@ const createLengthPopup = (layer: L.Polyline) => {
 export default function MapComponent({
   geoJsonData,
   setBBox,
+  setPoints, // Receive the setter
   searchResult,
   isDrawing,
   setIsDrawing,
   onManualFeaturesChange,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
+  const [localPoints, setLocalPoints] = useState<GeoPoint[]>([]); // Visual markers
   const featureGroupRef = useRef<any>(null);
+
+  // Sync local points to parent
+  useEffect(() => {
+    setPoints(localPoints);
+  }, [localPoints, setPoints]);
 
   const geoJsonStyle = {
     color: '#ff0000',
@@ -136,7 +167,9 @@ export default function MapComponent({
 
   const onEachFeature = (feature: any, layer: any) => {
     if (feature.properties) {
-      const marla = feature.properties.area_marla
+      const marla = feature.properties.area_mrl
+        ? feature.properties.area_mrl.toFixed(2)
+        : feature.properties.area_marla
         ? feature.properties.area_marla.toFixed(2)
         : 'N/A';
       const sqm = feature.properties.area_sqm
@@ -170,6 +203,8 @@ export default function MapComponent({
 
     if (type === 'rectangle' || type === 'polygon') {
       setIsDrawing(true);
+      // Clear points if we draw a box (switch modes)
+      setLocalPoints([]);
       const bounds = layer.getBounds();
 
       if (featureGroupRef.current) {
@@ -223,6 +258,7 @@ export default function MapComponent({
 
     if (wasROIdeleted) {
       setIsDrawing(false);
+      setLocalPoints([]); // Also clear points on delete
       const map = featureGroupRef.current?._map;
       if (map) {
         const bounds = map.getBounds();
@@ -243,6 +279,18 @@ export default function MapComponent({
     setGeoKey((prev) => prev + 1);
   }, [geoJsonData]);
 
+  // Custom Icon for clicks
+  const pointIcon = new L.Icon({
+    iconUrl:
+      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl:
+      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
   const drawOptions = {
     rectangle: {
       shapeOptions: {
@@ -255,27 +303,11 @@ export default function MapComponent({
       metric: true,
       imperial: false,
     },
-    polygon: {
-      allowIntersection: false,
-      shapeOptions: {
-        color: 'hsl(var(--primary))',
-        fillColor: 'hsl(var(--primary))',
-        fillOpacity: 0.1,
-        weight: 2,
-      },
-      showArea: true,
-      metric: true,
-      imperial: false,
-    },
-    polyline: {
-      shapeOptions: { color: 'hsl(var(--primary))', weight: 2 },
-      showLength: true,
-      metric: true,
-      imperial: false,
-    },
+    polygon: false,
+    polyline: false,
     circle: false,
     circlemarker: false,
-    marker: false,
+    marker: false, // Use our click handler instead
   };
 
   return (
@@ -308,6 +340,17 @@ export default function MapComponent({
       </LayersControl>
       <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
       <MapController coords={searchResult} />
+
+      {/* Enable Clicking */}
+      <MapClickHandler isDrawing={isDrawing} setPoints={setLocalPoints} />
+
+      {/* Show Click Markers */}
+      {localPoints.map((p, idx) => (
+        <Marker key={idx} position={[p.lat, p.lng]} icon={pointIcon}>
+          <Popup>Point {idx + 1}</Popup>
+        </Marker>
+      ))}
+
       <FeatureGroup ref={featureGroupRef}>
         <EditControl
           position="topleft"

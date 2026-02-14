@@ -7,7 +7,16 @@ export interface BBox {
   north: number;
 }
 
-export async function detectFromBounds(colabUrl: string, bbox: BBox) {
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
+
+export async function detectFromBounds(
+  colabUrl: string,
+  bbox: BBox,
+  points: GeoPoint[] = []
+) {
   const response = await fetch(`${colabUrl}/detect_bbox`, {
     method: 'POST',
     headers: {
@@ -16,6 +25,7 @@ export async function detectFromBounds(colabUrl: string, bbox: BBox) {
     },
     body: JSON.stringify({
       bbox: [bbox.west, bbox.south, bbox.east, bbox.north],
+      points: points, // Now sending points!
     }),
   });
 

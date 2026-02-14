@@ -39,6 +39,18 @@ except ImportError:
             "leafmap",
             "segment-geospatial",
             "rasterio",
+            "scikit-image",
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "-U",
+            "segment-geospatial[samgeo2]",
         ],
         check=True,
     )
@@ -56,56 +68,48 @@ if run_server:
     import threading
     import tempfile
     import os
+    import json
+    import shutil
+    import logging
+    import rasterio
+    import numpy as np
     from flask import Flask, request, jsonify, send_file
     from flask_cors import CORS
     from pyngrok import ngrok
     import geopandas as gpd
     from shapely.geometry import box
     import leafmap
-    from segment_geospatial import SamGeo
+    from samgeo import SamGeo2
+    from samgeo.common import regularize
+    from skimage import exposure
+
 
     # --- Step 3: Backend Server Configuration and Logic ---
     PORT = 8080
-    CRS = "EPSG:32643"
-    SQM_TO_MARLA = 25.2929
-    last_geojson_result = None
+    MODEL_ID = "sam2-hiera-large"
+    PAKISTAN_UTM_EPSG = "EPSG:32643"
+    LATEST_RESULT_PATH = os.path.join(tempfile.gettempdir(), "latest_village.geojson")
 
     app = Flask(__name__)
     CORS(app)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-    def perform_detection(bbox):
-        print(f"Starting detection for BBox: {bbox}")
-        image_path = "satellite_image.tif"
-        leafmap.geotiff_from_bbox(
-            output=image_path, bbox=bbox, zoom=19, source='Satellite', overwrite=True
-        )
+    def enhance_image_advanced(input_path, output_path):
+        print("🎨 Enhancing image...")
+        try:
+            with rasterio.open(input_path) as src:
+                profile = src.profile
+                img = src.read()
+                img_norm = img / 255.0
+                img_enhanced = np.zeros_like(img_norm)
+                for i in range(img.shape[0]):
+                    img_enhanced[i] = exposure.equalize_adapthist(img_norm[i], clip_limit=0.03)
+                img_final = (img_enhanced * 255).astype(np.uint8)
+                with rasterio.open(output_path, 'w', **profile) as dst:
+                    dst.write(img_final)
+            return True
+        except: return False
 
-        # Use a GPU if available, otherwise it will default to CPU
-        sam = SamGeo(model_type="vit_h", automatic=True, device="cuda")
-        
-        output_masks = "segmentation_masks.tif"
-        # Erode the masks to remove small artifacts and separate close objects
-        sam.generate(source=image_path, output=output_masks, foreground=True, erosion_kernel=(3,3))
-
-        output_geojson = "detected_buildings.geojson"
-        sam.raster_to_vector(output_masks, output_geojson)
-
-        gdf = gpd.read_file(output_geojson)
-        # Clean up intermediate files
-        for path in [image_path, output_masks, output_geojson]:
-            if os.path.exists(path):
-                os.remove(path)
-        print("-> Detection pipeline finished.")
-        return gdf
-
-    def calculate_areas(gdf):
-        if gdf.empty:
-            return gdf
-        # Project to a CRS with meters as units for accurate area calculation
-        gdf_proj = gdf.to_crs(CRS)
-        gdf['area_sqm'] = gdf_proj.geometry.area
-        gdf['area_marla'] = gdf['area_sqm'] / SQM_TO_MARLA
-        return gdf
 
     @app.route("/")
     def index():
@@ -113,84 +117,114 @@ if run_server:
 
     @app.route('/detect_bbox', methods=['POST'])
     def detect_bbox_endpoint():
-        global last_geojson_result
-        data = request.get_json()
-        if not data or 'bbox' not in data:
-            return jsonify({"error": "Invalid 'bbox' in request"}), 400
-
         try:
-            detected_gdf = perform_detection(data['bbox'])
-            results_gdf = calculate_areas(detected_gdf)
-            # Store the result in memory for the shapefile download
-            last_geojson_result = results_gdf.to_json()
-            print(f"-> Detection successful: {len(results_gdf)} buildings found.")
-            return last_geojson_result, 200, {'Content-Type': 'application/json'}
+            data = request.json
+            bbox = data['bbox']
+            points = data.get('points', []) # Get points from frontend
+
+            print(f"\n🌍 Request: {bbox}")
+            if points: print(f"👆 User clicked {len(points)} points!")
+
+            temp_dir = tempfile.mkdtemp()
+            raw_image_path = os.path.join(temp_dir, "raw.tif")
+            enhanced_image_path = os.path.join(temp_dir, "enhanced.tif")
+            mask_path = os.path.join(temp_dir, "mask.tif")
+            vector_path = os.path.join(temp_dir, "vector.geojson")
+            final_path = os.path.join(temp_dir, "final.geojson")
+
+            # 1. Download Image
+            try:
+                leafmap.geotiff_from_bbox(
+                    output=raw_image_path, bbox=bbox, zoom=19,
+                    source="Satellite", overwrite=True
+                )
+            except Exception as e:
+                print(f"Zoom 19 failed, trying zoom 18. Error: {e}")
+                leafmap.geotiff_from_bbox(
+                    output=raw_image_path, bbox=bbox, zoom=18,
+                    source="Satellite", overwrite=True
+                )
+
+            enhance_image_advanced(raw_image_path, enhanced_image_path)
+            target_image = enhanced_image_path
+
+            # 2. Convert Points (Lat/Lon) -> Pixels (Row/Col)
+            pixel_prompts = []
+            if len(points) > 0:
+                with rasterio.open(raw_image_path) as src:
+                    for p in points:
+                        # Input is [lng, lat] for rasterio index
+                        # Note: src.index returns (row, col). SAM needs (x, y) which is (col, row)
+                        row, col = src.index(p['lng'], p['lat'])
+                        pixel_prompts.append([col, row])
+                print(f"📍 Converted {len(pixel_prompts)} points to pixels.")
+
+            # 3. AI Detection
+            sam = SamGeo2(model_id=MODEL_ID, automatic=(len(pixel_prompts) == 0))
+            sam.set_image(target_image) # Use enhanced image
+
+            if len(pixel_prompts) > 0:
+                # --- INTERACTIVE MODE ---
+                print("🤖 Running Point-Guided Detection...")
+                sam.predict_by_points(pixel_prompts, point_labels=1) # 1 = Foreground
+                sam.save_prediction(mask_path)
+                sam.tiff_to_vector(mask_path, vector_path)
+            else:
+                # --- AUTOMATIC MODE ---
+                print("🤖 Running Automatic Scan...")
+                sam.generate(
+                    source=target_image, output=mask_path,
+                    points_per_side=64, pred_iou_thresh=0.40, stability_score_thresh=0.50,
+                    min_mask_region_area=30
+                )
+                sam.region_groups(mask_path, min_size=30, out_vector=vector_path)
+
+            # 4. Save & Regularize
+            gdf_final = gpd.GeoDataFrame(columns=['geometry'], crs="EPSG:4326")
+            if os.path.exists(vector_path):
+                try:
+                    regularize(vector_path, final_path)
+                    gdf = gpd.read_file(final_path)
+                    if not gdf.empty:
+                        gdf_utm = gdf.to_crs(PAKISTAN_UTM_EPSG)
+                        gdf_utm['area_sqm'] = gdf_utm.area
+                        gdf_utm['area_mrl'] = gdf_utm['area_sqm'] / 25.2929
+                        gdf_final = gdf_utm.to_crs("EPSG:4326")
+                except Exception as e:
+                    print(f"[ERROR] Could not regularize or calculate area: {e}")
+                    if os.path.exists(vector_path): gdf_final = gpd.read_file(vector_path)
+
+            # Always save
+            if os.path.exists(LATEST_RESULT_PATH): os.remove(LATEST_RESULT_PATH)
+            gdf_final.to_file(LATEST_RESULT_PATH, driver='GeoJSON')
+            shutil.rmtree(temp_dir)
+            print(f"-> Detection successful: {len(gdf_final)} buildings found.")
+            return jsonify(json.loads(gdf_final.to_json()))
+
         except Exception as e:
-            print(f"[ERROR] Detection failed: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"error": "An internal error occurred", "details": str(e)}), 500
 
     @app.route('/download_shp', methods=['GET'])
     def download_shp_endpoint():
-        global last_geojson_result
-        if last_geojson_result is None:
-            return "No detection has been run yet. Please run a detection first.", 404
-
         try:
-            # Create GeoDataFrame from the stored GeoJSON string
-            gdf = gpd.read_file(last_geojson_result)
-            
-            # Use an in-memory buffer for the zip file
-            zip_buffer = io.BytesIO()
-            with tempfile.TemporaryDirectory() as tmpdir:
-                shapefile_path = os.path.join(tmpdir, 'detected_buildings.shp')
-                # Save the GeoDataFrame to a shapefile
-                gdf.to_file(shapefile_path, driver='ESRI Shapefile', crs=gdf.crs)
-                
-                # Zip all the component files of the shapefile
-                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                    for root, _, files in os.walk(tmpdir):
-                        for file in files:
-                            zf.write(os.path.join(root, file), arcname=file)
-                            
-            zip_buffer.seek(0)
-            
-            return send_file(
-                zip_buffer,
-                mimetype='application/zip',
-                as_attachment=True,
-                download_name='detected_buildings.zip'
-            )
+            if not os.path.exists(LATEST_RESULT_PATH):
+                return "No detection has been run yet. Please run a detection first.", 404
+
+            shp_dir = os.path.join(tempfile.gettempdir(), "arcgis_export")
+            if os.path.exists(shp_dir): shutil.rmtree(shp_dir)
+            os.makedirs(shp_dir)
+
+            gdf = gpd.read_file(LATEST_RESULT_PATH)
+            gdf.to_file(os.path.join(shp_dir, "buildings.shp"), driver="ESRI Shapefile")
+
+            zip_path_base = os.path.join(tempfile.gettempdir(), "village_data")
+            zip_path = shutil.make_archive(zip_path_base, 'zip', shp_dir)
+            return send_file(zip_path, as_attachment=True, download_name="detected_buildings.zip")
         except Exception as e:
             print(f"[ERROR] Shapefile creation failed: {e}")
             return jsonify({"error": "Failed to create shapefile", "details": str(e)}), 500
-
-    @app.route('/download_image', methods=['POST'])
-    def download_image_endpoint():
-        data = request.get_json()
-        if not data or 'bbox' not in data:
-            return jsonify({"error": "Invalid 'bbox' in request"}), 400
-        
-        bbox = data['bbox']
-        
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".tif", delete=True) as tmp_file:
-                image_path = tmp_file.name
-                print(f"Downloading satellite image for BBox: {bbox} to {image_path}")
-                leafmap.geotiff_from_bbox(
-                    output=image_path, bbox=bbox, zoom=19, source='Satellite', overwrite=True
-                )
-                print("-> Image download complete.")
-                
-                return send_file(
-                    image_path,
-                    mimetype='image/tiff',
-                    as_attachment=True,
-                    download_name='satellite_area.tif'
-                )
-
-        except Exception as e:
-            print(f"[ERROR] Image download failed: {e}")
-            return jsonify({"error": "Failed to create image", "details": str(e)}), 500
 
 
     def run_app():
@@ -208,6 +242,5 @@ if run_server:
         print(f" * BACKEND IS LIVE! *")
         print(f" * Copy this URL and paste it into your web application: {public_url}")
         print("==============================================================================")
-        
-        # Run Flask app in a separate thread so it doesn't block the cell
+
         threading.Thread(target=run_app).start()

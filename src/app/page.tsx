@@ -10,6 +10,7 @@ import {
   downloadShapefile,
   downloadSatelliteImage,
   type BBox,
+  type GeoPoint,
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -32,6 +33,7 @@ export default function SatelliteVisionPage() {
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
+  const [points, setPoints] = React.useState<GeoPoint[]>([]);
 
   const [searchCoords, setSearchCoords] =
     React.useState<{ lat: number; lon: number } | null>(null);
@@ -66,15 +68,15 @@ export default function SatelliteVisionPage() {
 
     setIsLoading(true);
     try {
-      const geoJsonData = await detectFromBounds(colabUrl, currentBBox);
+      const geoJsonData = await detectFromBounds(colabUrl, currentBBox, points);
 
       setGeoJson(geoJsonData);
-
+      const detectionMode = points.length > 0 ? 'point-guided' : 'automatic';
       toast({
         title: 'Detection Complete',
         description: `Detected ${
           geoJsonData.features?.length ?? 0
-        } building footprints.`,
+        } building footprints using ${detectionMode} mode.`,
       });
     } catch (error) {
       console.error(error);
@@ -87,7 +89,7 @@ export default function SatelliteVisionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [colabUrl, currentBBox, toast]);
+  }, [colabUrl, currentBBox, points, toast]);
 
   const handleDownload = React.useCallback(async () => {
     if (!colabUrl) {
@@ -213,7 +215,7 @@ export default function SatelliteVisionPage() {
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
           hasGeoJson={!!geoJson}
-          hasSelection={isDrawing}
+          hasSelection={isDrawing || points.length > 0}
           hasManualFeatures={!!manualFeatures?.features?.length}
         />
       </Sidebar>
@@ -221,6 +223,7 @@ export default function SatelliteVisionPage() {
         <MapComponent
           geoJsonData={geoJson}
           setBBox={handleSetBBox}
+          setPoints={setPoints}
           searchResult={searchCoords}
           isDrawing={isDrawing}
           setIsDrawing={setIsDrawing}
