@@ -4,7 +4,7 @@
  *
  * Data Structure: The data is organized hierarchically, with all user-specific information nested under a
  * top-level `/users/{userId}` collection. This structure creates a natural and secure silo for each user's
- * data, simplifying security rules and queries.
+ * data, a design that simplifies security rules and queries.
  *
  * Key Security Decisions:
  * - User Listing Disabled: To protect user privacy, it is not possible to list all documents in the `/users`
