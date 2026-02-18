@@ -20,6 +20,7 @@ import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import type { BBox, GeoPoint } from '@/lib/api';
 import { CoordinatesControl } from './coordinates-control';
+import type { ActiveTool } from '@/app/page';
 
 // --- Interfaces ---
 interface MapProps {
@@ -30,20 +31,21 @@ interface MapProps {
   isDrawing: boolean;
   setIsDrawing: (isDrawing: boolean) => void;
   onManualFeaturesChange: (features: any) => void;
+  activeTool: ActiveTool;
 }
 
 // --- Helper Components ---
 
 function MapClickHandler({
-  isDrawing,
+  activeTool,
   setPoints,
 }: {
-  isDrawing: boolean;
+  activeTool: ActiveTool;
   setPoints: React.Dispatch<React.SetStateAction<GeoPoint[]>>;
 }) {
   useMapEvents({
     click(e) {
-      if (!isDrawing) {
+      if (activeTool === 'detection') {
         setPoints((prev) => [...prev, { lat: e.latlng.lat, lng: e.latlng.lng }]);
       }
     },
@@ -145,6 +147,7 @@ export default function MapComponent({
   isDrawing,
   setIsDrawing,
   onManualFeaturesChange,
+  activeTool,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const [localPoints, setLocalPoints] = useState<GeoPoint[]>([]);
@@ -153,6 +156,17 @@ export default function MapComponent({
   useEffect(() => {
     setPoints(localPoints);
   }, [localPoints, setPoints]);
+  
+  // When switching back to detection tool, clear manual points if any exist
+  useEffect(() => {
+    if (activeTool === 'detection') {
+      // Don't clear points if we are just drawing a rectangle
+      // If we are drawing, we have an ROI, so points are not used
+      if(!isDrawing) {
+         setLocalPoints([]);
+      }
+    }
+  }, [activeTool, isDrawing]);
 
   const geoJsonStyle = {
     color: 'hsl(var(--primary))',
@@ -281,36 +295,36 @@ export default function MapComponent({
   });
 
   const drawOptions = {
-    position: 'topright',
+    position: 'topleft',
     draw: {
-    rectangle: {
-      shapeOptions: {
-        color: 'hsl(var(--accent))',
-        fillColor: 'hsl(var(--accent))',
-        fillOpacity: 0.1,
-        weight: 2,
-        dashArray: '5, 5'
-      },
+      rectangle: activeTool === 'detection' ? {
+        shapeOptions: {
+          color: 'hsl(var(--accent))',
+          fillColor: 'hsl(var(--accent))',
+          fillOpacity: 0.1,
+          weight: 2,
+          dashArray: '5, 5'
+        },
+      } : false,
+      polygon: activeTool === 'digitize' ? {
+        shapeOptions: {
+          color: 'hsl(var(--primary))',
+          fillColor: 'hsl(var(--primary))',
+          fillOpacity: 0.1,
+          weight: 2,
+        },
+      } : false,
+      polyline: activeTool === 'digitize' ? {
+         shapeOptions: {
+          color: 'hsl(var(--primary))',
+          weight: 3,
+        },
+      } : false,
+      circle: false,
+      circlemarker: false,
+      marker: false,
     },
-    polygon: {
-      shapeOptions: {
-        color: 'hsl(var(--primary))',
-        fillColor: 'hsl(var(--primary))',
-        fillOpacity: 0.1,
-        weight: 2,
-      },
-    },
-    polyline: {
-       shapeOptions: {
-        color: 'hsl(var(--primary))',
-        weight: 3,
-      },
-    },
-    circle: false,
-    circlemarker: false,
-    marker: false,
-    },
-     edit: {
+    edit: {
       featureGroup: featureGroupRef.current,
     }
   };
@@ -330,7 +344,7 @@ export default function MapComponent({
       <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
       <MapController coords={searchResult} />
 
-      <MapClickHandler isDrawing={isDrawing} setPoints={setLocalPoints} />
+      <MapClickHandler activeTool={activeTool} setPoints={setLocalPoints} />
 
       {localPoints.map((p, idx) => (
         <Marker key={idx} position={[p.lat, p.lng]} icon={pointIcon}>
@@ -340,6 +354,7 @@ export default function MapComponent({
 
       <FeatureGroup ref={featureGroupRef}>
         <EditControl
+          key={activeTool}
           position="topleft"
           onCreated={onCreated}
           onEdited={onEdited}

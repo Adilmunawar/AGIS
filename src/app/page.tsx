@@ -30,6 +30,8 @@ const MapComponent = dynamic(
   }
 );
 
+export type ActiveTool = 'detection' | 'digitize';
+
 export default function SatelliteVisionPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -45,6 +47,8 @@ export default function SatelliteVisionPage() {
   const [manualFeatures, setManualFeatures] =
     React.useState<GeoJsonObject | null>(null);
   const [isDrawing, setIsDrawing] = React.useState(false);
+  const [activeTool, setActiveTool] = React.useState<ActiveTool>('detection');
+
 
   const { toast } = useToast();
 
@@ -67,12 +71,12 @@ export default function SatelliteVisionPage() {
       });
       return;
     }
-    if (!currentBBox) {
+    if (!currentBBox && points.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Map not ready',
         description:
-          'Please wait for the map to load or move the map to set a boundary.',
+          'Please draw a rectangle or click on the map to define an area.',
       });
       return;
     }
@@ -183,6 +187,8 @@ export default function SatelliteVisionPage() {
     );
   }
 
+  const hasSelection = isDrawing || points.length > 0;
+  
   return (
     <SidebarProvider>
       <Sidebar>
@@ -190,13 +196,15 @@ export default function SatelliteVisionPage() {
           colabUrl={colabUrl}
           setColabUrl={setColabUrl}
           onDetect={handleDetect}
-          onDownload={handleDownloadGeoJson}
+          onDownload={onDownloadGeoJson}
           onDownloadDigitized={handleDownloadDigitized}
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
           hasGeoJson={!!geoJson}
-          hasSelection={isDrawing || points.length > 0}
+          hasSelection={hasSelection}
           hasManualFeatures={!!manualFeatures?.features?.length}
+          activeTool={activeTool}
+          setActiveTool={setActiveTool}
         />
       </Sidebar>
       <SidebarInset>
@@ -208,6 +216,7 @@ export default function SatelliteVisionPage() {
           isDrawing={isDrawing}
           setIsDrawing={setIsDrawing}
           onManualFeaturesChange={setManualFeatures}
+          activeTool={activeTool}
         />
       </SidebarInset>
     </SidebarProvider>
