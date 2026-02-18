@@ -38,7 +38,7 @@ export async function detectFromBounds(
 }
 
 export async function downloadGeoJson(colabUrl: string) {
-  const response = await fetch(`${colabUrl}/download_geojson`, {
+  const response = await fetch(`${colabUrl}/download_shp`, {
     method: 'GET',
     headers: {
       'ngrok-skip-browser-warning': 'true',

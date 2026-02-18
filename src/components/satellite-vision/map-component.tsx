@@ -25,7 +25,7 @@ import { CoordinatesControl } from './coordinates-control';
 interface MapProps {
   geoJsonData: any;
   setBBox: (bbox: BBox | null) => void;
-  setPoints: (points: GeoPoint[]) => void; // New Prop
+  setPoints: (points: GeoPoint[]) => void;
   searchResult?: { lat: number; lon: number } | null;
   isDrawing: boolean;
   setIsDrawing: (isDrawing: boolean) => void;
@@ -34,7 +34,6 @@ interface MapProps {
 
 // --- Helper Components ---
 
-// 1. Click Handler (The New Logic)
 function MapClickHandler({
   isDrawing,
   setPoints,
@@ -44,9 +43,7 @@ function MapClickHandler({
 }) {
   useMapEvents({
     click(e) {
-      // Only allow clicking if NOT drawing a rectangle/polygon
       if (!isDrawing) {
-        // Add point to state
         setPoints((prev) => [...prev, { lat: e.latlng.lat, lng: e.latlng.lng }]);
       }
     },
@@ -103,12 +100,12 @@ function MapController({
 }
 
 const createAreaPopup = (layer: L.Polygon | L.Rectangle) => {
-  const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+  const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0] as L.LatLng[]);
   const areaSqm = area.toFixed(2);
-  const areaMarla = (area / 25.2929).toFixed(2); // 1 Marla = 25.2929 sqm
+  const areaMarla = (area / 25.2929).toFixed(2);
   return `
     <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--foreground)); min-width: 180px;">
-      <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Selected Area</div>
+      <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Feature Details</div>
       <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid hsl(var(--border));">
           <span style="color: hsl(var(--muted-foreground));">Area (sqm)</span>
           <span style="font-weight: 500;">${areaSqm} m²</span>
@@ -143,38 +140,31 @@ const createLengthPopup = (layer: L.Polyline) => {
 export default function MapComponent({
   geoJsonData,
   setBBox,
-  setPoints, // Receive the setter
+  setPoints,
   searchResult,
   isDrawing,
   setIsDrawing,
   onManualFeaturesChange,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
-  const [localPoints, setLocalPoints] = useState<GeoPoint[]>([]); // Visual markers
+  const [localPoints, setLocalPoints] = useState<GeoPoint[]>([]);
   const featureGroupRef = useRef<any>(null);
 
-  // Sync local points to parent
   useEffect(() => {
     setPoints(localPoints);
   }, [localPoints, setPoints]);
 
   const geoJsonStyle = {
-    color: '#ff0000',
-    weight: 2,
+    color: 'hsl(var(--primary))',
+    weight: 2.5,
     fillColor: 'hsl(var(--primary))',
     fillOpacity: 0.2,
   };
 
   const onEachFeature = (feature: any, layer: any) => {
     if (feature.properties) {
-      const marla = feature.properties.area_mrl
-        ? feature.properties.area_mrl.toFixed(2)
-        : feature.properties.area_marla
-        ? feature.properties.area_marla.toFixed(2)
-        : 'N/A';
-      const sqm = feature.properties.area_sqm
-        ? feature.properties.area_sqm.toFixed(2)
-        : 'N/A';
+      const marla = feature.properties.area_mrl?.toFixed(2) ?? 'N/A';
+      const sqm = feature.properties.area_sqm?.toFixed(2) ?? 'N/A';
       layer.bindPopup(`
           <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--foreground)); min-width: 180px;">
             <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Building Details</div>
@@ -201,15 +191,14 @@ export default function MapComponent({
     const layer = e.layer;
     const type = e.layerType;
 
-    if (type === 'rectangle' || type === 'polygon') {
+    if (type === 'rectangle') {
       setIsDrawing(true);
-      // Clear points if we draw a box (switch modes)
       setLocalPoints([]);
       const bounds = layer.getBounds();
 
       if (featureGroupRef.current) {
         featureGroupRef.current.eachLayer((l: any) => {
-          if (l !== layer && !(l instanceof L.Polyline)) {
+          if (l instanceof L.Rectangle && l !== layer) {
             featureGroupRef.current.removeLayer(l);
           }
         });
@@ -221,7 +210,8 @@ export default function MapComponent({
         east: bounds.getEast(),
         north: bounds.getNorth(),
       });
-
+      layer.bindPopup(createAreaPopup(layer)).openPopup();
+    } else if (type === 'polygon') {
       layer.bindPopup(createAreaPopup(layer)).openPopup();
     } else if (type === 'polyline') {
       layer.bindPopup(createLengthPopup(layer)).openPopup();
@@ -231,10 +221,9 @@ export default function MapComponent({
 
   const onEdited = (e: any) => {
     e.layers.eachLayer((layer: any) => {
-      if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
+      if (layer instanceof L.Rectangle) {
         layer.setPopupContent(createAreaPopup(layer));
         layer.openPopup();
-        // Also update the BBox
         const bounds = layer.getBounds();
         setBBox({
           west: bounds.getWest(),
@@ -242,9 +231,10 @@ export default function MapComponent({
           east: bounds.getEast(),
           north: bounds.getNorth(),
         });
+      } else if (layer instanceof L.Polygon) {
+        layer.setPopupContent(createAreaPopup(layer)).openPopup();
       } else if (layer instanceof L.Polyline) {
-        layer.setPopupContent(createLengthPopup(layer));
-        layer.openPopup();
+        layer.setPopupContent(createLengthPopup(layer)).openPopup();
       }
     });
     updateFeatures();
@@ -252,13 +242,13 @@ export default function MapComponent({
 
   const onDeleted = (e: any) => {
     const deletedLayers = e.layers.getLayers();
-    const wasROIdeleted = deletedLayers.some(
-      (l: any) => !(l instanceof L.Polyline)
+    const wasROIDeleted = deletedLayers.some(
+      (l: any) => l instanceof L.Rectangle
     );
 
-    if (wasROIdeleted) {
+    if (wasROIDeleted) {
       setIsDrawing(false);
-      setLocalPoints([]); // Also clear points on delete
+      setLocalPoints([]);
       const map = featureGroupRef.current?._map;
       if (map) {
         const bounds = map.getBounds();
@@ -279,7 +269,6 @@ export default function MapComponent({
     setGeoKey((prev) => prev + 1);
   }, [geoJsonData]);
 
-  // Custom Icon for clicks
   const pointIcon = new L.Icon({
     iconUrl:
       'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
@@ -292,22 +281,38 @@ export default function MapComponent({
   });
 
   const drawOptions = {
+    position: 'topright',
+    draw: {
     rectangle: {
+      shapeOptions: {
+        color: 'hsl(var(--accent))',
+        fillColor: 'hsl(var(--accent))',
+        fillOpacity: 0.1,
+        weight: 2,
+        dashArray: '5, 5'
+      },
+    },
+    polygon: {
       shapeOptions: {
         color: 'hsl(var(--primary))',
         fillColor: 'hsl(var(--primary))',
         fillOpacity: 0.1,
         weight: 2,
       },
-      showArea: true,
-      metric: true,
-      imperial: false,
     },
-    polygon: false,
-    polyline: false,
+    polyline: {
+       shapeOptions: {
+        color: 'hsl(var(--primary))',
+        weight: 3,
+      },
+    },
     circle: false,
     circlemarker: false,
-    marker: false, // Use our click handler instead
+    marker: false,
+    },
+     edit: {
+      featureGroup: featureGroupRef.current,
+    }
   };
 
   return (
@@ -316,35 +321,17 @@ export default function MapComponent({
       zoom={16}
       style={{ height: '100%', width: '100%', background: '#111' }}
     >
-      <LayersControl position="topright">
-        <LayersControl.BaseLayer checked name="Google Satellite">
-          <TileLayer
-            url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-            attribution="Google Satellite"
-            maxZoom={22}
-          />
-        </LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Google Hybrid">
-          <TileLayer
-            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-            attribution="Google Hybrid"
-            maxZoom={22}
-          />
-        </LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="OpenStreetMap">
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution="OpenStreetMap"
-          />
-        </LayersControl.BaseLayer>
-      </LayersControl>
+      <LayersControl position="topright" />
+      <TileLayer
+        url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+        attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+        maxZoom={22}
+      />
       <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
       <MapController coords={searchResult} />
 
-      {/* Enable Clicking */}
       <MapClickHandler isDrawing={isDrawing} setPoints={setLocalPoints} />
 
-      {/* Show Click Markers */}
       {localPoints.map((p, idx) => (
         <Marker key={idx} position={[p.lat, p.lng]} icon={pointIcon}>
           <Popup>Point {idx + 1}</Popup>
@@ -357,7 +344,7 @@ export default function MapComponent({
           onCreated={onCreated}
           onEdited={onEdited}
           onDeleted={onDeleted}
-          draw={drawOptions}
+          draw={drawOptions.draw}
         />
       </FeatureGroup>
       {geoJsonData && (

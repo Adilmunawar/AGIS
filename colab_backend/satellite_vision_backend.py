@@ -241,5 +241,3 @@ if run_server:
         print("==============================================================================")
 
         threading.Thread(target=run_app).start()
-
-    

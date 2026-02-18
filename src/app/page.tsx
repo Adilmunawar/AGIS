@@ -10,11 +10,9 @@ import { Loader2 } from 'lucide-react';
 import {
   detectFromBounds,
   downloadGeoJson,
-  downloadSatelliteImage,
   type BBox,
   type GeoPoint,
 } from '@/lib/api';
-import type { BBox } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   SidebarProvider,
@@ -126,10 +124,10 @@ export default function SatelliteVisionPage() {
     setIsLoading(true);
     try {
       const blob = await downloadGeoJson(colabUrl);
-      saveAs(blob, 'detected_buildings.geojson');
+      saveAs(blob, 'detected_buildings.zip');
       toast({
         title: 'Download Started',
-        description: 'Your GeoJSON file is being downloaded.',
+        description: 'Your Shapefile is being downloaded.',
       });
     } catch (error) {
       console.error(error);

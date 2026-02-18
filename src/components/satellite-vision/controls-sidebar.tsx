@@ -10,6 +10,7 @@ import {
   FileJson,
   LogOut,
   User as UserIcon,
+  Shapes,
 } from 'lucide-react';
 
 import {
@@ -175,9 +176,9 @@ export function ControlsSidebar({
   return (
     <>
       <SidebarHeader>
-        <div className="flex items-center gap-2 p-2">
-          <Globe className="text-primary" />
-          <h1 className="text-xl font-semibold">AGIS</h1>
+        <div className="flex items-center gap-3 p-2">
+          <Globe className="h-8 w-8 text-primary" />
+          <h1 className="text-2xl font-semibold">AGIS</h1>
         </div>
         <Separator />
       </SidebarHeader>
@@ -189,7 +190,7 @@ export function ControlsSidebar({
             <SidebarGroupLabel>1. Connect Server</SidebarGroupLabel>
             <Input
               type="url"
-              placeholder="Ngrok URL (e.g., https://...)"
+              placeholder="Paste your Colab/Ngrok URL here"
               value={colabUrl}
               onChange={(e) => setColabUrl(e.target.value)}
               disabled={isLoading}
@@ -202,7 +203,7 @@ export function ControlsSidebar({
             <div className="relative" ref={searchContainerRef}>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Search (e.g. Lahore, DHA Phase 6)"
+                  placeholder="Search city, area, or landmark..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -248,12 +249,15 @@ export function ControlsSidebar({
           {/* 3. Instructions */}
           <SidebarGroup className="p-0">
             <SidebarGroupLabel>3. Select Area & Detect</SidebarGroupLabel>
-            <div className="flex items-start gap-3 rounded-md bg-secondary/20 p-3 text-sm text-muted-foreground border">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span>
-                Use the map tools to select an area for AI detection or to
-                manually digitize features.
-              </span>
+            <div className="flex flex-col gap-2 rounded-md bg-secondary/30 p-3 text-sm text-muted-foreground border border-dashed">
+               <div className="flex items-start gap-3">
+                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                 <span>Pan/zoom the map to define an area, or draw a rectangle for a specific region.</span>
+               </div>
+               <div className="flex items-start gap-3">
+                  <Shapes className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>For higher accuracy, click on individual building rooftops to guide the AI.</span>
+               </div>
             </div>
           </SidebarGroup>
 
@@ -272,7 +276,7 @@ export function ControlsSidebar({
                 }
               >
                 <FileJson className="mr-2 h-4 w-4" />
-                Download Digitized Layer (.geojson)
+                Download Digitized Layer
               </Button>
             </div>
           </SidebarGroup>
@@ -281,10 +285,10 @@ export function ControlsSidebar({
 
       <SidebarFooter>
         <Separator />
-        <div className="flex flex-col gap-2 p-4">
+        <div className="flex flex-col gap-3 p-4">
           <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2 overflow-hidden">
-              <UserIcon className="h-4 w-4 shrink-0" />
+              <UserIcon className="h-5 w-5 shrink-0" />
               <span className="truncate" title={user?.email ?? ''}>
                 {user?.email ?? 'Not signed in'}
               </span>
@@ -295,7 +299,7 @@ export function ControlsSidebar({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-8 w-8"
                     onClick={handleSignOut}
                   >
                     <LogOut className="h-4 w-4" />
@@ -311,12 +315,12 @@ export function ControlsSidebar({
           <Button
             onClick={onDetect}
             disabled={isLoading || !hasSelection}
-            className="w-full"
+            className="w-full h-11 text-base"
           >
             {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
-              <Globe className="mr-2 h-4 w-4" />
+              <Globe className="mr-2 h-5 w-5" />
             )}
             Detect Buildings
           </Button>
@@ -327,7 +331,7 @@ export function ControlsSidebar({
             className="w-full"
           >
             <Download className="mr-2 h-4 w-4" />
-            Download Detected GeoJSON
+            Download Detected Data (.zip)
           </Button>
         </div>
       </SidebarFooter>
