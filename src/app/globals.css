@@ -140,10 +140,3 @@ body {
 .leaflet-draw-tooltip-right:before {
   display: none;
 }
-
-.leaflet-draw-section .leaflet-draw-toolbar a {
-    background-image: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}

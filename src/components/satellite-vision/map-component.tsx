@@ -157,11 +157,8 @@ export default function MapComponent({
     setPoints(localPoints);
   }, [localPoints, setPoints]);
   
-  // When switching back to detection tool, clear manual points if any exist
   useEffect(() => {
     if (activeTool === 'detection') {
-      // Don't clear points if we are just drawing a rectangle
-      // If we are drawing, we have an ROI, so points are not used
       if(!isDrawing) {
          setLocalPoints([]);
       }
@@ -206,24 +203,27 @@ export default function MapComponent({
     const type = e.layerType;
 
     if (type === 'rectangle') {
-      setIsDrawing(true);
-      setLocalPoints([]);
-      const bounds = layer.getBounds();
+       if (activeTool === 'detection') {
+          setIsDrawing(true);
+          setLocalPoints([]);
+          const bounds = layer.getBounds();
 
-      if (featureGroupRef.current) {
-        featureGroupRef.current.eachLayer((l: any) => {
-          if (l instanceof L.Rectangle && l !== layer) {
-            featureGroupRef.current.removeLayer(l);
+          // Clear any previously drawn rectangle ROI to enforce a single ROI
+          if (featureGroupRef.current) {
+            featureGroupRef.current.eachLayer((l: any) => {
+              if (l instanceof L.Rectangle && l !== layer) {
+                featureGroupRef.current.removeLayer(l);
+              }
+            });
           }
-        });
-      }
 
-      setBBox({
-        west: bounds.getWest(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        north: bounds.getNorth(),
-      });
+          setBBox({
+            west: bounds.getWest(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            north: bounds.getNorth(),
+          });
+       }
       layer.bindPopup(createAreaPopup(layer)).openPopup();
     } else if (type === 'polygon') {
       layer.bindPopup(createAreaPopup(layer)).openPopup();
@@ -238,13 +238,15 @@ export default function MapComponent({
       if (layer instanceof L.Rectangle) {
         layer.setPopupContent(createAreaPopup(layer));
         layer.openPopup();
-        const bounds = layer.getBounds();
-        setBBox({
-          west: bounds.getWest(),
-          south: bounds.getSouth(),
-          east: bounds.getEast(),
-          north: bounds.getNorth(),
-        });
+        if (activeTool === 'detection') {
+          const bounds = layer.getBounds();
+          setBBox({
+            west: bounds.getWest(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            north: bounds.getNorth(),
+          });
+        }
       } else if (layer instanceof L.Polygon) {
         layer.setPopupContent(createAreaPopup(layer)).openPopup();
       } else if (layer instanceof L.Polyline) {
@@ -255,10 +257,12 @@ export default function MapComponent({
   };
 
   const onDeleted = (e: any) => {
-    const deletedLayers = e.layers.getLayers();
-    const wasROIDeleted = deletedLayers.some(
-      (l: any) => l instanceof L.Rectangle
-    );
+    let wasROIDeleted = false;
+    e.layers.eachLayer((layer: any) => {
+        if (layer instanceof L.Rectangle && activeTool === 'detection') {
+            wasROIDeleted = true;
+        }
+    });
 
     if (wasROIDeleted) {
       setIsDrawing(false);
@@ -294,41 +298,6 @@ export default function MapComponent({
     shadowSize: [41, 41],
   });
 
-  const drawOptions = {
-    position: 'topleft',
-    draw: {
-      rectangle: activeTool === 'detection' ? {
-        shapeOptions: {
-          color: 'hsl(var(--accent))',
-          fillColor: 'hsl(var(--accent))',
-          fillOpacity: 0.1,
-          weight: 2,
-          dashArray: '5, 5'
-        },
-      } : false,
-      polygon: activeTool === 'digitize' ? {
-        shapeOptions: {
-          color: 'hsl(var(--primary))',
-          fillColor: 'hsl(var(--primary))',
-          fillOpacity: 0.1,
-          weight: 2,
-        },
-      } : false,
-      polyline: activeTool === 'digitize' ? {
-         shapeOptions: {
-          color: 'hsl(var(--primary))',
-          weight: 3,
-        },
-      } : false,
-      circle: false,
-      circlemarker: false,
-      marker: false,
-    },
-    edit: {
-      featureGroup: featureGroupRef.current,
-    }
-  };
-
   return (
     <MapContainer
       center={[31.5204, 74.3587]}
@@ -359,7 +328,39 @@ export default function MapComponent({
           onCreated={onCreated}
           onEdited={onEdited}
           onDeleted={onDeleted}
-          draw={drawOptions.draw}
+          draw={{
+            rectangle: activeTool === 'detection' ? {
+              shapeOptions: {
+                color: 'hsl(var(--accent))',
+                fillColor: 'hsl(var(--accent))',
+                fillOpacity: 0.1,
+                weight: 2,
+                dashArray: '5, 5'
+              },
+            } : false,
+            polygon: activeTool === 'digitize' ? {
+              shapeOptions: {
+                color: 'hsl(var(--primary))',
+                fillColor: 'hsl(var(--primary))',
+                fillOpacity: 0.1,
+                weight: 2,
+              },
+            } : false,
+            polyline: activeTool === 'digitize' ? {
+               shapeOptions: {
+                color: 'hsl(var(--primary))',
+                weight: 3,
+              },
+            } : false,
+            circle: false,
+            circlemarker: false,
+            marker: false,
+          }}
+          edit={{
+            featureGroup: featureGroupRef.current,
+            edit: true,
+            remove: true
+          }}
         />
       </FeatureGroup>
       {geoJsonData && (
