@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, Satellite } from 'lucide-react';
+import { Loader2, Globe } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -72,11 +72,11 @@ export function LoginForm() {
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <div className="mx-auto mb-4 flex items-center justify-center">
-          <Satellite className="h-10 w-10 text-primary" />
+          <Globe className="h-10 w-10 text-primary" />
         </div>
-        <CardTitle className="text-2xl">Welcome Back</CardTitle>
+        <CardTitle className="text-2xl">Welcome to AGIS</CardTitle>
         <CardDescription>
-          Sign in to your Satellite Vision account.
+          Sign in to your AGIS account.
         </CardDescription>
       </CardHeader>
       <CardContent>

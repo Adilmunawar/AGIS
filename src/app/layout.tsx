@@ -4,8 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'Satellite Vision',
-  description: 'AI-Powered Building Detection from Satellite Imagery',
+  title: 'AGIS',
+  description: 'Advanced Geospatial Intelligence System',
 };
 
 export default function RootLayout({

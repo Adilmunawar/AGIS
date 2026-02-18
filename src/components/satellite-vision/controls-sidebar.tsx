@@ -4,7 +4,7 @@ import * as React from 'react';
 import {
   Download,
   Loader2,
-  Satellite,
+  Globe,
   Search,
   MapPin,
   FileJson,
@@ -176,8 +176,8 @@ export function ControlsSidebar({
     <>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
-          <Satellite className="text-primary" />
-          <h1 className="text-xl font-semibold">Satellite Vision</h1>
+          <Globe className="text-primary" />
+          <h1 className="text-xl font-semibold">AGIS</h1>
         </div>
         <Separator />
       </SidebarHeader>
@@ -316,7 +316,7 @@ export function ControlsSidebar({
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Satellite className="mr-2 h-4 w-4" />
+              <Globe className="mr-2 h-4 w-4" />
             )}
             Detect Buildings
           </Button>
