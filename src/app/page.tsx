@@ -196,7 +196,7 @@ export default function SatelliteVisionPage() {
           colabUrl={colabUrl}
           setColabUrl={setColabUrl}
           onDetect={handleDetect}
-          onDownload={onDownloadGeoJson}
+          onDownload={handleDownloadGeoJson}
           onDownloadDigitized={handleDownloadDigitized}
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
