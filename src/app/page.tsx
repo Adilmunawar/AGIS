@@ -4,6 +4,8 @@ import * as React from 'react';
 import dynamic from 'next/dynamic';
 import { saveAs } from 'file-saver';
 import type { GeoJsonObject } from 'geojson';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 import {
   detectFromBounds,
@@ -12,6 +14,7 @@ import {
   type BBox,
   type GeoPoint,
 } from '@/lib/api';
+import type { BBox } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   SidebarProvider,
@@ -19,6 +22,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { ControlsSidebar } from '@/components/satellite-vision/controls-sidebar';
+import { useUser } from '@/firebase';
 
 const MapComponent = dynamic(
   () => import('@/components/satellite-vision/map-component'),
@@ -29,6 +33,9 @@ const MapComponent = dynamic(
 );
 
 export default function SatelliteVisionPage() {
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
   const [colabUrl, setColabUrl] = React.useState<string>('');
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
@@ -42,6 +49,12 @@ export default function SatelliteVisionPage() {
   const [isDrawing, setIsDrawing] = React.useState(false);
 
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleSetBBox = React.useCallback((bbox: BBox | null) => {
     setCurrentBBox(bbox);
@@ -131,45 +144,6 @@ export default function SatelliteVisionPage() {
     }
   }, [colabUrl, geoJson, toast]);
 
-  const handleDownloadImage = React.useCallback(async () => {
-    if (!colabUrl) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing URL',
-        description: 'Please provide the Colab server URL.',
-      });
-      return;
-    }
-    if (!currentBBox) {
-      toast({
-        variant: 'destructive',
-        title: 'No Area Selected',
-        description: 'Please draw a rectangle or polygon to define an area.',
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const blob = await downloadSatelliteImage(colabUrl, currentBBox);
-      saveAs(blob, 'satellite_area.tif');
-      toast({
-        title: 'Image Download Started',
-        description: 'The high-resolution satellite image is downloading.',
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Download Failed',
-        description:
-          error instanceof Error ? error.message : 'An unknown error occurred.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [colabUrl, toast, currentBBox]);
-
   const handleDownloadDigitized = React.useCallback(() => {
     if (
       !manualFeatures ||
@@ -203,6 +177,14 @@ export default function SatelliteVisionPage() {
     }
   }, [manualFeatures, toast]);
 
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -212,7 +194,6 @@ export default function SatelliteVisionPage() {
           onDetect={handleDetect}
           onDownload={handleDownloadGeoJson}
           onDownloadDigitized={handleDownloadDigitized}
-          onDownloadImage={handleDownloadImage}
           onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
           isLoading={isLoading}
           hasGeoJson={!!geoJson}

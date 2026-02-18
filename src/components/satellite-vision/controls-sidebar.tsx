@@ -8,7 +8,8 @@ import {
   Search,
   MapPin,
   FileJson,
-  ImageDown,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 
 import {
@@ -22,6 +23,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth, useUser } from '@/firebase';
+import { initiateSignOut } from '@/firebase/non-blocking-login';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type ControlsSidebarProps = {
   colabUrl: string;
@@ -29,7 +38,6 @@ type ControlsSidebarProps = {
   onDetect: () => void;
   onDownload: () => void;
   onDownloadDigitized: () => void;
-  onDownloadImage: () => void;
   onSearchLocation: (lat: number, lon: number) => void;
   isLoading: boolean;
   hasGeoJson: boolean;
@@ -43,7 +51,6 @@ export function ControlsSidebar({
   onDetect,
   onDownload,
   onDownloadDigitized,
-  onDownloadImage,
   onSearchLocation,
   isLoading,
   hasGeoJson,
@@ -56,6 +63,8 @@ export function ControlsSidebar({
   const [showSuggestions, setShowSuggestions] = React.useState(false);
   const searchContainerRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const auth = useAuth();
+  const { user } = useUser();
 
   React.useEffect(() => {
     if (searchQuery.length < 3) {
@@ -140,7 +149,6 @@ export function ControlsSidebar({
     });
   };
 
-  // Effect to handle clicks outside of the search container to close suggestions
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -156,6 +164,14 @@ export function ControlsSidebar({
     };
   }, [searchContainerRef]);
 
+  const handleSignOut = () => {
+    initiateSignOut(auth);
+    toast({
+      title: 'Signed Out',
+      description: 'You have been successfully signed out.',
+    });
+  };
+
   return (
     <>
       <SidebarHeader>
@@ -166,117 +182,137 @@ export function ControlsSidebar({
         <Separator />
       </SidebarHeader>
 
-      <SidebarContent>
-        {/* 1. Connection */}
-        <SidebarGroup>
-          <SidebarGroupLabel>1. Connect Server</SidebarGroupLabel>
-          <Input
-            type="url"
-            placeholder="Ngrok URL (e.g., https://...)"
-            value={colabUrl}
-            onChange={(e) => setColabUrl(e.target.value)}
-            disabled={isLoading}
-          />
-        </SidebarGroup>
+      <SidebarContent className="p-0">
+        <div className="flex flex-col gap-4 p-4">
+          {/* 1. Connection */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel>1. Connect Server</SidebarGroupLabel>
+            <Input
+              type="url"
+              placeholder="Ngrok URL (e.g., https://...)"
+              value={colabUrl}
+              onChange={(e) => setColabUrl(e.target.value)}
+              disabled={isLoading}
+            />
+          </SidebarGroup>
 
-        {/* 2. Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>2. Navigate</SidebarGroupLabel>
-          <div className="relative" ref={searchContainerRef}>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search (e.g. Lahore, DHA Phase 6)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleDirectSearch();
-                  if (e.key === 'Escape') setShowSuggestions(false);
-                }}
-                onFocus={() =>
-                  searchQuery.length >= 3 &&
-                  suggestions.length > 0 &&
-                  setShowSuggestions(true)
-                }
-                autoComplete="off"
-              />
+          {/* 2. Navigation */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel>2. Navigate</SidebarGroupLabel>
+            <div className="relative" ref={searchContainerRef}>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Search (e.g. Lahore, DHA Phase 6)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDirectSearch();
+                    if (e.key === 'Escape') setShowSuggestions(false);
+                  }}
+                  onFocus={() =>
+                    searchQuery.length >= 3 &&
+                    suggestions.length > 0 &&
+                    setShowSuggestions(true)
+                  }
+                  autoComplete="off"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={handleDirectSearch}
+                  disabled={isSearching || !searchQuery.trim()}
+                >
+                  {isSearching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full mt-1 w-full rounded-md border bg-background shadow-lg z-50">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.place_id}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md"
+                    >
+                      {suggestion.display_name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </SidebarGroup>
+
+          {/* 3. Instructions */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel>3. Select Area & Detect</SidebarGroupLabel>
+            <div className="flex items-start gap-3 rounded-md bg-secondary/20 p-3 text-sm text-muted-foreground border">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>
+                Use the map tools to select an area for AI detection or to
+                manually digitize features.
+              </span>
+            </div>
+          </SidebarGroup>
+
+          {/* 4. Digitize & Export */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel>4. Digitize & Export</SidebarGroupLabel>
+            <div className="flex flex-col gap-2">
               <Button
-                size="icon"
                 variant="outline"
-                onClick={handleDirectSearch}
-                disabled={isSearching || !searchQuery.trim()}
+                onClick={onDownloadDigitized}
+                disabled={isLoading || !hasManualFeatures}
+                title={
+                  !hasManualFeatures
+                    ? 'Draw one or more shapes on the map first'
+                    : 'Download your manually drawn shapes'
+                }
               >
-                {isSearching ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
+                <FileJson className="mr-2 h-4 w-4" />
+                Download Digitized Layer (.geojson)
               </Button>
             </div>
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full mt-1 w-full rounded-md border bg-background shadow-lg z-50">
-                {suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.place_id}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md"
-                  >
-                    {suggestion.display_name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </SidebarGroup>
-
-        {/* 3. Instructions */}
-        <SidebarGroup>
-          <SidebarGroupLabel>3. Select Area & Detect</SidebarGroupLabel>
-          <div className="flex items-start gap-2 rounded-md bg-secondary/20 p-2 text-sm text-muted-foreground border">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <span>
-              <strong>Area Selection &amp; Tools:</strong>
-              <br />- For detection, use the <strong>Rectangle</strong> or{' '}
-              <strong>Polygon</strong> tool.
-              <br />- To measure distance, use the <strong>Polyline</strong>{' '}
-              (line) tool.
-              <br />- Click any drawn shape to see its measurements.
-            </span>
-          </div>
-        </SidebarGroup>
-
-        {/* 4. Digitize & Export */}
-        <SidebarGroup>
-          <SidebarGroupLabel>4. Digitize & Export</SidebarGroupLabel>
-          <div className="flex flex-col gap-2">
-            <p className="text-sm text-muted-foreground">
-              Draw on the map to select an area or digitize features, then export your work.
-            </p>
-            <Button
-              variant="outline"
-              onClick={onDownloadImage}
-              disabled={isLoading || !hasSelection}
-              title={!hasSelection ? "Draw a rectangle or polygon on the map first" : "Download GeoTIFF image of the selected area"}
-            >
-              <ImageDown className="mr-2 h-4 w-4" />
-              Download Area Image (.tif)
-            </Button>
-            <Button
-              variant="outline"
-              onClick={onDownloadDigitized}
-              disabled={isLoading || !hasManualFeatures}
-              title={!hasManualFeatures ? "Draw one or more shapes on the map first" : "Download your manually drawn shapes"}
-            >
-              <FileJson className="mr-2 h-4 w-4" />
-              Download Digitized Layer (.geojson)
-            </Button>
-          </div>
-        </SidebarGroup>
+          </SidebarGroup>
+        </div>
       </SidebarContent>
 
       <SidebarFooter>
         <Separator />
         <div className="flex flex-col gap-2 p-4">
-          <Button onClick={onDetect} disabled={isLoading || !hasSelection} className="w-full">
+          <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <UserIcon className="h-4 w-4 shrink-0" />
+              <span className="truncate" title={user?.email ?? ''}>
+                {user?.email ?? 'Not signed in'}
+              </span>
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Sign Out</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <Separator />
+          <Button
+            onClick={onDetect}
+            disabled={isLoading || !hasSelection}
+            className="w-full"
+          >
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
