@@ -1,0 +1,268 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents an individual user registered with the application. This entity stores user profile information, with authentication handled by an external system like Firebase Authentication.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity. This will typically be the user ID provided by the authentication system (e.g., Firebase UID)."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user, used for login and identification.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "An optional display name chosen by the user for personalization."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "Timestamp indicating the user's most recent login.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "createdAt",
+        "lastLoginAt"
+      ]
+    },
+    "SatelliteImage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SatelliteImage",
+      "type": "object",
+      "description": "Represents a satellite image uploaded by a user for processing and analysis.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the SatelliteImage entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N SatelliteImage)"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The original file name of the uploaded image."
+        },
+        "storagePath": {
+          "type": "string",
+          "description": "The URL or path where the image file is stored (e.g., Firebase Storage URL).",
+          "format": "uri"
+        },
+        "uploadDateTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the image was uploaded.",
+          "format": "date-time"
+        },
+        "originalWidth": {
+          "type": "number",
+          "description": "The original width of the image in pixels, useful for CRS.Simple mapping."
+        },
+        "originalHeight": {
+          "type": "number",
+          "description": "The original height of the image in pixels, useful for CRS.Simple mapping."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "fileName",
+        "storagePath",
+        "uploadDateTime",
+        "originalWidth",
+        "originalHeight"
+      ]
+    },
+    "DetectionSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DetectionSession",
+      "type": "object",
+      "description": "Represents a single attempt or session of performing AI-powered building detection on a specific satellite image.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DetectionSession entity."
+        },
+        "imageId": {
+          "type": "string",
+          "description": "Reference to SatelliteImage. (Relationship: SatelliteImage 1:N DetectionSession)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N DetectionSession)"
+        },
+        "sessionStartDateTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the detection session was initiated.",
+          "format": "date-time"
+        },
+        "sessionEndDateTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the detection session completed or failed. Can be null if still pending.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the detection session (e.g., 'pending', 'processing', 'completed', 'failed')."
+        },
+        "processingOutputGeoJson": {
+          "type": "string",
+          "description": "The GeoJSON string containing the AI-detected building polygons. Stored as a string to allow for flexible GeoJSON structures."
+        }
+      },
+      "required": [
+        "id",
+        "imageId",
+        "userId",
+        "sessionStartDateTime",
+        "status"
+      ]
+    },
+    "ClickedCoordinate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClickedCoordinate",
+      "type": "object",
+      "description": "Represents a specific [x, y] coordinate clicked by the user on a satellite image, used as input for building detection within a session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ClickedCoordinate entity."
+        },
+        "detectionSessionId": {
+          "type": "string",
+          "description": "Reference to DetectionSession. (Relationship: DetectionSession 1:N ClickedCoordinate)"
+        },
+        "xCoordinate": {
+          "type": "number",
+          "description": "The X-coordinate (pixel column) clicked on the image."
+        },
+        "yCoordinate": {
+          "type": "number",
+          "description": "The Y-coordinate (pixel row) clicked on the image."
+        },
+        "clickDateTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the coordinate was clicked.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "detectionSessionId",
+        "xCoordinate",
+        "yCoordinate",
+        "clickDateTime"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores individual user profile information. Each document is uniquely identified by the Firebase Authentication UID, which matches the {userId} wildcard. This collection is private to the owning user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, corresponding to their Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/satelliteImages/{imageId}",
+        "definition": {
+          "entityName": "SatelliteImage",
+          "schema": {
+            "$ref": "#/backend/entities/SatelliteImage"
+          },
+          "description": "Stores metadata for satellite images uploaded by a specific user. Access is restricted to the owner specified by the {userId} in the path. Includes denormalized 'userId' field for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this image."
+            },
+            {
+              "name": "imageId",
+              "description": "The unique identifier for the satellite image."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}",
+        "definition": {
+          "entityName": "DetectionSession",
+          "schema": {
+            "$ref": "#/backend/entities/DetectionSession"
+          },
+          "description": "Represents AI-powered building detection sessions performed on a specific satellite image by its owner. Access is restricted to the owner defined by {userId} in the path. Includes denormalized 'userId' and 'imageId' fields for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who initiated this session."
+            },
+            {
+              "name": "imageId",
+              "description": "The unique identifier of the satellite image on which this session was run."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique identifier for this detection session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}/clickedCoordinates/{coordinateId}",
+        "definition": {
+          "entityName": "ClickedCoordinate",
+          "schema": {
+            "$ref": "#/backend/entities/ClickedCoordinate"
+          },
+          "description": "Stores individual [x, y] coordinates clicked by the user within a specific detection session. Access is restricted to the owner defined by {userId} in the path. Includes denormalized 'detectionSessionId' field for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns the parent detection session."
+            },
+            {
+              "name": "imageId",
+              "description": "The unique identifier of the satellite image associated with the parent detection session."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique identifier of the detection session to which this coordinate belongs."
+            },
+            {
+              "name": "coordinateId",
+              "description": "The unique identifier for this clicked coordinate."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure is designed to adhere strictly to the core design principles, especially Authorization Independence and QAPs, by leveraging a deeply hierarchical, user-owned data model. Each user's data is siloed under their unique `userId` within the `/users` top-level collection. This creates a highly secure and easily auditable data access pattern.\n\n1.  **Authorization Independence:** This is achieved primarily through path-based ownership and inherent denormalization. For instance, a `SatelliteImage` is stored at `/users/{userId}/satelliteImages/{imageId}`. Any Firestore security rule for this collection can simply compare `request.auth.uid` directly against the `{userId}` wildcard in the path. This eliminates the need for expensive and complex `get()` calls to parent documents (e.g., to check if the parent `User` document belongs to `request.auth.uid`), thereby preventing rule complexity and avoiding breaking atomic operations.\n    \n    *   `User` documents (`/users/{userId}`) are directly owned by `request.auth.uid`.\n    *   `SatelliteImage` documents (`/users/{userId}/satelliteImages/{imageId}`) implicitly carry their `userId` in the path. While the `SatelliteImage` entity *also* contains a `userId` field, its primary role in authorization comes from the path, making it self-contained.\n    *   `DetectionSession` documents (`/users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}`) similarly have `userId` and `imageId` in their path, making their ownership and context immediately clear without parent lookups.\n    *   `ClickedCoordinate` documents (`/users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}/clickedCoordinates/{coordinateId}`) continue this pattern, ensuring that all necessary authorization context is available directly from the path.\n\n2.  **QAPs (Queries as Authorization Primitives):** By segregating data under `/users/{userId}/...`, `list` operations become inherently secure and performant. A user can only query for data within their own `/users/{request.auth.uid}/...` subtrees. For example, a query to fetch all satellite images for the current user would target `/users/{request.auth.uid}/satelliteImages`. The security rules can then simply enforce `allow list: if request.auth.uid == userId;`, ensuring that the database only returns documents explicitly owned by the requesting user, with no client-side filtering required. This prevents data leakage and simplifies client-side logic.\n\n3.  **Structural Segregation:** Each collection (`users`, `satelliteImages`, `detectionSessions`, `clickedCoordinates`) maintains a homogeneous security posture (private, user-owned data), simplifying security rules further. There are no mixed-access data types within the same collection.\n\n4.  **Data Clarity and Predictability:** The use of descriptive wildcards (`{userId}`, `{imageId}`, `{sessionId}`, `{coordinateId}`) and explicit entity names enhances readability and debuggability. The `status` field in `DetectionSession` exemplifies explicit state modeling."
+  }
+}

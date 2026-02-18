@@ -1,0 +1,125 @@
+/**
+ * Core Philosophy: This ruleset enforces a strict user-ownership model. All data is considered private and is
+ * only accessible to the user who created it. There is no public or shared data.
+ *
+ * Data Structure: The data is organized hierarchically, with all user-specific information nested under a
+ * top-level `/users/{userId}` collection. This structure creates a natural and secure silo for each user's
+ * data, simplifying security rules and queries.
+ *
+ * Key Security Decisions:
+ * - User Listing Disabled: To protect user privacy, it is not possible to list all documents in the `/users`
+ *   collection. A user can only fetch their own profile document.
+ * - Path-Based Authorization: All access control decisions are made by comparing the authenticated user's UID
+ *   (`request.auth.uid`) with the `{userId}` wildcard in the document path. This is highly performant as it
+ *   avoids extra database reads (`get()` calls).
+ * - Immutability of Ownership: Relational keys that link a document to its owner (e.g., `userId` field) are
+ *   enforced to be immutable after creation to prevent data re-association.
+ * - Default Deny: Any operation not explicitly granted is denied. All write operations (`create`, `update`,
+ *   `delete`) are explicitly denied if the user is not the designated owner.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------------
+
+    /**
+     * Checks if the user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Verifies that the requesting user's UID matches the provided userId from the path.
+     * This is the fundamental rule for enforcing user ownership.
+     * @param userId The user ID from the document path.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Verifies ownership for an existing document. Used for update and delete operations
+     * to ensure the target document exists before the operation proceeds.
+     * @param userId The user ID from the document path.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    // ----------------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (get) An authenticated user can retrieve their own profile document.
+     * @allow (create) An authenticated user can create their own profile document.
+     * @deny (list) No user can list all documents in the 'users' collection.
+     * @deny (update) A user cannot update another user's profile.
+     * @principle Restricts access to a user's own data tree and enforces relational integrity on create.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Controls access to a user's collection of satellite images.
+       * @path /users/{userId}/satelliteImages/{imageId}
+       * @allow (list) An authenticated user can list all satellite images they own.
+       * @allow (create) An authenticated user can upload a new satellite image.
+       * @deny (get) A user cannot read a satellite image belonging to another user.
+       * @deny (delete) A user cannot delete another user's satellite image.
+       * @principle Enforces document ownership for all operations and validates relational integrity.
+       */
+      match /satelliteImages/{imageId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Controls access to AI detection sessions for a specific satellite image.
+         * @path /users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}
+         * @allow (get) The owner can retrieve a specific detection session for their image.
+         * @allow (list) The owner can list all detection sessions for their image.
+         * @deny (create) Another user cannot start a detection session on an image they do not own.
+         * @deny (update) A user cannot modify another user's session results.
+         * @principle Cascades ownership rules from the parent user document and validates path consistency.
+         */
+        match /detectionSessions/{sessionId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId) && request.resource.data.userId == userId && request.resource.data.imageId == imageId;
+          allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId && request.resource.data.imageId == resource.data.imageId;
+          allow delete: if isExistingOwner(userId);
+
+          /**
+           * @description Controls access to specific user clicks within a detection session.
+           * @path /users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}/clickedCoordinates/{coordinateId}
+           * @allow (create) The owner can add a new clicked coordinate to their own detection session.
+           * @allow (list) The owner can list all clicked coordinates within their own session.
+           * @deny (get) A user cannot retrieve a specific coordinate from another user's session.
+           * @deny (delete) A user cannot delete a coordinate from another user's session.
+           * @principle Ensures data can only be added to a user's own session and maintains relational integrity.
+           */
+          match /clickedCoordinates/{coordinateId} {
+            allow get: if isOwner(userId);
+            allow list: if isOwner(userId);
+            allow create: if isOwner(userId) && request.resource.data.detectionSessionId == sessionId;
+            allow update: if isExistingOwner(userId) && request.resource.data.detectionSessionId == resource.data.detectionSessionId;
+            allow delete: if isExistingOwner(userId);
+          }
+        }
+      }
+    }
+  }
+}
