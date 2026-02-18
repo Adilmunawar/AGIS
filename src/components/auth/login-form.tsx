@@ -90,7 +90,7 @@ export function LoginForm() {
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="name@example.com"
+                      placeholder="developer@agis.com"
                       {...field}
                       autoComplete="email"
                     />
