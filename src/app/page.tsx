@@ -18,6 +18,7 @@ import {
   SidebarProvider,
   Sidebar,
   SidebarInset,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { ControlsSidebar } from '@/components/satellite-vision/controls-sidebar';
 import { useUser } from '@/firebase';
@@ -191,7 +192,7 @@ export default function SatelliteVisionPage() {
   
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar variant="inset" collapsible="icon">
         <ControlsSidebar
           colabUrl={colabUrl}
           setColabUrl={setColabUrl}
@@ -208,16 +209,24 @@ export default function SatelliteVisionPage() {
         />
       </Sidebar>
       <SidebarInset>
-        <MapComponent
-          geoJsonData={geoJson}
-          setBBox={handleSetBBox}
-          setPoints={setPoints}
-          searchResult={searchCoords}
-          isDrawing={isDrawing}
-          setIsDrawing={setIsDrawing}
-          onManualFeaturesChange={setManualFeatures}
-          activeTool={activeTool}
-        />
+        <div className="flex h-svh flex-col">
+           <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
+              <SidebarTrigger className="h-8 w-8 rounded-full border" />
+              <span className="font-semibold text-lg">AGIS - Advanced Geospatial Intelligence System</span>
+            </header>
+            <div className="flex-1 overflow-hidden">
+                <MapComponent
+                  geoJsonData={geoJson}
+                  setBBox={handleSetBBox}
+                  setPoints={setPoints}
+                  searchResult={searchCoords}
+                  isDrawing={isDrawing}
+                  setIsDrawing={setIsDrawing}
+                  onManualFeaturesChange={setManualFeatures}
+                  activeTool={activeTool}
+                />
+            </div>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

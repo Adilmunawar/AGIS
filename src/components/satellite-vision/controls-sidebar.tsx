@@ -9,7 +9,6 @@ import {
   MapPin,
   LogOut,
   User as UserIcon,
-  Shapes,
   Bot,
   PenSquare,
 } from 'lucide-react';
@@ -20,6 +19,9 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -188,7 +190,7 @@ export function ControlsSidebar({
   return (
     <>
       <SidebarHeader>
-        <div className="flex items-center gap-3 p-2">
+        <div className="flex items-center gap-3 p-4">
           <Globe className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-semibold">AGIS</h1>
         </div>
@@ -350,31 +352,26 @@ export function ControlsSidebar({
 
       <SidebarFooter>
         <Separator />
-        <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground p-4">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <UserIcon className="h-5 w-5 shrink-0" />
-              <span className="truncate" title={user?.email ?? ''}>
-                {user?.email ?? 'Not signed in'}
-              </span>
-            </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={handleSignOut}
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Sign Out</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+        <div className="flex items-center p-4 text-sm font-medium text-muted-foreground">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <UserIcon className="h-5 w-5 shrink-0" />
+            <span className="truncate" title={user?.email ?? ''}>
+              {user?.email ?? 'Not signed in'}
+            </span>
           </div>
+        </div>
+        <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton
+                    onClick={handleSignOut}
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive w-full justify-start"
+                    tooltip={{ children: 'Sign Out', side: 'right' }}
+                >
+                    <LogOut />
+                    <span>Sign Out</span>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </>
   );
