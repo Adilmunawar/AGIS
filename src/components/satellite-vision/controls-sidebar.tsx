@@ -7,7 +7,7 @@ import {
   PenSquare,
   Server,
   ChevronLeft,
-  Menu,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -101,26 +101,11 @@ export function ControlsSidebar({
     <TooltipProvider delayDuration={100}>
       <aside
         className={cn(
-          'flex h-full shrink-0 flex-col bg-card shadow-2xl z-10 transition-all duration-300 ease-in-out rounded-tr-3xl rounded-br-3xl',
+          'relative flex h-full shrink-0 flex-col bg-card shadow-2xl z-10 transition-all duration-300 ease-in-out rounded-tr-[2.5rem] rounded-br-[2.5rem]',
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
-        <div
-          className={cn(
-            'flex h-20 items-center',
-            isCollapsed ? 'justify-center' : 'justify-end pr-4'
-          )}
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="shrink-0 h-10 w-10 rounded-full"
-            aria-label="Toggle Sidebar"
-          >
-            {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
-          </Button>
-        </div>
+        <div className="h-20" /> {/* Spacer for the new button */}
 
         {/* Tool Switcher */}
         <nav className="flex flex-col gap-2 p-2 flex-grow">
@@ -173,6 +158,16 @@ export function ControlsSidebar({
             onClick={handleSignOut}
           />
         </div>
+        
+        <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="absolute top-6 right-[-20px] z-20 h-10 w-10 rounded-full shadow-md border"
+            aria-label="Toggle Sidebar"
+        >
+            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </Button>
       </aside>
     </TooltipProvider>
   );
