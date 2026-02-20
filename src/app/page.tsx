@@ -231,7 +231,14 @@ export default function SatelliteVisionPage() {
           onManualFeaturesChange={setManualFeatures}
           activeTool={activeTool}
         />
-        <div className="absolute top-4 left-4 z-[1000] w-full max-w-sm">
+        
+        {/* Top-right controls: Search bar is positioned to allow space for the layers control */}
+        <div className="absolute top-4 right-14 z-[1000] w-full max-w-xs">
+          <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
+        </div>
+        
+        {/* Bottom-right controls: Minimalist action buttons */}
+        <div className="absolute bottom-4 right-4 z-[1000]">
            <MapActions
             activeTool={activeTool}
             isLoading={isLoading}
@@ -243,9 +250,7 @@ export default function SatelliteVisionPage() {
             onDownloadDigitized={handleDownloadDigitized}
           />
         </div>
-        <div className="absolute top-4 right-4 z-[1000] w-full max-w-sm">
-           <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
-        </div>
+
       </main>
       <ConnectServerDialog
         isOpen={isSettingsOpen}
