@@ -96,22 +96,29 @@ body {
 
 /* Leaflet Draw UI Customization for Light Theme */
 .leaflet-draw, .leaflet-control-layers {
-  border-radius: var(--radius);
-  background-color: hsl(var(--background) / 0.5); /* Glassmorphism */
+  border-radius: var(--radius) !important;
+  background-color: hsl(var(--background) / 0.5) !important; /* Glassmorphism */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px); /* Safari */
-  border: 1px solid hsl(var(--border) / 0.2);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border: 1px solid hsl(var(--border) / 0.2) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .leaflet-draw-toolbar a, .leaflet-control-layers-toggle {
-  background-color: transparent; /* Updated for glassmorphism */
+  background-color: transparent !important; /* Updated for glassmorphism */
   color: hsl(var(--foreground));
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: calc(var(--radius) - 2px) !important;
+  width: 38px !important;
+  height: 38px !important;
+  border: none !important;
 }
 
 .leaflet-draw-toolbar a:hover {
-    background-color: hsl(var(--secondary));
+    background-color: hsl(var(--secondary)) !important;
 }
 
 .leaflet-draw-draw-polygon,
@@ -119,8 +126,8 @@ body {
 .leaflet-draw-draw-rectangle,
 .leaflet-draw-edit-edit,
 .leaflet-draw-edit-remove {
-    background-position: 50% 50%;
-    background-repeat: no-repeat;
+    background-position: 50% 50% !important;
+    background-repeat: no-repeat !important;
 }
 
 .leaflet-control-layers-base label {

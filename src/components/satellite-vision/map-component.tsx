@@ -302,12 +302,22 @@ export default function MapComponent({
       style={{ height: '100%', width: '100%', background: '#111' }}
       zoomControl={false}
     >
-        <LayersControl position="topright" />
-        <TileLayer
-            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-            attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
-            maxZoom={22}
-        />
+        <LayersControl position="topright">
+            <LayersControl.BaseLayer checked name="Satellite">
+                <TileLayer
+                    url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                    attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+                    maxZoom={22}
+                />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Street Map">
+                <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+            </LayersControl.BaseLayer>
+        </LayersControl>
+
         <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
         <MapController coords={searchResult} />
 

@@ -233,8 +233,11 @@ export default function SatelliteVisionPage() {
         />
         
         {/* Top-right controls: Search bar is positioned to allow space for the layers control */}
-        <div className="absolute top-4 right-14 z-[1000] w-full max-w-xs">
-          <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
+        <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2">
+            <div className="w-full max-w-xs">
+                <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
+            </div>
+            {/* The actual Leaflet layer control is styled to have the same height and will be rendered by Leaflet in the top-right corner. This container helps with alignment. */}
         </div>
         
         {/* Bottom-right controls: Minimalist action buttons */}
