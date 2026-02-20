@@ -4,100 +4,100 @@
 @tailwind utilities;
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 10% 10%;
+    --background: 222 24% 10%; /* Very dark blue-gray */
+    --foreground: 210 20% 90%; /* Light gray */
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 10% 10%;
+    --card: 222 24% 14%; /* Slightly lighter dark blue-gray */
+    --card-foreground: 210 20% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 10% 10%;
+    --popover: 222 24% 8%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 150 76% 43%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 160 80% 45%; /* Bright teal/green */
+    --primary-foreground: 210 20% 5%;
 
-    --secondary: 220 15% 90%;
-    --secondary-foreground: 220 10% 20%;
+    --secondary: 222 24% 20%;
+    --secondary-foreground: 210 20% 90%;
 
-    --muted: 220 15% 95%;
-    --muted-foreground: 220 10% 40%;
+    --muted: 222 24% 20%;
+    --muted-foreground: 210 20% 60%;
 
-    --accent: 150 40% 95%;
-    --accent-foreground: 150 76% 30%;
+    --accent: 160 80% 25%;
+    --accent-foreground: 160 80% 85%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 15% 90%;
-    --input: 220 15% 88%;
-    --ring: 150 76% 43%;
+    --border: 222 24% 25%;
+    --input: 222 24% 22%;
+    --ring: 160 80% 55%;
 
     --radius: 0.5rem;
 
-    --chart-1: 221 83% 53%;
-    --chart-2: 180 60% 40%;
+    --chart-1: 160 80% 45%;
+    --chart-2: 200 80% 60%;
     --chart-3: 40 80% 55%;
     --chart-4: 0 75% 60%;
-    --chart-5: 200 80% 60%;
+    --chart-5: 280 80% 70%;
 
-    --sidebar-background: 210 20% 98%;
-    --sidebar-foreground: 220 10% 10%;
-    --sidebar-primary: 150 76% 43%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 150 40% 95%;
-    --sidebar-accent-foreground: 150 76% 30%;
-    --sidebar-border: 220 15% 90%;
-    --sidebar-ring: 150 76% 43%;
+    --sidebar-background: 222 24% 12%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 160 80% 45%;
+    --sidebar-primary-foreground: 210 20% 5%;
+    --sidebar-accent: 160 80% 25%;
+    --sidebar-accent-foreground: 160 80% 85%;
+    --sidebar-border: 222 24% 25%;
+    --sidebar-ring: 160 80% 55%;
   }
 
   .dark {
-    --background: 220 15% 10%;
-    --foreground: 220 10% 90%;
+    --background: 222 24% 10%;
+    --foreground: 210 20% 90%;
 
-    --card: 220 15% 12%;
-    --card-foreground: 220 10% 90%;
+    --card: 222 24% 14%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 220 15% 5%;
-    --popover-foreground: 220 10% 90%;
+    --popover: 222 24% 8%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 150 60% 55%;
-    --primary-foreground: 0 0% 10%;
+    --primary: 160 80% 45%;
+    --primary-foreground: 210 20% 5%;
 
-    --secondary: 220 15% 20%;
-    --secondary-foreground: 220 10% 90%;
+    --secondary: 222 24% 20%;
+    --secondary-foreground: 210 20% 90%;
 
-    --muted: 220 15% 15%;
-    --muted-foreground: 220 10% 60%;
+    --muted: 222 24% 20%;
+    --muted-foreground: 210 20% 60%;
 
-    --accent: 150 40% 20%;
-    --accent-foreground: 150 70% 70%;
+    --accent: 160 80% 25%;
+    --accent-foreground: 160 80% 85%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
-    
-    --border: 220 15% 25%;
-    --input: 220 15% 22%;
-    --ring: 150 60% 55%;
 
-    --chart-1: 221 83% 63%;
-    --chart-2: 180 70% 50%;
-    --chart-3: 40 80% 65%;
-    --chart-4: 0 75% 70%;
-    --chart-5: 200 80% 70%;
-    
-    --sidebar-background: 220 15% 12%;
-    --sidebar-foreground: 220 10% 90%;
-    --sidebar-primary: 150 60% 55%;
-    --sidebar-primary-foreground: 0 0% 10%;
-    --sidebar-accent: 220 15% 20%;
-    --sidebar-accent-foreground: 150 70% 70%;
-    --sidebar-border: 220 15% 25%;
-    --sidebar-ring: 150 60% 55%;
+    --border: 222 24% 25%;
+    --input: 222 24% 22%;
+    --ring: 160 80% 55%;
+
+    --chart-1: 160 80% 45%;
+    --chart-2: 200 80% 60%;
+    --chart-3: 40 80% 55%;
+    --chart-4: 0 75% 60%;
+    --chart-5: 280 80% 70%;
+
+    --sidebar-background: 222 24% 12%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 160 80% 45%;
+    --sidebar-primary-foreground: 210 20% 5%;
+    --sidebar-accent: 160 80% 25%;
+    --sidebar-accent-foreground: 160 80% 85%;
+    --sidebar-border: 222 24% 25%;
+    --sidebar-ring: 160 80% 55%;
   }
 }
 
@@ -110,7 +110,42 @@ body {
   }
 }
 
+
 /* Leaflet Draw UI Customization */
+.leaflet-draw, .leaflet-control-layers {
+  border-radius: var(--radius);
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.leaflet-draw-toolbar a, .leaflet-control-layers-toggle {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.leaflet-draw-toolbar a:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+}
+
+.leaflet-draw-draw-polygon,
+.leaflet-draw-draw-polyline,
+.leaflet-draw-draw-rectangle,
+.leaflet-draw-edit-edit,
+.leaflet-draw-edit-remove {
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+}
+
+.leaflet-control-layers-base label {
+  color: hsl(var(--foreground));
+}
+.leaflet-control-layers-overlays label {
+  color: hsl(var(--foreground));
+}
+
 .leaflet-draw-handle,
 .leaflet-editing-icon {
   background: hsl(var(--primary));
@@ -133,7 +168,6 @@ body {
   padding: 0.5rem 0.75rem;
 }
 
-/* Hide the default tooltip arrow which doesn't look good with rounded corners */
 .leaflet-draw-tooltip-top:before,
 .leaflet-draw-tooltip-bottom:before,
 .leaflet-draw-tooltip-left:before,

@@ -20,7 +20,7 @@ import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import type { BBox, GeoPoint } from '@/lib/api';
 import { CoordinatesControl } from './coordinates-control';
-import type { ActiveTool } from '@/app/page';
+import type { ActiveTool } from './controls-sidebar';
 
 // --- Interfaces ---
 interface MapProps {
@@ -106,7 +106,7 @@ const createAreaPopup = (layer: L.Polygon | L.Rectangle) => {
   const areaSqm = area.toFixed(2);
   const areaMarla = (area / 25.2929).toFixed(2);
   return `
-    <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--foreground)); min-width: 180px;">
+    <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--card-foreground)); min-width: 180px;">
       <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Feature Details</div>
       <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid hsl(var(--border));">
           <span style="color: hsl(var(--muted-foreground));">Area (sqm)</span>
@@ -128,7 +128,7 @@ const createLengthPopup = (layer: L.Polyline) => {
   }
   const distanceKm = (totalDistance / 1000).toFixed(2);
   return `
-    <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--foreground)); min-width: 150px;">
+    <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--card-foreground)); min-width: 150px;">
         <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Measurement</div>
         <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid hsl(var(--border));">
             <span style="color: hsl(var(--muted-foreground));">Length</span>
@@ -158,12 +158,10 @@ export default function MapComponent({
   }, [localPoints, setPoints]);
   
   useEffect(() => {
-    if (activeTool === 'detection') {
-      if(!isDrawing) {
-         setLocalPoints([]);
-      }
+    if (activeTool === 'digitize') {
+       setLocalPoints([]);
     }
-  }, [activeTool, isDrawing]);
+  }, [activeTool]);
 
   const geoJsonStyle = {
     color: 'hsl(var(--primary))',
@@ -177,7 +175,7 @@ export default function MapComponent({
       const marla = feature.properties.area_mrl?.toFixed(2) ?? 'N/A';
       const sqm = feature.properties.area_sqm?.toFixed(2) ?? 'N/A';
       layer.bindPopup(`
-          <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--foreground)); min-width: 180px;">
+          <div style="font-family: Inter, sans-serif; font-size: 14px; line-height: 1.5; color: hsl(var(--card-foreground)); min-width: 180px;">
             <div style="font-weight: 600; margin-bottom: 8px; color: hsl(var(--primary)); font-size: 15px;">Building Details</div>
             <div style="display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid hsl(var(--border));">
                 <span style="color: hsl(var(--muted-foreground));">Area (sqm)</span>
@@ -208,7 +206,6 @@ export default function MapComponent({
           setLocalPoints([]);
           const bounds = layer.getBounds();
 
-          // Clear any previously drawn rectangle ROI to enforce a single ROI
           if (featureGroupRef.current) {
             featureGroupRef.current.eachLayer((l: any) => {
               if (l instanceof L.Rectangle && l !== layer) {
@@ -303,75 +300,76 @@ export default function MapComponent({
       center={[31.5204, 74.3587]}
       zoom={16}
       style={{ height: '100%', width: '100%', background: '#111' }}
+      zoomControl={false}
     >
-      <LayersControl position="topright" />
-      <TileLayer
-        url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-        attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
-        maxZoom={22}
-      />
-      <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
-      <MapController coords={searchResult} />
-
-      <MapClickHandler activeTool={activeTool} setPoints={setLocalPoints} />
-
-      {localPoints.map((p, idx) => (
-        <Marker key={idx} position={[p.lat, p.lng]} icon={pointIcon}>
-          <Popup>Point {idx + 1}</Popup>
-        </Marker>
-      ))}
-
-      <FeatureGroup ref={featureGroupRef}>
-        <EditControl
-          key={activeTool}
-          position="topleft"
-          onCreated={onCreated}
-          onEdited={onEdited}
-          onDeleted={onDeleted}
-          draw={{
-            rectangle: activeTool === 'detection' ? {
-              shapeOptions: {
-                color: 'hsl(var(--accent))',
-                fillColor: 'hsl(var(--accent))',
-                fillOpacity: 0.1,
-                weight: 2,
-                dashArray: '5, 5'
-              },
-            } : false,
-            polygon: activeTool === 'digitize' ? {
-              shapeOptions: {
-                color: 'hsl(var(--primary))',
-                fillColor: 'hsl(var(--primary))',
-                fillOpacity: 0.1,
-                weight: 2,
-              },
-            } : false,
-            polyline: activeTool === 'digitize' ? {
-               shapeOptions: {
-                color: 'hsl(var(--primary))',
-                weight: 3,
-              },
-            } : false,
-            circle: false,
-            circlemarker: false,
-            marker: false,
-          }}
-          edit={{
-            featureGroup: featureGroupRef.current,
-            edit: true,
-            remove: true
-          }}
+        <LayersControl position="topright" />
+        <TileLayer
+            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+            attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+            maxZoom={22}
         />
-      </FeatureGroup>
-      {geoJsonData && (
-        <GeoJSON
-          key={geoKey}
-          data={geoJsonData}
-          style={geoJsonStyle}
-          onEachFeature={onEachFeature}
-        />
-      )}
-      <CoordinatesControl />
+        <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
+        <MapController coords={searchResult} />
+
+        <MapClickHandler activeTool={activeTool} setPoints={setLocalPoints} />
+
+        {localPoints.map((p, idx) => (
+            <Marker key={idx} position={[p.lat, p.lng]} icon={pointIcon}>
+            <Popup>Point {idx + 1}</Popup>
+            </Marker>
+        ))}
+
+        <FeatureGroup ref={featureGroupRef}>
+            <EditControl
+            key={activeTool}
+            position="topleft"
+            onCreated={onCreated}
+            onEdited={onEdited}
+            onDeleted={onDeleted}
+            draw={{
+                rectangle: activeTool === 'detection' ? {
+                shapeOptions: {
+                    color: 'hsl(var(--primary))',
+                    fillColor: 'hsl(var(--accent))',
+                    fillOpacity: 0.1,
+                    weight: 2,
+                    dashArray: '5, 5'
+                },
+                } : false,
+                polygon: activeTool === 'digitize' ? {
+                shapeOptions: {
+                    color: 'hsl(var(--primary))',
+                    fillColor: 'hsl(var(--primary))',
+                    fillOpacity: 0.1,
+                    weight: 2,
+                },
+                } : false,
+                polyline: activeTool === 'digitize' ? {
+                shapeOptions: {
+                    color: 'hsl(var(--primary))',
+                    weight: 3,
+                },
+                } : false,
+                circle: false,
+                circlemarker: false,
+                marker: false,
+            }}
+            edit={{
+                featureGroup: featureGroupRef.current,
+                edit: true,
+                remove: true
+            }}
+            />
+        </FeatureGroup>
+        {geoJsonData && (
+            <GeoJSON
+            key={geoKey}
+            data={geoJsonData}
+            style={geoJsonStyle}
+            onEachFeature={onEachFeature}
+            />
+        )}
+        <CoordinatesControl />
     </MapContainer>
   );
 }

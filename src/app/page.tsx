@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { saveAs } from 'file-saver';
 import type { GeoJsonObject } from 'geojson';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
 
 import {
   detectFromBounds,
@@ -14,13 +14,7 @@ import {
   type GeoPoint,
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarInset,
-  SidebarTrigger,
-} from '@/components/ui/sidebar';
-import { ControlsSidebar } from '@/components/satellite-vision/controls-sidebar';
+import { ControlsSidebar, ActiveTool } from '@/components/satellite-vision/controls-sidebar';
 import { useUser } from '@/firebase';
 
 const MapComponent = dynamic(
@@ -31,7 +25,6 @@ const MapComponent = dynamic(
   }
 );
 
-export type ActiveTool = 'detection' | 'digitize';
 
 export default function SatelliteVisionPage() {
   const { user, isUserLoading } = useUser();
@@ -49,6 +42,7 @@ export default function SatelliteVisionPage() {
     React.useState<GeoJsonObject | null>(null);
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [activeTool, setActiveTool] = React.useState<ActiveTool>('detection');
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
 
   const { toast } = useToast();
@@ -191,43 +185,43 @@ export default function SatelliteVisionPage() {
   const hasSelection = isDrawing || points.length > 0;
   
   return (
-    <SidebarProvider>
-      <Sidebar variant="inset" collapsible="icon">
-        <ControlsSidebar
-          colabUrl={colabUrl}
-          setColabUrl={setColabUrl}
-          onDetect={handleDetect}
-          onDownload={handleDownloadGeoJson}
-          onDownloadDigitized={handleDownloadDigitized}
-          onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
-          isLoading={isLoading}
-          hasGeoJson={!!geoJson}
-          hasSelection={hasSelection}
-          hasManualFeatures={!!manualFeatures?.features?.length}
-          activeTool={activeTool}
-          setActiveTool={setActiveTool}
-        />
-      </Sidebar>
-      <SidebarInset>
-        <div className="flex h-svh flex-col">
-           <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
-              <SidebarTrigger className="h-8 w-8 rounded-full border" />
-              <span className="font-semibold text-lg">AGIS - Advanced Geospatial Intelligence System</span>
-            </header>
-            <div className="flex-1 overflow-hidden">
-                <MapComponent
-                  geoJsonData={geoJson}
-                  setBBox={handleSetBBox}
-                  setPoints={setPoints}
-                  searchResult={searchCoords}
-                  isDrawing={isDrawing}
-                  setIsDrawing={setIsDrawing}
-                  onManualFeaturesChange={setManualFeatures}
-                  activeTool={activeTool}
-                />
-            </div>
+    <div className="flex h-svh w-full bg-background text-foreground">
+      <ControlsSidebar
+        colabUrl={colabUrl}
+        setColabUrl={setColabUrl}
+        onDetect={handleDetect}
+        onDownload={handleDownloadGeoJson}
+        onDownloadDigitized={handleDownloadDigitized}
+        onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
+        isLoading={isLoading}
+        hasGeoJson={!!geoJson}
+        hasSelection={hasSelection}
+        hasManualFeatures={!!manualFeatures?.features?.length}
+        activeTool={activeTool}
+        setActiveTool={setActiveTool}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+      />
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 -ml-1 text-muted-foreground hover:text-foreground">
+            <Menu className="h-6 w-6" />
+          </button>
+          <span className="font-semibold text-lg text-card-foreground">AGIS - Advanced Geospatial Intelligence System</span>
+        </header>
+        <div className="flex-1 relative">
+          <MapComponent
+            geoJsonData={geoJson}
+            setBBox={handleSetBBox}
+            setPoints={setPoints}
+            searchResult={searchCoords}
+            isDrawing={isDrawing}
+            setIsDrawing={setIsDrawing}
+            onManualFeaturesChange={setManualFeatures}
+            activeTool={activeTool}
+          />
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </main>
+    </div>
   );
 }

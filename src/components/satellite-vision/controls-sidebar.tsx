@@ -4,32 +4,24 @@ import * as React from 'react';
 import {
   Download,
   Loader2,
-  Globe,
   Search,
   MapPin,
   LogOut,
   User as UserIcon,
   Bot,
   PenSquare,
+  ChevronLeft,
 } from 'lucide-react';
-
-import {
-  SidebarHeader,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
-import type { ActiveTool } from '@/app/page';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+export type ActiveTool = 'detection' | 'digitize';
 
 type ControlsSidebarProps = {
   colabUrl: string;
@@ -44,7 +36,12 @@ type ControlsSidebarProps = {
   hasManualFeatures: boolean;
   activeTool: ActiveTool;
   setActiveTool: (tool: ActiveTool) => void;
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
 };
+
+const iconRailWidth = 'w-16';
+const panelWidth = 'w-80';
 
 export function ControlsSidebar({
   colabUrl,
@@ -59,53 +56,118 @@ export function ControlsSidebar({
   hasManualFeatures,
   activeTool,
   setActiveTool,
+  isOpen,
+  setIsOpen,
 }: ControlsSidebarProps) {
+
+  const handleSignOut = () => {
+    initiateSignOut(useAuth());
+    toast({
+      title: 'Signed Out',
+      description: 'You have been successfully signed out.',
+    });
+  };
+
+  const { user } = useUser();
+  const { toast } = useToast();
+
+  return (
+    <TooltipProvider delayDuration={100}>
+    <aside className={cn("flex h-full shrink-0 bg-card transition-all duration-300", isOpen ? `${iconRailWidth} ${panelWidth}` : iconRailWidth)}>
+      {/* Icon Rail */}
+      <div className={cn("flex flex-col items-center h-full border-r border-border bg-card", iconRailWidth)}>
+        <div className="p-2 mt-2">
+            {/* Placeholder for Logo */}
+        </div>
+        <div className="flex flex-col items-center gap-2 mt-4">
+            <IconButton 
+                icon={<Bot />} 
+                label="Auto-Detection" 
+                isActive={activeTool === 'detection'} 
+                onClick={() => {
+                    setActiveTool('detection');
+                    if (!isOpen) setIsOpen(true);
+                }}
+            />
+            <IconButton 
+                icon={<PenSquare />} 
+                label="Manual Parceling" 
+                isActive={activeTool === 'digitize'} 
+                onClick={() => {
+                    setActiveTool('digitize');
+                    if (!isOpen) setIsOpen(true);
+                }}
+            />
+        </div>
+        <div className="mt-auto flex flex-col items-center gap-2 mb-4">
+            <IconButton icon={<UserIcon />} label={user?.email ?? "User"} />
+            <IconButton icon={<LogOut />} label="Sign Out" onClick={handleSignOut} />
+        </div>
+      </div>
+      
+      {/* Tool Panel */}
+      <div className={cn("flex flex-col h-full bg-card transition-all duration-300 overflow-hidden", isOpen ? panelWidth : "w-0")}>
+        <div className="flex items-center p-4 border-b border-border h-14 shrink-0">
+          <h2 className="text-lg font-semibold text-card-foreground">
+            {activeTool === 'detection' ? 'Auto-Detection' : 'Manual Parceling'}
+          </h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {activeTool === 'detection' && (
+                <DetectionPanel 
+                    colabUrl={colabUrl}
+                    setColabUrl={setColabUrl}
+                    onDetect={onDetect}
+                    onDownload={onDownload}
+                    isLoading={isLoading}
+                    hasGeoJson={hasGeoJson}
+                    hasSelection={hasSelection}
+                    onSearchLocation={onSearchLocation}
+                />
+            )}
+            {activeTool === 'digitize' && (
+                <DigitizePanel 
+                    onDownloadDigitized={onDownloadDigitized}
+                    isLoading={isLoading}
+                    hasManualFeatures={hasManualFeatures}
+                />
+            )}
+        </div>
+      </div>
+    </aside>
+    </TooltipProvider>
+  );
+}
+
+
+function IconButton({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    size="icon"
+                    className={cn("h-10 w-10 rounded-lg", isActive && "bg-primary/10 text-primary")}
+                    onClick={onClick}
+                    aria-label={label}
+                >
+                    {icon}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+                <p>{label}</p>
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
+function DetectionPanel({ colabUrl, setColabUrl, onDetect, onDownload, isLoading, hasGeoJson, hasSelection, onSearchLocation }: any) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isSearching, setIsSearching] = React.useState(false);
-  const [suggestions, setSuggestions] = React.useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = React.useState(false);
-  const searchContainerRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const auth = useAuth();
-  const { user } = useUser();
-
-  React.useEffect(() => {
-    if (searchQuery.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const fetchSuggestions = async () => {
-      setIsSearching(true);
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(
-            searchQuery
-          )}`
-        );
-        const data = await response.json();
-        setSuggestions(data || []);
-        setShowSuggestions(true);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Search suggestion fetch failed.',
-          variant: 'destructive',
-        });
-        setSuggestions([]);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-
-    const debounceTimer = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery, toast]);
 
   const handleDirectSearch = async () => {
     if (!searchQuery) return;
-    setShowSuggestions(false);
     setIsSearching(true);
     try {
       const response = await fetch(
@@ -118,7 +180,7 @@ export function ControlsSidebar({
       if (data && data.length > 0) {
         const { lat, lon, display_name } = data[0];
         onSearchLocation(parseFloat(lat), parseFloat(lon));
-        setSearchQuery(display_name); // Update input with full name
+        setSearchQuery(display_name);
         toast({
           title: 'Found location',
           description: `Flying to ${display_name}`,
@@ -140,153 +202,57 @@ export function ControlsSidebar({
       setIsSearching(false);
     }
   };
-
-  const handleSuggestionClick = (suggestion: any) => {
-    const { lat, lon, display_name } = suggestion;
-    onSearchLocation(parseFloat(lat), parseFloat(lon));
-    setSearchQuery(display_name);
-    setShowSuggestions(false);
-    toast({
-      title: 'Found location',
-      description: `Flying to ${display_name}`,
-    });
-  };
-
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [searchContainerRef]);
-
-  const handleSignOut = () => {
-    initiateSignOut(auth);
-    toast({
-      title: 'Signed Out',
-      description: 'You have been successfully signed out.',
-    });
-  };
-
-  return (
-    <>
-      <SidebarHeader>
-        <div className="flex items-center gap-3 p-4">
-          <Globe className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-semibold">AGIS</h1>
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent className="p-0">
-        <SidebarGroup>
-          <SidebarGroupLabel>Workflow</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => setActiveTool('detection')}
-                isActive={activeTool === 'detection'}
-                tooltip="AI-powered building detection"
-              >
-                <Bot />
-                <span>Auto-Detection</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => setActiveTool('digitize')}
-                isActive={activeTool === 'digitize'}
-                tooltip="Manual feature drawing and measurement"
-              >
-                <PenSquare />
-                <span>Manual Parceling</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <Separator />
-
-        <div className="p-4 space-y-4">
-          <SidebarGroup className="p-0">
-            <SidebarGroupLabel>Navigate to Area</SidebarGroupLabel>
-            <div className="relative" ref={searchContainerRef}>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search city, area, or landmark..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleDirectSearch();
-                    if (e.key === 'Escape') setShowSuggestions(false);
-                  }}
-                  onFocus={() =>
-                    searchQuery.length >= 3 &&
-                    suggestions.length > 0 &&
-                    setShowSuggestions(true)
-                  }
-                  autoComplete="off"
-                />
-                <Button
-                  size="icon"
-                  variant="outline"
-                  onClick={handleDirectSearch}
-                  disabled={isSearching || !searchQuery.trim()}
-                >
-                  {isSearching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full mt-1 w-full rounded-md border bg-background shadow-lg z-50">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.place_id}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md"
+    
+    return (
+        <>
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Navigate to Area</h3>
+                 <div className="flex gap-2">
+                    <Input
+                    placeholder="Search city, area..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleDirectSearch();
+                    }}
+                    autoComplete="off"
+                    />
+                    <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={handleDirectSearch}
+                    disabled={isSearching || !searchQuery.trim()}
+                    className="h-10 w-10"
                     >
-                      {suggestion.display_name}
-                    </button>
-                  ))}
+                    {isSearching ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <Search className="h-4 w-4" />
+                    )}
+                    </Button>
                 </div>
-              )}
             </div>
-          </SidebarGroup>
-        </div>
-
-        <Separator />
-
-        {activeTool === 'detection' && (
-           <div className="p-4 space-y-4">
-              <SidebarGroup className="p-0">
-                <SidebarGroupLabel>1. Connect Server</SidebarGroupLabel>
+            <Separator />
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">1. Connect Server</h3>
                 <Input
                   type="url"
-                  placeholder="Paste your Colab/Ngrok URL here"
+                  placeholder="Paste Colab/Ngrok URL"
                   value={colabUrl}
                   onChange={(e) => setColabUrl(e.target.value)}
                   disabled={isLoading}
                 />
-              </SidebarGroup>
-              <SidebarGroup className="p-0">
-                <SidebarGroupLabel>2. Select Area & Detect</SidebarGroupLabel>
-                <div className="flex flex-col gap-2 rounded-md bg-secondary/30 p-3 text-sm text-muted-foreground border border-dashed">
+            </div>
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">2. Select Area & Detect</h3>
+                <div className="flex flex-col gap-2 rounded-lg bg-background p-3 text-sm text-muted-foreground border border-dashed">
                   <div className="flex items-start gap-3">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <span>Pan the map, draw a rectangle, or click on rooftops to define the detection area.</span>
+                    <span>Pan, draw a rectangle, or click on rooftops to define the detection area.</span>
                   </div>
                 </div>
-              </SidebarGroup>
-              <div className="space-y-2 pt-2">
+            </div>
+            <div className="space-y-2 pt-2">
                 <Button
                   onClick={onDetect}
                   disabled={isLoading || !hasSelection}
@@ -308,65 +274,39 @@ export function ControlsSidebar({
                   <Download className="mr-2 h-4 w-4" />
                   Download Detected Data (.zip)
                 </Button>
+            </div>
+        </>
+    );
+}
+
+function DigitizePanel({ onDownloadDigitized, isLoading, hasManualFeatures }: any) {
+    return (
+        <>
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Manual Digitization Tools</h3>
+                <div className="flex flex-col gap-2 rounded-lg bg-background p-3 text-sm text-muted-foreground border border-dashed">
+                   <div className="flex items-start gap-3">
+                     <PenSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                     <span>Use the drawing tools on the map to create, edit, and measure polygons and lines.</span>
+                   </div>
+                </div>
               </div>
-            </div>
-        )}
-
-        {activeTool === 'digitize' && (
-            <div className="p-4 space-y-4">
-               <SidebarGroup className="p-0">
-                  <SidebarGroupLabel>Manual Digitization Tools</SidebarGroupLabel>
-                  <div className="flex flex-col gap-2 rounded-md bg-secondary/30 p-3 text-sm text-muted-foreground border border-dashed">
-                     <div className="flex items-start gap-3">
-                       <PenSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                       <span>Use the drawing tools on the map to create, edit, and measure polygons and lines.</span>
-                     </div>
-                  </div>
-                </SidebarGroup>
-                 <div className="space-y-2 pt-2">
-                   <Button
-                      variant="outline"
-                      onClick={onDownloadDigitized}
-                      disabled={isLoading || !hasManualFeatures}
-                      className='w-full'
-                      title={
-                        !hasManualFeatures
-                          ? 'Draw one or more shapes on the map first'
-                          : 'Download your manually drawn shapes'
-                      }
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download Digitized Layer (.geojson)
-                    </Button>
-                 </div>
-            </div>
-        )}
-        
-      </SidebarContent>
-
-      <SidebarFooter>
-        <Separator />
-        <div className="flex items-center p-4 text-sm font-medium text-muted-foreground">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <UserIcon className="h-5 w-5 shrink-0" />
-            <span className="truncate" title={user?.email ?? ''}>
-              {user?.email ?? 'Not signed in'}
-            </span>
-          </div>
-        </div>
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton
-                    onClick={handleSignOut}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive w-full justify-start"
-                    tooltip={{ children: 'Sign Out', side: 'right' }}
-                >
-                    <LogOut />
-                    <span>Sign Out</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </>
-  );
+               <div className="space-y-2 pt-2">
+                 <Button
+                    variant="secondary"
+                    onClick={onDownloadDigitized}
+                    disabled={isLoading || !hasManualFeatures}
+                    className='w-full'
+                    title={
+                      !hasManualFeatures
+                        ? 'Draw one or more shapes on the map first'
+                        : 'Download your manually drawn shapes'
+                    }
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Digitized Layer (.geojson)
+                  </Button>
+               </div>
+        </>
+    )
 }
