@@ -101,7 +101,7 @@ export function ControlsSidebar({
     <TooltipProvider delayDuration={100}>
       <aside
         className={cn(
-          'flex h-full shrink-0 flex-col bg-card shadow-2xl z-10 transition-all duration-300 ease-in-out rounded-tr-2xl rounded-br-2xl',
+          'flex h-full shrink-0 flex-col bg-card shadow-2xl z-10 transition-all duration-300 ease-in-out rounded-tr-3xl rounded-br-3xl',
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
