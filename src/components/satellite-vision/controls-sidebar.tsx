@@ -105,10 +105,8 @@ export function ControlsSidebar({
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
-        <div className="h-20" /> {/* Spacer for the new button */}
-
         {/* Tool Switcher */}
-        <nav className="flex flex-col gap-2 p-2 flex-grow">
+        <nav className="flex flex-col gap-2 p-4 flex-grow">
           <SidebarButton
             icon={<Bot size={24} />}
             label="Auto-Detection"
@@ -163,10 +161,15 @@ export function ControlsSidebar({
             variant="secondary"
             size="icon"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="absolute top-6 right-[-20px] z-20 h-10 w-10 rounded-full shadow-md border"
+            className={cn(
+              'absolute top-1/2 z-20 -translate-y-1/2 rounded-full shadow-md border transition-all duration-300 ease-in-out',
+               isCollapsed 
+                ? 'h-10 w-10 right-[-20px]' 
+                : 'h-12 w-12 right-[-24px]'
+            )}
             aria-label="Toggle Sidebar"
         >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={24} />}
         </Button>
       </aside>
     </TooltipProvider>
