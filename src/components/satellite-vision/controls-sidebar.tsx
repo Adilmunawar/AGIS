@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 export type ActiveTool = 'detection' | 'digitize';
 
@@ -100,25 +101,22 @@ export function ControlsSidebar({
     <TooltipProvider delayDuration={100}>
       <aside
         className={cn(
-          'flex h-full shrink-0 flex-col border-r bg-card shadow-lg z-10 transition-all duration-300 ease-in-out',
+          'flex h-full shrink-0 flex-col bg-card shadow-2xl z-10 transition-all duration-300 ease-in-out rounded-tr-2xl rounded-br-2xl',
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
-        {/* Header/Toggle */}
         <div
           className={cn(
-            'flex h-16 items-center border-b px-4',
-            isCollapsed ? 'justify-center' : 'justify-between'
+            'flex h-20 items-center',
+            isCollapsed ? 'justify-center' : 'justify-end pr-4'
           )}
         >
-          {!isCollapsed && (
-            <span className="text-lg font-semibold">Tools</span>
-          )}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="shrink-0"
+            className="shrink-0 h-10 w-10 rounded-full"
+            aria-label="Toggle Sidebar"
           >
             {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
           </Button>
@@ -142,8 +140,10 @@ export function ControlsSidebar({
           />
         </nav>
 
+        {!isCollapsed && <Separator className="mx-4 my-2" />}
+
         {/* Footer actions */}
-        <div className="flex flex-col gap-2 p-2 border-t">
+        <div className="flex flex-col gap-2 p-2">
            <SidebarButton
             icon={<Server size={24} />}
             label="Backend Settings"
