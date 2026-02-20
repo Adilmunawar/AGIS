@@ -9,16 +9,20 @@ import { Loader2 } from 'lucide-react';
 
 import {
   detectFromBounds,
-  downloadGeoJson,
+  downloadGeoJson as downloadShapefile,
   type BBox,
   type GeoPoint,
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { ControlsSidebar, ActiveTool } from '@/components/satellite-vision/controls-sidebar';
+import {
+  ControlsSidebar,
+  ActiveTool,
+} from '@/components/satellite-vision/controls-sidebar';
 import { useUser } from '@/firebase';
 import { MapSearch } from '@/components/satellite-vision/map-search';
 import { MapActions } from '@/components/satellite-vision/map-actions';
 import { ConnectServerDialog } from '@/components/satellite-vision/connect-server-dialog';
+import { cn } from '@/lib/utils';
 
 const MapComponent = dynamic(
   () => import('@/components/satellite-vision/map-component'),
@@ -45,7 +49,8 @@ export default function SatelliteVisionPage() {
     React.useState<GeoJsonObject | null>(null);
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [activeTool, setActiveTool] = React.useState<ActiveTool>('detection');
-  
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
+
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -60,10 +65,11 @@ export default function SatelliteVisionPage() {
 
   const handleDetect = React.useCallback(async () => {
     if (!colabUrl) {
-       toast({
+      toast({
         variant: 'destructive',
         title: 'Server Not Connected',
-        description: 'Please connect to the backend server in the settings first.',
+        description:
+          'Please connect to the backend server in the settings first.',
       });
       setIsSettingsOpen(true);
       return;
@@ -81,8 +87,14 @@ export default function SatelliteVisionPage() {
     setIsLoading(true);
     setGeoJson(null);
     try {
-      // @ts-ignore
-      const geoJsonData = await detectFromBounds(colabUrl, currentBBox, points);
+      // Use the BBox from the drawn rectangle if it exists, otherwise, the map's current view.
+      // This is a failsafe, but the UI should prevent detection without a selection.
+      const bboxToUse = isDrawing ? currentBBox : currentBBox;
+      if (!bboxToUse) {
+        throw new Error('Bounding box is not defined.');
+      }
+      
+      const geoJsonData = await detectFromBounds(colabUrl, bboxToUse, points);
 
       setGeoJson(geoJsonData);
       const detectionMode = points.length > 0 ? 'point-guided' : 'automatic';
@@ -103,16 +115,17 @@ export default function SatelliteVisionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [colabUrl, currentBBox, points, toast]);
+  }, [colabUrl, currentBBox, points, toast, isDrawing]);
 
   const handleDownloadGeoJson = React.useCallback(async () => {
     if (!colabUrl) {
       toast({
         variant: 'destructive',
         title: 'Server Not Connected',
-        description: 'Please connect to the backend server in the settings first.',
+        description:
+          'Please connect to the backend server in the settings first.',
       });
-       setIsSettingsOpen(true);
+      setIsSettingsOpen(true);
       return;
     }
     if (!geoJson) {
@@ -126,7 +139,7 @@ export default function SatelliteVisionPage() {
 
     setIsLoading(true);
     try {
-      const blob = await downloadGeoJson(colabUrl);
+      const blob = await downloadShapefile(colabUrl);
       saveAs(blob, 'detected_buildings.zip');
       toast({
         title: 'Download Started',
@@ -180,14 +193,13 @@ export default function SatelliteVisionPage() {
 
   const handleSaveSettings = () => {
     setIsSettingsOpen(false);
-    if(colabUrl) {
+    if (colabUrl) {
       toast({
-        title: "Server Connected",
-        description: "The backend server URL has been saved.",
+        title: 'Server Connected',
+        description: 'The backend server URL has been saved.',
       });
     }
   };
-
 
   if (isUserLoading || !user) {
     return (
@@ -198,20 +210,17 @@ export default function SatelliteVisionPage() {
   }
 
   const hasSelection = isDrawing || points.length > 0;
-  
+
   return (
-    <div className="flex h-svh w-full bg-secondary/30 text-foreground">
+    <div className="flex h-svh w-full bg-background text-foreground">
       <ControlsSidebar
         activeTool={activeTool}
         setActiveTool={setActiveTool}
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
-      <main className="flex-1 relative">
-         <header className="absolute top-4 left-4 z-[1000] flex h-12 items-center gap-4 rounded-lg bg-card/90 px-4 shadow-lg backdrop-blur-sm">
-            <h1 className="text-xl font-semibold text-card-foreground">
-                AGIS
-            </h1>
-        </header>
+      <main className="flex-1 relative transition-all duration-300 ease-in-out">
         <MapComponent
           geoJsonData={geoJson}
           setBBox={handleSetBBox}
@@ -222,8 +231,11 @@ export default function SatelliteVisionPage() {
           onManualFeaturesChange={setManualFeatures}
           activeTool={activeTool}
         />
-        <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
-        <MapActions 
+        <div className="absolute top-4 left-4 z-[1000] w-full max-w-sm">
+           <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
+        </div>
+        <div className="absolute top-4 right-4 z-[1000] w-full max-w-sm">
+          <MapActions
             activeTool={activeTool}
             isLoading={isLoading}
             hasGeoJson={!!geoJson}
@@ -232,9 +244,10 @@ export default function SatelliteVisionPage() {
             onDetect={handleDetect}
             onDownload={handleDownloadGeoJson}
             onDownloadDigitized={handleDownloadDigitized}
-        />
+          />
+        </div>
       </main>
-      <ConnectServerDialog 
+      <ConnectServerDialog
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
         colabUrl={colabUrl}

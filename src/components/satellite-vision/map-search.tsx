@@ -29,7 +29,6 @@ export function MapSearch({ onSearchLocation }: MapSearchProps) {
       if (data && data.length > 0) {
         const { lat, lon, display_name } = data[0];
         onSearchLocation(parseFloat(lat), parseFloat(lon));
-        setSearchQuery(display_name); // Show the full name after searching
         toast({
           title: 'Location Found',
           description: `Moving map to ${display_name}`,
@@ -53,32 +52,19 @@ export function MapSearch({ onSearchLocation }: MapSearchProps) {
   };
 
   return (
-    <div className="absolute top-4 right-4 z-[1000] w-full max-w-sm">
-      <div className="relative">
-        <Input
-          placeholder="Search for a city, area, or address..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSearch();
-          }}
-          className="h-12 text-base pl-4 pr-12 shadow-lg"
-          autoComplete="off"
-        />
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={handleSearch}
-          disabled={isSearching || !searchQuery.trim()}
-          className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:bg-transparent"
-        >
-          {isSearching ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Search className="h-5 w-5" />
-          )}
-        </Button>
-      </div>
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+      <Input
+        placeholder="Search for a location..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSearch();
+        }}
+        className="h-11 text-base pl-10 pr-4 shadow-lg w-full"
+        autoComplete="off"
+      />
+      {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />}
     </div>
   );
 }

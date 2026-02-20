@@ -7,6 +7,8 @@ import {
   Bot,
   PenSquare,
   Server,
+  ChevronLeft,
+  Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,45 +27,62 @@ export type ActiveTool = 'detection' | 'digitize';
 type ControlsSidebarProps = {
   activeTool: ActiveTool;
   setActiveTool: (tool: ActiveTool) => void;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
   onOpenSettings: () => void;
 };
 
-// Simple icon button with a tooltip
+// A more intelligent button that handles collapsed/expanded state
 function SidebarButton({
   icon,
   label,
-  isActive,
+  isCollapsed,
   ...props
 }: {
   icon: React.ReactNode;
   label: string;
-  isActive?: boolean;
+  isCollapsed: boolean;
   [key: string]: any;
 }) {
+  if (isCollapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant={props.isActive ? 'secondary' : 'ghost'}
+            size="icon"
+            className="h-12 w-12 shrink-0 rounded-lg"
+            aria-label={label}
+            {...props}
+          >
+            {icon}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={5}>
+          <p>{label}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant={isActive ? 'secondary' : 'ghost'}
-          size="icon"
-          className="h-12 w-12 shrink-0 rounded-lg"
-          aria-label={label}
-          {...props}
-        >
-          {icon}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="right" sideOffset={5}>
-        <p>{label}</p>
-      </TooltipContent>
-    </Tooltip>
+    <Button
+      variant={props.isActive ? 'secondary' : 'ghost'}
+      className="h-12 w-full justify-start px-4"
+      {...props}
+    >
+      <div className="mr-4 shrink-0">{icon}</div>
+      <span className="truncate">{label}</span>
+    </Button>
   );
 }
 
 export function ControlsSidebar({
   activeTool,
   setActiveTool,
-  onOpenSettings
+  isCollapsed,
+  setIsCollapsed,
+  onOpenSettings,
 }: ControlsSidebarProps) {
   const auth = useAuth();
   const { user } = useUser();
@@ -81,42 +100,69 @@ export function ControlsSidebar({
     <TooltipProvider delayDuration={100}>
       <aside
         className={cn(
-          'flex h-full shrink-0 flex-col items-center gap-y-4 border-r border-border bg-card p-2 shadow-lg z-10'
+          'flex h-full shrink-0 flex-col border-r bg-card shadow-lg z-10 transition-all duration-300 ease-in-out',
+          isCollapsed ? 'w-20' : 'w-64'
         )}
       >
+        {/* Header/Toggle */}
+        <div
+          className={cn(
+            'flex h-16 items-center border-b px-4',
+            isCollapsed ? 'justify-center' : 'justify-between'
+          )}
+        >
+          {!isCollapsed && (
+            <span className="text-lg font-semibold">Tools</span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="shrink-0"
+          >
+            {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+          </Button>
+        </div>
 
         {/* Tool Switcher */}
-        <nav className="flex flex-col items-center gap-2 mt-4">
+        <nav className="flex flex-col gap-2 p-2">
           <SidebarButton
-            icon={<Bot size={24}/>}
+            icon={<Bot size={24} />}
             label="Auto-Detection"
+            isCollapsed={isCollapsed}
             isActive={activeTool === 'detection'}
             onClick={() => setActiveTool('detection')}
           />
           <SidebarButton
-            icon={<PenSquare size={24}/>}
+            icon={<PenSquare size={24} />}
             label="Manual Parceling"
+            isCollapsed={isCollapsed}
             isActive={activeTool === 'digitize'}
             onClick={() => setActiveTool('digitize')}
           />
         </nav>
 
         {/* Spacer to push footer to bottom */}
-        <div className="mt-auto flex flex-col items-center gap-2">
-             <SidebarButton
-                icon={<Server size={24}/>}
-                label="Backend Settings"
-                onClick={onOpenSettings}
-            />
-            <SidebarButton
-              icon={<UserIcon size={24}/>}
-              label={user?.email ?? 'User'}
-            />
-            <SidebarButton
-              icon={<LogOut size={24}/>}
-              label="Sign Out"
-              onClick={handleSignOut}
-            />
+        <div className="mt-auto flex flex-col gap-2 p-2 border-t">
+          <SidebarButton
+            icon={<Server size={24} />}
+            label="Backend Settings"
+            isCollapsed={isCollapsed}
+            onClick={onOpenSettings}
+          />
+          <SidebarButton
+            icon={<UserIcon size={24} />}
+            label={user?.email ?? 'User'}
+            isCollapsed={isCollapsed}
+            // Non-clickable user display
+            className="pointer-events-none"
+          />
+          <SidebarButton
+            icon={<LogOut size={24} />}
+            label="Sign Out"
+            isCollapsed={isCollapsed}
+            onClick={handleSignOut}
+          />
         </div>
       </aside>
     </TooltipProvider>
