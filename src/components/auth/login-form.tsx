@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, Globe } from 'lucide-react';
+import { Loader2, Globe, Mail, Lock } from 'lucide-react';
 import {
   Auth,
   signInWithEmailAndPassword,
@@ -84,14 +84,14 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm border-none shadow-2xl shadow-primary/10">
+    <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
           <Globe className="h-10 w-10 text-primary" />
         </div>
-        <CardTitle className="text-2xl">Welcome to AGIS</CardTitle>
+        <CardTitle className="text-2xl">Welcome Back</CardTitle>
         <CardDescription>
-          Sign in to your Advanced Geospatial Intelligence System account.
+          Sign in to access your geospatial dashboard.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -104,11 +104,15 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="developer@agis.com"
-                      {...field}
-                      autoComplete="email"
-                    />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        placeholder="developer@agis.com"
+                        {...field}
+                        autoComplete="email"
+                        className="pl-10"
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -121,12 +125,16 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      {...field}
-                      autoComplete="current-password"
-                    />
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        {...field}
+                        autoComplete="current-password"
+                        className="pl-10"
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
