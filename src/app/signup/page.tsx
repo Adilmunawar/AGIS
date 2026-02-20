@@ -4,7 +4,7 @@ import { SignUpForm } from '@/components/auth/signup-form';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Globe } from 'lucide-react';
 
 export default function SignUpPage() {
   const { user, isUserLoading } = useUser();
@@ -18,15 +18,28 @@ export default function SignUpPage() {
 
   if (isUserLoading || user) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <SignUpForm />
+    <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
+       <div className="hidden bg-secondary lg:flex flex-col items-center justify-center p-12 text-center">
+        <div className="max-w-md">
+            <Globe className="mx-auto h-24 w-24 text-primary" />
+            <h1 className="mt-8 text-4xl font-bold tracking-tight text-foreground">
+                Create Your Account
+            </h1>
+            <p className="mt-4 text-lg text-muted-foreground">
+                Join the platform for advanced satellite imagery analysis and building detection.
+            </p>
+        </div>
+      </div>
+      <div className="flex items-center justify-center p-6 py-12 sm:p-12 bg-background">
+        <SignUpForm />
+      </div>
     </div>
   );
 }
