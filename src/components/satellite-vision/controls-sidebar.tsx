@@ -6,8 +6,8 @@ import {
   Bot,
   PenSquare,
   Server,
-  ChevronLeft,
-  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,17 +38,20 @@ function SidebarButton({
   icon,
   label,
   isCollapsed,
+  disableHoverEffect,
   ...props
 }: {
   icon: React.ReactNode;
   label: string;
   isCollapsed: boolean;
+  disableHoverEffect?: boolean;
   [key: string]: any;
 }) {
   const activeClass = 'bg-accent text-accent-foreground';
   
-  // Add smooth transitions and a hover "lift" and "grow" effect for inactive buttons
-  const interactionClasses = 'transition-all duration-200 ease-in-out transform hover:-translate-y-1 hover:scale-105';
+  const interactionClasses = !disableHoverEffect
+    ? 'transition-all duration-200 ease-in-out transform hover:-translate-y-1 hover:scale-105'
+    : 'transition-colors duration-200';
 
   if (isCollapsed) {
     return (
@@ -59,7 +62,7 @@ function SidebarButton({
             size="icon"
             className={cn(
               'h-12 w-12 shrink-0 rounded-lg',
-              props.isActive ? activeClass : interactionClasses // Apply effects only if inactive
+              props.isActive ? activeClass : interactionClasses
             )}
             aria-label={label}
             {...props}
@@ -79,7 +82,7 @@ function SidebarButton({
       variant="ghost"
       className={cn(
         'h-12 w-full justify-start px-4',
-        props.isActive ? activeClass : interactionClasses // Apply effects only if inactive
+        props.isActive ? activeClass : interactionClasses
       )}
       {...props}
     >
@@ -135,8 +138,6 @@ export function ControlsSidebar({
           />
         </nav>
 
-        {!isCollapsed && <Separator className="mx-4 my-2 bg-border" />}
-
         {/* Footer actions */}
         <div className="flex flex-col gap-2 p-2">
            <SidebarButton
@@ -173,23 +174,18 @@ export function ControlsSidebar({
             onClick={handleSignOut}
             isActive={false} // This button is never "active"
           />
-        </div>
-        
-        <Button
-            variant="outline"
-            size="icon"
+
+          <Separator className="my-1" />
+
+          <SidebarButton
+            icon={isCollapsed ? <ChevronsRight size={24}/> : <ChevronsLeft size={24}/>}
+            label={isCollapsed ? "Expand" : "Collapse"}
+            isCollapsed={isCollapsed}
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={cn(
-              'absolute top-1/2 z-20 -translate-y-1/2 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110',
-              'bg-background border-2 border-primary/20 text-primary hover:bg-accent',
-               isCollapsed 
-                ? 'h-10 w-10 right-[-20px]' 
-                : 'h-12 w-12 right-[-24px]'
-            )}
-            aria-label="Toggle Sidebar"
-        >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={24} />}
-        </Button>
+            isActive={false}
+            disableHoverEffect={true}
+          />
+        </div>
       </aside>
     </TooltipProvider>
   );
