@@ -45,14 +45,19 @@ function SidebarButton({
   isCollapsed: boolean;
   [key: string]: any;
 }) {
+  const activeClass = 'bg-accent text-accent-foreground';
+
   if (isCollapsed) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant={props.isActive ? 'secondary' : 'ghost'}
+            variant="ghost"
             size="icon"
-            className="h-12 w-12 shrink-0 rounded-lg"
+            className={cn(
+              'h-12 w-12 shrink-0 rounded-lg',
+              props.isActive && activeClass
+            )}
             aria-label={label}
             {...props}
           >
@@ -68,8 +73,11 @@ function SidebarButton({
 
   return (
     <Button
-      variant={props.isActive ? 'secondary' : 'ghost'}
-      className="h-12 w-full justify-start px-4"
+      variant="ghost"
+      className={cn(
+        'h-12 w-full justify-start px-4',
+        props.isActive && activeClass
+      )}
       {...props}
     >
       <div className="mr-4 shrink-0">{icon}</div>
@@ -77,6 +85,7 @@ function SidebarButton({
     </Button>
   );
 }
+
 
 export function ControlsSidebar({
   activeTool,
@@ -123,7 +132,7 @@ export function ControlsSidebar({
           />
         </nav>
 
-        {!isCollapsed && <Separator className="mx-4 my-2" />}
+        {!isCollapsed && <Separator className="mx-4 my-2 bg-border" />}
 
         {/* Footer actions */}
         <div className="flex flex-col gap-2 p-2">
@@ -134,9 +143,9 @@ export function ControlsSidebar({
             onClick={onOpenSettings}
           />
 
-          <div className={cn("p-2 rounded-lg", isCollapsed ? 'flex justify-center' : 'flex items-center gap-3 hover:bg-secondary')}>
+          <div className={cn("p-2 rounded-lg transition-colors", isCollapsed ? 'flex justify-center' : 'flex items-center gap-3 hover:bg-accent/50')}>
              <Avatar className="h-10 w-10">
-                <AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                   {user?.email?.charAt(0).toUpperCase() ?? 'U'}
                 </AvatarFallback>
               </Avatar>
@@ -158,11 +167,12 @@ export function ControlsSidebar({
         </div>
         
         <Button
-            variant="secondary"
+            variant="outline"
             size="icon"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={cn(
-              'absolute top-1/2 z-20 -translate-y-1/2 rounded-full shadow-md border transition-all duration-300 ease-in-out',
+              'absolute top-1/2 z-20 -translate-y-1/2 rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110',
+              'bg-background border-2 border-primary/20 text-primary hover:bg-accent',
                isCollapsed 
                 ? 'h-10 w-10 right-[-20px]' 
                 : 'h-12 w-12 right-[-24px]'
