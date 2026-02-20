@@ -46,6 +46,9 @@ function SidebarButton({
   [key: string]: any;
 }) {
   const activeClass = 'bg-accent text-accent-foreground';
+  
+  // Add smooth transitions and a hover "lift" and "grow" effect for inactive buttons
+  const interactionClasses = 'transition-all duration-200 ease-in-out transform hover:-translate-y-1 hover:scale-105';
 
   if (isCollapsed) {
     return (
@@ -56,7 +59,7 @@ function SidebarButton({
             size="icon"
             className={cn(
               'h-12 w-12 shrink-0 rounded-lg',
-              props.isActive && activeClass
+              props.isActive ? activeClass : interactionClasses // Apply effects only if inactive
             )}
             aria-label={label}
             {...props}
@@ -64,8 +67,8 @@ function SidebarButton({
             {icon}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="right" sideOffset={5}>
-          <p>{label}</p>
+        <TooltipContent side="right" sideOffset={8} className="bg-popover text-popover-foreground border-border rounded-lg shadow-xl">
+            <p className="font-semibold">{label}</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -76,7 +79,7 @@ function SidebarButton({
       variant="ghost"
       className={cn(
         'h-12 w-full justify-start px-4',
-        props.isActive && activeClass
+        props.isActive ? activeClass : interactionClasses // Apply effects only if inactive
       )}
       {...props}
     >
@@ -141,10 +144,15 @@ export function ControlsSidebar({
             label="Backend Settings"
             isCollapsed={isCollapsed}
             onClick={onOpenSettings}
+            isActive={false} // This button is never "active" in the same way as a tool
           />
 
-          <div className={cn("p-2 rounded-lg transition-colors", isCollapsed ? 'flex justify-center' : 'flex items-center gap-3 hover:bg-accent/50')}>
-             <Avatar className="h-10 w-10">
+          <div className={cn("p-2 rounded-lg transition-all duration-300 ease-in-out", 
+            isCollapsed 
+              ? 'flex justify-center' 
+              : 'flex items-center gap-3 hover:bg-accent/50 transform hover:-translate-y-1'
+          )}>
+             <Avatar className="h-10 w-10 border-2 border-primary/20">
                 <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                   {user?.email?.charAt(0).toUpperCase() ?? 'U'}
                 </AvatarFallback>
@@ -163,6 +171,7 @@ export function ControlsSidebar({
             label="Sign Out"
             isCollapsed={isCollapsed}
             onClick={handleSignOut}
+            isActive={false} // This button is never "active"
           />
         </div>
         
