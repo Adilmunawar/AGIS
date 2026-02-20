@@ -97,13 +97,15 @@ body {
 /* Leaflet Draw UI Customization for Light Theme */
 .leaflet-draw, .leaflet-control-layers {
   border-radius: var(--radius);
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background) / 0.5); /* Glassmorphism */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); /* Safari */
+  border: 1px solid hsl(var(--border) / 0.2);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .leaflet-draw-toolbar a, .leaflet-control-layers-toggle {
-  background-color: hsl(var(--card));
+  background-color: transparent; /* Updated for glassmorphism */
   color: hsl(var(--foreground));
   border-radius: calc(var(--radius) - 2px);
 }

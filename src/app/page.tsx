@@ -232,10 +232,7 @@ export default function SatelliteVisionPage() {
           activeTool={activeTool}
         />
         <div className="absolute top-4 left-4 z-[1000] w-full max-w-sm">
-           <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
-        </div>
-        <div className="absolute top-4 right-4 z-[1000] w-full max-w-sm">
-          <MapActions
+           <MapActions
             activeTool={activeTool}
             isLoading={isLoading}
             hasGeoJson={!!geoJson}
@@ -245,6 +242,9 @@ export default function SatelliteVisionPage() {
             onDownload={handleDownloadGeoJson}
             onDownloadDigitized={handleDownloadDigitized}
           />
+        </div>
+        <div className="absolute top-4 right-4 z-[1000] w-full max-w-sm">
+           <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
         </div>
       </main>
       <ConnectServerDialog

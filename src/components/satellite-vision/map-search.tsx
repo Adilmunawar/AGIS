@@ -4,7 +4,6 @@ import * as React from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 
 type MapSearchProps = {
   onSearchLocation: (lat: number, lon: number) => void;
@@ -52,7 +51,7 @@ export function MapSearch({ onSearchLocation }: MapSearchProps) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative rounded-lg border border-black/10 bg-background/50 shadow-lg backdrop-blur-md">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
       <Input
         placeholder="Search for a location..."
@@ -61,7 +60,7 @@ export function MapSearch({ onSearchLocation }: MapSearchProps) {
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleSearch();
         }}
-        className="h-11 text-base pl-10 pr-4 shadow-lg w-full"
+        className="h-11 w-full border-none bg-transparent pl-10 pr-4 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
         autoComplete="off"
       />
       {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />}
