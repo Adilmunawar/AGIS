@@ -6,6 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Globe } from 'lucide-react';
+import {
+  Auth,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +30,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAuth } from '@/firebase';
-import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -35,6 +38,17 @@ const formSchema = z.object({
     .string()
     .min(6, { message: 'Password must be at least 6 characters.' }),
 });
+
+// This is a non-blocking sign-in function.
+// It initiates the sign-in but does not wait for it to complete.
+// The onAuthStateChanged listener in the Firebase provider will handle the redirect.
+function initiateEmailSignIn(
+  authInstance: Auth,
+  email: string,
+  password: string
+) {
+  return signInWithEmailAndPassword(authInstance, email, password);
+}
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -52,31 +66,32 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      // We don't await this, the onAuthStateChanged listener will handle the redirect
-      initiateEmailSignIn(auth, values.email, values.password);
+      await initiateEmailSignIn(auth, values.email, values.password);
+      // The onAuthStateChanged listener will handle the redirect on success.
     } catch (error: any) {
-      console.error(error);
+      let description = 'An unknown error occurred.';
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        description = 'Incorrect email or password. Please check your credentials and try again.';
+      }
       toast({
         variant: 'destructive',
         title: 'Sign In Failed',
-        description: error.message || 'An unknown error occurred.',
+        description: description,
       });
+    } finally {
       setIsLoading(false);
     }
-    // The loading state will be handled by the page redirecting or showing an error toast.
-    // We can set a timeout to reset loading if auth state doesn't change
-    setTimeout(() => setIsLoading(false), 5000);
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm border-none shadow-2xl shadow-primary/10">
       <CardHeader className="text-center">
-        <div className="mx-auto mb-4 flex items-center justify-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
           <Globe className="h-10 w-10 text-primary" />
         </div>
         <CardTitle className="text-2xl">Welcome to AGIS</CardTitle>
         <CardDescription>
-          Sign in to your AGIS account.
+          Sign in to your Advanced Geospatial Intelligence System account.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -117,7 +132,7 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>

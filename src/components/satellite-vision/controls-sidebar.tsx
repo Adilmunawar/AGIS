@@ -11,6 +11,7 @@ import {
   Bot,
   PenSquare,
   ChevronLeft,
+  Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -73,13 +74,16 @@ export function ControlsSidebar({
 
   return (
     <TooltipProvider delayDuration={100}>
-    <aside className={cn("flex h-full shrink-0 bg-card transition-all duration-300", isOpen ? `${iconRailWidth} ${panelWidth}` : iconRailWidth)}>
+    <aside className="flex h-full shrink-0 shadow-lg z-10">
       {/* Icon Rail */}
       <div className={cn("flex flex-col items-center h-full border-r border-border bg-card", iconRailWidth)}>
-        <div className="p-2 mt-2">
-            {/* Placeholder for Logo */}
-        </div>
-        <div className="flex flex-col items-center gap-2 mt-4">
+         <div className="p-2 mt-2 mb-2">
+             <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="h-10 w-10">
+                 {isOpen ? <ChevronLeft /> : <Menu />}
+             </Button>
+         </div>
+
+        <div className="flex flex-col items-center gap-2">
             <IconButton 
                 icon={<Bot />} 
                 label="Auto-Detection" 

@@ -6,6 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Globe } from 'lucide-react';
+import {
+  Auth,
+  createUserWithEmailAndPassword,
+} from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +30,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAuth } from '@/firebase';
-import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z
@@ -41,6 +44,15 @@ const formSchema = z
     message: "Passwords don't match.",
     path: ['confirmPassword'],
   });
+
+// This is a non-blocking sign-up function.
+function initiateEmailSignUp(
+  authInstance: Auth,
+  email: string,
+  password: string
+) {
+  return createUserWithEmailAndPassword(authInstance, email, password);
+}
 
 export function SignUpForm() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -59,25 +71,29 @@ export function SignUpForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      // Non-blocking call
-      initiateEmailSignUp(auth, values.email, values.password);
+      await initiateEmailSignUp(auth, values.email, values.password);
+      // The onAuthStateChanged listener will handle the redirect on success.
     } catch (error: any) {
-      console.error(error);
+      let description = 'An unknown error occurred.';
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'This email address is already in use by another account.';
+      } else if (error.code === 'auth/weak-password') {
+        description = 'The password is too weak. Please use at least 6 characters.';
+      }
       toast({
         variant: 'destructive',
         title: 'Sign Up Failed',
-        description: error.message || 'An unknown error occurred.',
+        description,
       });
+    } finally {
       setIsLoading(false);
     }
-    // Timeout to prevent button from being permanently disabled on auth error
-    setTimeout(() => setIsLoading(false), 5000);
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm border-none shadow-2xl shadow-primary/10">
       <CardHeader className="text-center">
-        <div className="mx-auto mb-4 flex items-center justify-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
           <Globe className="h-10 w-10 text-primary" />
         </div>
         <CardTitle className="text-2xl">Create your AGIS Account</CardTitle>
@@ -141,7 +157,7 @@ export function SignUpForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>

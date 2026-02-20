@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { saveAs } from 'file-saver';
 import type { GeoJsonObject } from 'geojson';
 import { useRouter } from 'next/navigation';
-import { Loader2, Menu } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import {
   detectFromBounds,
@@ -203,10 +203,7 @@ export default function SatelliteVisionPage() {
         setIsOpen={setIsSidebarOpen}
       />
       <main className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 -ml-1 text-muted-foreground hover:text-foreground">
-            <Menu className="h-6 w-6" />
-          </button>
+        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4 shadow-sm">
           <span className="font-semibold text-lg text-card-foreground">AGIS - Advanced Geospatial Intelligence System</span>
         </header>
         <div className="flex-1 relative">

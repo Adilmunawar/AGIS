@@ -9,53 +9,45 @@ body {
 
 @layer base {
   :root {
-    --background: 222 24% 10%; /* Very dark blue-gray */
-    --foreground: 210 20% 90%; /* Light gray */
+    --background: 220 20% 97%; /* Light cool gray */
+    --foreground: 220 20% 10%; /* Dark blue-gray */
 
-    --card: 222 24% 14%; /* Slightly lighter dark blue-gray */
-    --card-foreground: 210 20% 95%;
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 220 20% 10%;
 
-    --popover: 222 24% 8%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
 
-    --primary: 160 80% 45%; /* Bright teal/green */
-    --primary-foreground: 210 20% 5%;
+    --primary: 160 80% 40%; /* Strong teal/green */
+    --primary-foreground: 210 20% 98%;
 
-    --secondary: 222 24% 20%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 220 20% 91%; /* Lighter gray for secondary elements */
+    --secondary-foreground: 220 20% 10%;
 
-    --muted: 222 24% 20%;
-    --muted-foreground: 210 20% 60%;
+    --muted: 220 20% 85%;
+    --muted-foreground: 220 20% 40%;
 
-    --accent: 160 80% 25%;
-    --accent-foreground: 160 80% 85%;
+    --accent: 160 80% 95%; /* Very light green */
+    --accent-foreground: 160 80% 20%;
 
-    --destructive: 0 63% 31%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 222 24% 25%;
-    --input: 222 24% 22%;
-    --ring: 160 80% 55%;
+    --border: 220 20% 88%;
+    --input: 220 20% 92%;
+    --ring: 160 80% 50%;
 
     --radius: 0.5rem;
 
-    --chart-1: 160 80% 45%;
-    --chart-2: 200 80% 60%;
+    --chart-1: 160 80% 40%;
+    --chart-2: 200 80% 50%;
     --chart-3: 40 80% 55%;
     --chart-4: 0 75% 60%;
     --chart-5: 280 80% 70%;
-
-    --sidebar-background: 222 24% 12%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 160 80% 45%;
-    --sidebar-primary-foreground: 210 20% 5%;
-    --sidebar-accent: 160 80% 25%;
-    --sidebar-accent-foreground: 160 80% 85%;
-    --sidebar-border: 222 24% 25%;
-    --sidebar-ring: 160 80% 55%;
   }
 
   .dark {
+    /* Keeping dark mode variables for component compatibility, but won't be used by default */
     --background: 222 24% 10%;
     --foreground: 210 20% 90%;
 
@@ -89,15 +81,6 @@ body {
     --chart-3: 40 80% 55%;
     --chart-4: 0 75% 60%;
     --chart-5: 280 80% 70%;
-
-    --sidebar-background: 222 24% 12%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 160 80% 45%;
-    --sidebar-primary-foreground: 210 20% 5%;
-    --sidebar-accent: 160 80% 25%;
-    --sidebar-accent-foreground: 160 80% 85%;
-    --sidebar-border: 222 24% 25%;
-    --sidebar-ring: 160 80% 55%;
   }
 }
 
@@ -111,12 +94,12 @@ body {
 }
 
 
-/* Leaflet Draw UI Customization */
+/* Leaflet Draw UI Customization for Light Theme */
 .leaflet-draw, .leaflet-control-layers {
   border-radius: var(--radius);
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .leaflet-draw-toolbar a, .leaflet-control-layers-toggle {
@@ -126,8 +109,7 @@ body {
 }
 
 .leaflet-draw-toolbar a:hover {
-    background-color: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
+    background-color: hsl(var(--secondary));
 }
 
 .leaflet-draw-draw-polygon,
@@ -153,8 +135,8 @@ body {
   border-radius: 9999px;
   width: 12px !important;
   height: 12px !important;
-  margin-left: -6px !important; /* center the icon */
-  margin-top: -6px !important; /* center the icon */
+  margin-left: -6px !important;
+  margin-top: -6px !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
