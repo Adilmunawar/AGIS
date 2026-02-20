@@ -16,6 +16,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ControlsSidebar, ActiveTool } from '@/components/satellite-vision/controls-sidebar';
 import { useUser } from '@/firebase';
+import { MapSearch } from '@/components/satellite-vision/map-search';
+import { MapActions } from '@/components/satellite-vision/map-actions';
+import { ConnectServerDialog } from '@/components/satellite-vision/connect-server-dialog';
 
 const MapComponent = dynamic(
   () => import('@/components/satellite-vision/map-component'),
@@ -24,7 +27,6 @@ const MapComponent = dynamic(
     loading: () => <div className="h-full w-full bg-muted animate-pulse" />,
   }
 );
-
 
 export default function SatelliteVisionPage() {
   const { user, isUserLoading } = useUser();
@@ -35,6 +37,7 @@ export default function SatelliteVisionPage() {
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
   const [points, setPoints] = React.useState<GeoPoint[]>([]);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   const [searchCoords, setSearchCoords] =
     React.useState<{ lat: number; lon: number } | null>(null);
@@ -42,9 +45,7 @@ export default function SatelliteVisionPage() {
     React.useState<GeoJsonObject | null>(null);
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [activeTool, setActiveTool] = React.useState<ActiveTool>('detection');
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-
-
+  
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -59,17 +60,18 @@ export default function SatelliteVisionPage() {
 
   const handleDetect = React.useCallback(async () => {
     if (!colabUrl) {
-      toast({
+       toast({
         variant: 'destructive',
-        title: 'Missing URL',
-        description: 'Please provide the Colab server URL.',
+        title: 'Server Not Connected',
+        description: 'Please connect to the backend server in the settings first.',
       });
+      setIsSettingsOpen(true);
       return;
     }
     if (!currentBBox && points.length === 0) {
       toast({
         variant: 'destructive',
-        title: 'Map not ready',
+        title: 'No Area Selected',
         description:
           'Please draw a rectangle or click on the map to define an area.',
       });
@@ -79,6 +81,7 @@ export default function SatelliteVisionPage() {
     setIsLoading(true);
     setGeoJson(null);
     try {
+      // @ts-ignore
       const geoJsonData = await detectFromBounds(colabUrl, currentBBox, points);
 
       setGeoJson(geoJsonData);
@@ -86,7 +89,7 @@ export default function SatelliteVisionPage() {
       toast({
         title: 'Detection Complete',
         description: `Detected ${
-          geoJsonData.features?.length ?? 0
+          (geoJsonData as any).features?.length ?? 0
         } building footprints using ${detectionMode} mode.`,
       });
     } catch (error) {
@@ -106,9 +109,10 @@ export default function SatelliteVisionPage() {
     if (!colabUrl) {
       toast({
         variant: 'destructive',
-        title: 'Missing URL',
-        description: 'Please provide the Colab server URL.',
+        title: 'Server Not Connected',
+        description: 'Please connect to the backend server in the settings first.',
       });
+       setIsSettingsOpen(true);
       return;
     }
     if (!geoJson) {
@@ -144,8 +148,8 @@ export default function SatelliteVisionPage() {
   const handleDownloadDigitized = React.useCallback(() => {
     if (
       !manualFeatures ||
-      !manualFeatures.features ||
-      manualFeatures.features.length === 0
+      !(manualFeatures as any).features ||
+      (manualFeatures as any).features.length === 0
     ) {
       toast({
         variant: 'destructive',
@@ -174,6 +178,17 @@ export default function SatelliteVisionPage() {
     }
   }, [manualFeatures, toast]);
 
+  const handleSaveSettings = () => {
+    setIsSettingsOpen(false);
+    if(colabUrl) {
+      toast({
+        title: "Server Connected",
+        description: "The backend server URL has been saved.",
+      });
+    }
+  };
+
+
   if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -185,40 +200,47 @@ export default function SatelliteVisionPage() {
   const hasSelection = isDrawing || points.length > 0;
   
   return (
-    <div className="flex h-svh w-full bg-background text-foreground">
+    <div className="flex h-svh w-full bg-secondary/30 text-foreground">
       <ControlsSidebar
-        colabUrl={colabUrl}
-        setColabUrl={setColabUrl}
-        onDetect={handleDetect}
-        onDownload={handleDownloadGeoJson}
-        onDownloadDigitized={handleDownloadDigitized}
-        onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })}
-        isLoading={isLoading}
-        hasGeoJson={!!geoJson}
-        hasSelection={hasSelection}
-        hasManualFeatures={!!manualFeatures?.features?.length}
         activeTool={activeTool}
         setActiveTool={setActiveTool}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4 shadow-sm">
-          <span className="font-semibold text-lg text-card-foreground">AGIS - Advanced Geospatial Intelligence System</span>
+      <main className="flex-1 relative">
+         <header className="absolute top-4 left-4 z-[1000] flex h-12 items-center gap-4 rounded-lg bg-card/90 px-4 shadow-lg backdrop-blur-sm">
+            <h1 className="text-xl font-semibold text-card-foreground">
+                AGIS
+            </h1>
         </header>
-        <div className="flex-1 relative">
-          <MapComponent
-            geoJsonData={geoJson}
-            setBBox={handleSetBBox}
-            setPoints={setPoints}
-            searchResult={searchCoords}
-            isDrawing={isDrawing}
-            setIsDrawing={setIsDrawing}
-            onManualFeaturesChange={setManualFeatures}
+        <MapComponent
+          geoJsonData={geoJson}
+          setBBox={handleSetBBox}
+          setPoints={setPoints}
+          searchResult={searchCoords}
+          isDrawing={isDrawing}
+          setIsDrawing={setIsDrawing}
+          onManualFeaturesChange={setManualFeatures}
+          activeTool={activeTool}
+        />
+        <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
+        <MapActions 
             activeTool={activeTool}
-          />
-        </div>
+            isLoading={isLoading}
+            hasGeoJson={!!geoJson}
+            hasSelection={hasSelection}
+            hasManualFeatures={!!(manualFeatures as any)?.features?.length}
+            onDetect={handleDetect}
+            onDownload={handleDownloadGeoJson}
+            onDownloadDigitized={handleDownloadDigitized}
+        />
       </main>
+      <ConnectServerDialog 
+        isOpen={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        colabUrl={colabUrl}
+        setColabUrl={setColabUrl}
+        onSave={handleSaveSettings}
+      />
     </div>
   );
 }
