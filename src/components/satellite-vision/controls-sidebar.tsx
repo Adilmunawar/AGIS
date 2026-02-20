@@ -60,17 +60,17 @@ export function ControlsSidebar({
   isOpen,
   setIsOpen,
 }: ControlsSidebarProps) {
+  const auth = useAuth();
+  const { user } = useUser();
+  const { toast } = useToast();
 
   const handleSignOut = () => {
-    initiateSignOut(useAuth());
+    initiateSignOut(auth);
     toast({
       title: 'Signed Out',
       description: 'You have been successfully signed out.',
     });
   };
-
-  const { user } = useUser();
-  const { toast } = useToast();
 
   return (
     <TooltipProvider delayDuration={100}>
