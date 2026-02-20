@@ -29,18 +29,6 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import type { ActiveTool } from '@/app/page';
 
 type ControlsSidebarProps = {
@@ -194,36 +182,38 @@ export function ControlsSidebar({
           <Globe className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-semibold">AGIS</h1>
         </div>
-        <Separator />
       </SidebarHeader>
 
-      <Tabs
-        defaultValue="detection"
-        className="flex h-full flex-1 flex-col"
-        value={activeTool}
-        onValueChange={(value) => setActiveTool(value as ActiveTool)}
-      >
-        <div className="p-2">
-          <TabsList className="grid h-auto w-full grid-cols-2">
-            <TabsTrigger
-              value="detection"
-              className="flex flex-col gap-1 py-2 text-xs"
-            >
-              <Bot className="h-5 w-5" />
-              <span>Auto-Detect</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="digitize"
-              className="flex flex-col gap-1 py-2 text-xs"
-            >
-              <PenSquare className="h-5 w-5" />
-              <span>Manual Parceling</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      <SidebarContent className="p-0">
+        <SidebarGroup>
+          <SidebarGroupLabel>Workflow</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => setActiveTool('detection')}
+                isActive={activeTool === 'detection'}
+                tooltip="AI-powered building detection"
+              >
+                <Bot />
+                <span>Auto-Detection</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => setActiveTool('digitize')}
+                isActive={activeTool === 'digitize'}
+                tooltip="Manual feature drawing and measurement"
+              >
+                <PenSquare />
+                <span>Manual Parceling</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+
         <Separator />
-        
-        <div className="p-4">
+
+        <div className="p-4 space-y-4">
           <SidebarGroup className="p-0">
             <SidebarGroupLabel>Navigate to Area</SidebarGroupLabel>
             <div className="relative" ref={searchContainerRef}>
@@ -272,83 +262,87 @@ export function ControlsSidebar({
             </div>
           </SidebarGroup>
         </div>
+
         <Separator />
 
-        <SidebarContent className="p-4">
-          <TabsContent value="detection" className="m-0 mt-0 space-y-4">
-            <SidebarGroup className="p-0">
-              <SidebarGroupLabel>1. Connect Server</SidebarGroupLabel>
-              <Input
-                type="url"
-                placeholder="Paste your Colab/Ngrok URL here"
-                value={colabUrl}
-                onChange={(e) => setColabUrl(e.target.value)}
-                disabled={isLoading}
-              />
-            </SidebarGroup>
-            <SidebarGroup className="p-0">
-              <SidebarGroupLabel>2. Select Area & Detect</SidebarGroupLabel>
-              <div className="flex flex-col gap-2 rounded-md bg-secondary/30 p-3 text-sm text-muted-foreground border border-dashed">
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>Pan the map, draw a rectangle, or click on rooftops to define the detection area.</span>
-                </div>
-              </div>
-            </SidebarGroup>
-            <div className="space-y-2 pt-2">
-              <Button
-                onClick={onDetect}
-                disabled={isLoading || !hasSelection}
-                className="w-full h-11 text-base"
-              >
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <Bot className="mr-2 h-5 w-5" />
-                )}
-                Detect Buildings
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={onDownload}
-                disabled={!hasGeoJson || isLoading}
-                className="w-full"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download Detected Data (.zip)
-              </Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="digitize" className="m-0 mt-0 space-y-4">
-             <SidebarGroup className="p-0">
-                <SidebarGroupLabel>Manual Digitization Tools</SidebarGroupLabel>
+        {activeTool === 'detection' && (
+           <div className="p-4 space-y-4">
+              <SidebarGroup className="p-0">
+                <SidebarGroupLabel>1. Connect Server</SidebarGroupLabel>
+                <Input
+                  type="url"
+                  placeholder="Paste your Colab/Ngrok URL here"
+                  value={colabUrl}
+                  onChange={(e) => setColabUrl(e.target.value)}
+                  disabled={isLoading}
+                />
+              </SidebarGroup>
+              <SidebarGroup className="p-0">
+                <SidebarGroupLabel>2. Select Area & Detect</SidebarGroupLabel>
                 <div className="flex flex-col gap-2 rounded-md bg-secondary/30 p-3 text-sm text-muted-foreground border border-dashed">
-                   <div className="flex items-start gap-3">
-                     <PenSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                     <span>Use the drawing tools on the map to create, edit, and measure polygons and lines.</span>
-                   </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>Pan the map, draw a rectangle, or click on rooftops to define the detection area.</span>
+                  </div>
                 </div>
               </SidebarGroup>
-               <div className="space-y-2 pt-2">
-                 <Button
-                    variant="outline"
-                    onClick={onDownloadDigitized}
-                    disabled={isLoading || !hasManualFeatures}
-                    className='w-full'
-                    title={
-                      !hasManualFeatures
-                        ? 'Draw one or more shapes on the map first'
-                        : 'Download your manually drawn shapes'
-                    }
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Digitized Layer (.geojson)
-                  </Button>
-               </div>
-          </TabsContent>
-        </SidebarContent>
-      </Tabs>
+              <div className="space-y-2 pt-2">
+                <Button
+                  onClick={onDetect}
+                  disabled={isLoading || !hasSelection}
+                  className="w-full h-11 text-base"
+                >
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <Bot className="mr-2 h-5 w-5" />
+                  )}
+                  Detect Buildings
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={onDownload}
+                  disabled={!hasGeoJson || isLoading}
+                  className="w-full"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Detected Data (.zip)
+                </Button>
+              </div>
+            </div>
+        )}
+
+        {activeTool === 'digitize' && (
+            <div className="p-4 space-y-4">
+               <SidebarGroup className="p-0">
+                  <SidebarGroupLabel>Manual Digitization Tools</SidebarGroupLabel>
+                  <div className="flex flex-col gap-2 rounded-md bg-secondary/30 p-3 text-sm text-muted-foreground border border-dashed">
+                     <div className="flex items-start gap-3">
+                       <PenSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                       <span>Use the drawing tools on the map to create, edit, and measure polygons and lines.</span>
+                     </div>
+                  </div>
+                </SidebarGroup>
+                 <div className="space-y-2 pt-2">
+                   <Button
+                      variant="outline"
+                      onClick={onDownloadDigitized}
+                      disabled={isLoading || !hasManualFeatures}
+                      className='w-full'
+                      title={
+                        !hasManualFeatures
+                          ? 'Draw one or more shapes on the map first'
+                          : 'Download your manually drawn shapes'
+                      }
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Digitized Layer (.geojson)
+                    </Button>
+                 </div>
+            </div>
+        )}
+        
+      </SidebarContent>
 
       <SidebarFooter>
         <Separator />
