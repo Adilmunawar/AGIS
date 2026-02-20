@@ -3,7 +3,6 @@
 import * as React from 'react';
 import {
   LogOut,
-  User as UserIcon,
   Bot,
   PenSquare,
   Server,
@@ -21,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export type ActiveTool = 'detection' | 'digitize';
 
@@ -125,7 +125,7 @@ export function ControlsSidebar({
         </div>
 
         {/* Tool Switcher */}
-        <nav className="flex flex-col gap-2 p-2">
+        <nav className="flex flex-col gap-2 p-2 flex-grow">
           <SidebarButton
             icon={<Bot size={24} />}
             label="Auto-Detection"
@@ -142,21 +142,30 @@ export function ControlsSidebar({
           />
         </nav>
 
-        {/* Spacer to push footer to bottom */}
-        <div className="mt-auto flex flex-col gap-2 p-2 border-t">
-          <SidebarButton
+        {/* Footer actions */}
+        <div className="flex flex-col gap-2 p-2 border-t">
+           <SidebarButton
             icon={<Server size={24} />}
             label="Backend Settings"
             isCollapsed={isCollapsed}
             onClick={onOpenSettings}
           />
-          <SidebarButton
-            icon={<UserIcon size={24} />}
-            label={user?.email ?? 'User'}
-            isCollapsed={isCollapsed}
-            // Non-clickable user display
-            className="pointer-events-none"
-          />
+
+          <div className={cn("p-2 rounded-lg", isCollapsed ? 'flex justify-center' : 'flex items-center gap-3 hover:bg-secondary')}>
+             <Avatar className="h-10 w-10">
+                <AvatarFallback>
+                  {user?.email?.charAt(0).toUpperCase() ?? 'U'}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <div className="flex-1 truncate">
+                  <p className="truncate text-sm font-medium">
+                    {user?.email}
+                  </p>
+                </div>
+              )}
+          </div>
+
           <SidebarButton
             icon={<LogOut size={24} />}
             label="Sign Out"
