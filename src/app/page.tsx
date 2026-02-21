@@ -213,7 +213,7 @@ export default function SatelliteVisionPage() {
 
   return (
     <div className={cn(
-        "relative h-svh w-full bg-background text-foreground",
+        "relative h-svh w-full overflow-hidden bg-background text-foreground",
         isSidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'
     )}>
       <ControlsSidebar
@@ -236,12 +236,10 @@ export default function SatelliteVisionPage() {
           isSidebarCollapsed={isSidebarCollapsed}
         />
         
-        <div className="absolute top-4 right-4 z-[1000] flex items-center justify-end gap-2">
+        <div className="absolute top-4 right-[74px] z-[1000]">
             <div className="max-w-xs">
                 <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
             </div>
-            {/* This placeholder reserves space for the Leaflet Layers control, which is about 40px wide. */}
-            <div className="w-11 h-11 shrink-0" />
         </div>
         
         {/* Bottom-right controls: Minimalist action buttons */}
