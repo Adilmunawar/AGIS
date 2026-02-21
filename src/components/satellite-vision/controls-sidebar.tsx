@@ -8,7 +8,6 @@ import {
   Server,
   ChevronsLeft,
   ChevronsRight,
-  User as UserIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -125,7 +124,7 @@ export function ControlsSidebar({
     <TooltipProvider delayDuration={100}>
       <aside
         className={cn(
-          'absolute top-0 left-0 flex h-full shrink-0 flex-col bg-card shadow-2xl z-10 transition-all duration-300 ease-in-out rounded-tr-[2.5rem] rounded-br-[2.5rem]',
+          'absolute top-0 left-0 z-10 flex h-full shrink-0 flex-col bg-card shadow-2xl transition-all duration-300 ease-in-out rounded-tr-[2.5rem] rounded-br-[2.5rem]',
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
