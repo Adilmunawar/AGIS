@@ -220,7 +220,7 @@ export default function SatelliteVisionPage() {
         setIsCollapsed={setIsSidebarCollapsed}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
-      <main className="flex-1 relative transition-all duration-300 ease-in-out">
+      <main className="flex-1 relative transition-all duration-300 ease-in-out rounded-tl-[2.5rem] rounded-bl-[2.5rem] overflow-hidden">
         <MapComponent
           geoJsonData={geoJson}
           setBBox={handleSetBBox}
