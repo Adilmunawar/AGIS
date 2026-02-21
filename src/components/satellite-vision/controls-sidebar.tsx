@@ -8,6 +8,8 @@ import {
   Server,
   ChevronsLeft,
   ChevronsRight,
+  Minus,
+  MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,6 +25,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { AccountSettingsDialog } from '@/components/account/account-settings-dialog';
+import { Label } from '@/components/ui/label';
 
 export type ActiveTool = 'detection' | 'digitize';
 
@@ -32,9 +35,20 @@ type ControlsSidebarProps = {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   onOpenSettings: () => void;
+  drawColor: string;
+  setDrawColor: (color: string) => void;
+  lineStyle: 'solid' | 'dashed';
+  setLineStyle: (style: 'solid' | 'dashed') => void;
 };
 
-// A more intelligent button that handles collapsed/expanded state
+const COLOR_PALETTE = [
+  { name: 'Green', value: 'hsl(var(--primary))' },
+  { name: 'Red', value: 'hsl(var(--destructive))' },
+  { name: 'Blue', value: 'hsl(var(--chart-2))' },
+  { name: 'Yellow', value: 'hsl(var(--chart-3))' },
+  { name: 'Purple', value: 'hsl(var(--chart-5))' },
+];
+
 function SidebarButton({
   icon,
   label,
@@ -105,6 +119,10 @@ export function ControlsSidebar({
   isCollapsed,
   setIsCollapsed,
   onOpenSettings,
+  drawColor,
+  setDrawColor,
+  lineStyle,
+  setLineStyle,
 }: ControlsSidebarProps) {
   const auth = useAuth();
   const { user } = useUser();
@@ -129,7 +147,8 @@ export function ControlsSidebar({
         )}
       >
         <div className="flex flex-1 flex-col">
-          <div className="flex-grow">
+          {/* Main tools */}
+          <div>
             <nav className="flex flex-col gap-2 p-4">
               <SidebarButton
                 icon={<Bot size={24} />}
@@ -146,8 +165,63 @@ export function ControlsSidebar({
                 onClick={() => setActiveTool('digitize')}
               />
             </nav>
-          </div>
 
+            {/* Contextual Options for Digitizing */}
+            {!isCollapsed && activeTool === 'digitize' && (
+              <div className="px-4 pb-4 animate-in fade-in duration-300">
+                <Separator className="my-2" />
+                <div className="space-y-4 pt-2">
+                   <h3 className="text-sm font-semibold text-muted-foreground px-0">STYLE</h3>
+                   <div className="space-y-3">
+                      <Label className="text-sm">Color</Label>
+                       <div className="flex items-center justify-between">
+                        {COLOR_PALETTE.map((color) => (
+                           <Tooltip key={color.name}>
+                            <TooltipTrigger asChild>
+                               <button
+                                onClick={() => setDrawColor(color.value)}
+                                className={cn(
+                                    'h-7 w-7 rounded-full border-2 transition-all',
+                                    drawColor === color.value
+                                    ? 'border-ring scale-110'
+                                    : 'border-transparent hover:scale-110'
+                                )}
+                                style={{ backgroundColor: color.value }}
+                                aria-label={`Set color to ${color.name}`}
+                                />
+                            </TooltipTrigger>
+                            <TooltipContent side="top"><p>{color.name}</p></TooltipContent>
+                           </Tooltip>
+                        ))}
+                       </div>
+                   </div>
+                   <div className="space-y-3">
+                       <Label className="text-sm">Line Style</Label>
+                       <div className="grid grid-cols-2 gap-2">
+                           <Button 
+                                variant={lineStyle === 'solid' ? 'secondary' : 'ghost'} 
+                                onClick={() => setLineStyle('solid')}
+                                className="h-9"
+                            >
+                                <Minus className="h-4 w-4 mr-2" /> Solid
+                           </Button>
+                           <Button 
+                                variant={lineStyle === 'dashed' ? 'secondary' : 'ghost'} 
+                                onClick={() => setLineStyle('dashed')}
+                                className="h-9"
+                            >
+                                <MoreHorizontal className="h-4 w-4 mr-2" /> Dashed
+                           </Button>
+                       </div>
+                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-grow" />
+
+          {/* Footer controls */}
           <div className="flex flex-col gap-2 p-2">
             <SidebarButton
               icon={<Server size={24} />}

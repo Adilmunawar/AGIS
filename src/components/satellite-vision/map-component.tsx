@@ -33,31 +33,45 @@ interface MapProps {
   layerUrl: string;
   layerAttribution: string;
   mapActions?: React.ReactNode;
+  drawColor: string;
+  lineStyle: 'solid' | 'dashed';
 }
 
 // --- Helper Components ---
 
 function ToolbarPortal({ mapActions }: { mapActions?: React.ReactNode }) {
   const map = useMap();
-  const [controlsContainer, setControlsContainer] = useState<HTMLElement | null>(null);
+  const [controlsContainer, setControlsContainer] =
+    useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!map) return;
-    const container = map.getContainer().querySelector('.leaflet-top.leaflet-left') as HTMLElement;
-    if (container) {
-        // This ensures both the leaflet-draw controls and our custom actions stack vertically
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '8px';
-        setControlsContainer(container);
+    // Find the main leaflet-draw container
+    const drawContainer = map
+      .getContainer()
+      .querySelector('.leaflet-draw.leaflet-control') as HTMLElement;
+    if (drawContainer) {
+      // Find the specific toolbar section within the draw container
+      const toolbar = drawContainer.querySelector(
+        '.leaflet-draw-toolbar'
+      ) as HTMLElement;
+      if (toolbar) {
+        setControlsContainer(toolbar);
+        // Ensure parent containers can hold multiple elements vertically
+        if (drawContainer.parentElement) {
+            drawContainer.parentElement.style.display = 'flex';
+            drawContainer.parentElement.style.flexDirection = 'column';
+            drawContainer.parentElement.style.gap = '8px';
+        }
+      }
     }
   }, [map]);
 
   if (!controlsContainer || !mapActions) return null;
-  
+
+  // Append the actions to the same toolbar
   return ReactDOM.createPortal(mapActions, controlsContainer);
 }
-
 
 function MapTracker({
   setBBox,
@@ -157,6 +171,8 @@ export default function MapComponent({
   layerUrl,
   layerAttribution,
   mapActions,
+  drawColor,
+  lineStyle,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const featureGroupRef = useRef<any>(null);
@@ -203,25 +219,25 @@ export default function MapComponent({
     const type = e.layerType;
 
     if (type === 'rectangle') {
-       if (activeTool === 'detection') {
-          setIsDrawing(true);
+      if (activeTool === 'detection') {
+        setIsDrawing(true);
 
-          if (featureGroupRef.current) {
-            featureGroupRef.current.eachLayer((l: any) => {
-              if (l instanceof L.Rectangle && l !== layer) {
-                featureGroupRef.current.removeLayer(l);
-              }
-            });
-          }
-
-          const bounds = layer.getBounds();
-          setBBox({
-            west: bounds.getWest(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            north: bounds.getNorth(),
+        if (featureGroupRef.current) {
+          featureGroupRef.current.eachLayer((l: any) => {
+            if (l instanceof L.Rectangle && l !== layer) {
+              featureGroupRef.current.removeLayer(l);
+            }
           });
-       }
+        }
+
+        const bounds = layer.getBounds();
+        setBBox({
+          west: bounds.getWest(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          north: bounds.getNorth(),
+        });
+      }
       layer.bindPopup(createAreaPopup(layer)).openPopup();
     } else if (type === 'polygon') {
       layer.bindPopup(createAreaPopup(layer)).openPopup();
@@ -257,9 +273,9 @@ export default function MapComponent({
   const onDeleted = (e: any) => {
     let wasROIDeleted = false;
     e.layers.eachLayer((layer: any) => {
-        if (layer instanceof L.Rectangle && activeTool === 'detection') {
-            wasROIDeleted = true;
-        }
+      if (layer instanceof L.Rectangle && activeTool === 'detection') {
+        wasROIDeleted = true;
+      }
     });
 
     if (wasROIDeleted) {
@@ -279,6 +295,8 @@ export default function MapComponent({
     }
     updateFeatures();
   };
+  
+  const dashArray = lineStyle === 'dashed' ? '5, 10' : undefined;
 
   return (
     <MapContainer
@@ -287,67 +305,78 @@ export default function MapComponent({
       style={{ height: '100%', width: '100%', background: '#111' }}
       zoomControl={false}
     >
-        <TileLayer
-            url={layerUrl}
-            attribution={layerAttribution}
-            maxZoom={22}
+      <TileLayer
+        url={layerUrl}
+        attribution={layerAttribution}
+        maxZoom={22}
+      />
+
+      <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
+      <MapController coords={searchResult} />
+
+      <FeatureGroup ref={featureGroupRef}>
+        <EditControl
+          key={`${activeTool}-${drawColor}-${lineStyle}`}
+          position="topleft"
+          onCreated={onCreated}
+          onEdited={onEdited}
+          onDeleted={onDeleted}
+          draw={{
+            rectangle:
+              activeTool === 'detection'
+                ? {
+                    shapeOptions: {
+                      color: 'hsl(var(--primary))',
+                      fillColor: 'hsl(var(--accent))',
+                      fillOpacity: 0.1,
+                      weight: 2,
+                      dashArray: '5, 5',
+                    },
+                  }
+                : false,
+            polygon:
+              activeTool === 'digitize'
+                ? {
+                    shapeOptions: {
+                      color: drawColor,
+                      fillColor: drawColor,
+                      fillOpacity: 0.1,
+                      weight: 2,
+                      dashArray,
+                    },
+                  }
+                : false,
+            polyline:
+              activeTool === 'digitize'
+                ? {
+                    shapeOptions: {
+                      color: drawColor,
+                      weight: 3,
+                      dashArray,
+                    },
+                  }
+                : false,
+            circle: false,
+            circlemarker: false,
+            marker: false,
+          }}
+          edit={{
+            featureGroup: featureGroupRef.current,
+            edit: true,
+            remove: true,
+          }}
         />
-
-        <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
-        <MapController coords={searchResult} />
-
-        <FeatureGroup ref={featureGroupRef}>
-            <EditControl
-            key={activeTool}
-            position="topleft"
-            onCreated={onCreated}
-            onEdited={onEdited}
-            onDeleted={onDeleted}
-            draw={{
-                rectangle: activeTool === 'detection' ? {
-                shapeOptions: {
-                    color: 'hsl(var(--primary))',
-                    fillColor: 'hsl(var(--accent))',
-                    fillOpacity: 0.1,
-                    weight: 2,
-                    dashArray: '5, 5'
-                },
-                } : false,
-                polygon: activeTool === 'digitize' ? {
-                shapeOptions: {
-                    color: 'hsl(var(--primary))',
-                    fillColor: 'hsl(var(--primary))',
-                    fillOpacity: 0.1,
-                    weight: 2,
-                },
-                } : false,
-                polyline: activeTool === 'digitize' ? {
-                shapeOptions: {
-                    color: 'hsl(var(--primary))',
-                    weight: 3,
-                },
-                } : false,
-                circle: false,
-                circlemarker: false,
-                marker: false,
-            }}
-            edit={{
-                featureGroup: featureGroupRef.current,
-                edit: true,
-                remove: true
-            }}
-            />
-        </FeatureGroup>
-        <ToolbarPortal mapActions={mapActions} />
-        {geoJsonData && (
-            <GeoJSON
-            key={geoKey}
-            data={geoJsonData}
-            style={geoJsonStyle}
-            onEachFeature={onEachFeature}
-            />
-        )}
-        <CoordinatesControl isSidebarCollapsed={isSidebarCollapsed} />
+      </FeatureGroup>
+      <ToolbarPortal mapActions={mapActions} />
+      {geoJsonData && (
+        <GeoJSON
+          key={geoKey}
+          data={geoJsonData}
+          style={geoJsonStyle}
+          onEachFeature={onEachFeature}
+        />
+      )}
+      <CoordinatesControl isSidebarCollapsed={isSidebarCollapsed} />
     </MapContainer>
   );
 }

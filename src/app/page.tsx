@@ -49,8 +49,13 @@ export default function SatelliteVisionPage() {
     React.useState<GeoJsonObject | null>(null);
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [activeTool, setActiveTool] = React.useState<ActiveTool>('detection');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [currentLayer, setCurrentLayer] = React.useState<MapLayer>(mapLayers[0]);
+  
+  // New state for drawing styles
+  const [drawColor, setDrawColor] = React.useState('hsl(var(--primary))');
+  const [lineStyle, setLineStyle] = React.useState<'solid' | 'dashed'>('solid');
+
 
   const { toast } = useToast();
 
@@ -219,6 +224,10 @@ export default function SatelliteVisionPage() {
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        drawColor={drawColor}
+        setDrawColor={setDrawColor}
+        lineStyle={lineStyle}
+        setLineStyle={setLineStyle}
       />
       <main className="relative h-full w-full">
         <MapComponent
@@ -232,6 +241,8 @@ export default function SatelliteVisionPage() {
           onManualFeaturesChange={setManualFeatures}
           activeTool={activeTool}
           isSidebarCollapsed={isSidebarCollapsed}
+          drawColor={drawColor}
+          lineStyle={lineStyle}
           mapActions={
              <MapActions
                 activeTool={activeTool}
@@ -246,12 +257,14 @@ export default function SatelliteVisionPage() {
           }
         />
         
-        <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2">
+        <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2">
            <MapLayerSwitcher
               layers={mapLayers}
               currentLayer={currentLayer}
               onLayerChange={setCurrentLayer}
             />
+        </div>
+        <div className="absolute top-4 right-4 z-[1000]">
             <div className="w-80 max-w-xs">
                 <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
             </div>
