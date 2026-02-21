@@ -162,10 +162,10 @@ export default function MapComponent({
   }, [localPoints, setPoints]);
   
   useEffect(() => {
-    if (activeTool === 'digitize') {
+    if (activeTool === 'digitize' || isDrawing) {
        setLocalPoints([]);
     }
-  }, [activeTool]);
+  }, [activeTool, isDrawing]);
 
   const geoJsonStyle = {
     color: 'hsl(var(--primary))',
@@ -208,7 +208,6 @@ export default function MapComponent({
        if (activeTool === 'detection') {
           setIsDrawing(true);
           setLocalPoints([]);
-          const bounds = layer.getBounds();
 
           if (featureGroupRef.current) {
             featureGroupRef.current.eachLayer((l: any) => {
@@ -218,6 +217,7 @@ export default function MapComponent({
             });
           }
 
+          const bounds = layer.getBounds();
           setBBox({
             west: bounds.getWest(),
             south: bounds.getSouth(),
@@ -307,17 +307,36 @@ export default function MapComponent({
       zoomControl={false}
     >
         <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="Satellite">
+            <LayersControl.BaseLayer checked name="Google Satellite">
                 <TileLayer
                     url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-                    attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+                    attribution='&copy; Google Maps'
                     maxZoom={22}
                 />
             </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Street Map">
+            <LayersControl.BaseLayer name="Esri World Imagery">
+                <TileLayer
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    attribution='&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                    maxZoom={22}
+                />
+            </LayersControl.BaseLayer>
+             <LayersControl.BaseLayer name="OpenStreetMap">
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    attribution='&copy; OpenStreetMap contributors'
+                />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Topographic Map">
+                <TileLayer
+                    url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+                    attribution='Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
+                />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="CARTO Light">
+                <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; OpenStreetMap contributors &copy; CARTO'
                 />
             </LayersControl.BaseLayer>
         </LayersControl>
