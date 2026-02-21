@@ -245,7 +245,14 @@ export default function SatelliteVisionPage() {
             </div>
         </div>
 
-        <div className="absolute top-1/2 -translate-y-1/2 right-4 z-[1000]">
+        <div
+          className={cn(
+            'absolute top-[74px] left-0 z-[1000] flex flex-col gap-2 transition-transform duration-300 ease-in-out',
+            isSidebarCollapsed
+              ? 'translate-x-[calc(5rem+1rem)]'
+              : 'translate-x-[calc(16rem+1rem)]'
+          )}
+        >
           <MapActions
             activeTool={activeTool}
             isLoading={isLoading}
