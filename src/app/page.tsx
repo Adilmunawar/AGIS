@@ -257,17 +257,15 @@ export default function SatelliteVisionPage() {
           }
         />
         
-        <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2">
-           <MapLayerSwitcher
-              layers={mapLayers}
-              currentLayer={currentLayer}
-              onLayerChange={setCurrentLayer}
-            />
-        </div>
-        <div className="absolute top-4 right-4 z-[1000]">
+        <div className="absolute top-4 right-4 z-[1000] flex items-start gap-2">
             <div className="w-80 max-w-xs">
                 <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
             </div>
+            <MapLayerSwitcher
+                layers={mapLayers}
+                currentLayer={currentLayer}
+                onLayerChange={setCurrentLayer}
+            />
         </div>
       </main>
       <ConnectServerDialog
