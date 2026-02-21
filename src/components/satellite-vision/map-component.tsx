@@ -41,32 +41,27 @@ interface MapProps {
 
 function ToolbarPortal({ mapActions }: { mapActions?: React.ReactNode }) {
   const map = useMap();
-  const [controlsContainer, setControlsContainer] =
-    useState<HTMLElement | null>(null);
+  const [controlsContainer, setControlsContainer] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!map) return;
     
-    // This effect finds the Leaflet draw container and prepares it
-    // to host our custom actions, ensuring a single vertical toolbar.
-    const drawControlContainer = (map.getContainer().querySelector('.leaflet-draw.leaflet-control') as HTMLElement)?.parentElement;
+    // Target the .leaflet-draw container directly. This is the single container for all tools.
+    const drawControl = map.getContainer().querySelector('.leaflet-draw.leaflet-control') as HTMLElement;
 
-    if (drawControlContainer) {
-      // Style the main container to allow for a vertical flex layout
-      drawControlContainer.style.display = 'flex';
-      drawControlContainer.style.flexDirection = 'column';
-      drawControlContainer.style.gap = '0px'; // Remove gap to merge toolbars visually
-      setControlsContainer(drawControlContainer);
+    if (drawControl) {
+      setControlsContainer(drawControl);
     }
     
   }, [map]);
 
   if (!controlsContainer || !mapActions) return null;
 
-  // Use a portal to render our custom MapActions component
-  // into the same container as the Leaflet.Draw controls.
+  // Portal the custom actions directly into the main draw container.
+  // It will be added as a child, and our CSS will stack it vertically.
   return ReactDOM.createPortal(mapActions, controlsContainer);
 }
+
 
 function MapTracker({
   setBBox,
