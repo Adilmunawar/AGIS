@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   MapContainer,
   TileLayer,
@@ -8,7 +9,6 @@ import {
   FeatureGroup,
   useMap,
   useMapEvents,
-  Popup,
 } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
@@ -32,9 +32,32 @@ interface MapProps {
   isSidebarCollapsed: boolean;
   layerUrl: string;
   layerAttribution: string;
+  mapActions?: React.ReactNode;
 }
 
 // --- Helper Components ---
+
+function ToolbarPortal({ mapActions }: { mapActions?: React.ReactNode }) {
+  const map = useMap();
+  const [controlsContainer, setControlsContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!map) return;
+    const container = map.getContainer().querySelector('.leaflet-top.leaflet-left') as HTMLElement;
+    if (container) {
+        // This ensures both the leaflet-draw controls and our custom actions stack vertically
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '8px';
+        setControlsContainer(container);
+    }
+  }, [map]);
+
+  if (!controlsContainer || !mapActions) return null;
+  
+  return ReactDOM.createPortal(mapActions, controlsContainer);
+}
+
 
 function MapTracker({
   setBBox,
@@ -133,6 +156,7 @@ export default function MapComponent({
   isSidebarCollapsed,
   layerUrl,
   layerAttribution,
+  mapActions,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const featureGroupRef = useRef<any>(null);
@@ -314,6 +338,7 @@ export default function MapComponent({
             }}
             />
         </FeatureGroup>
+        <ToolbarPortal mapActions={mapActions} />
         {geoJsonData && (
             <GeoJSON
             key={geoKey}
