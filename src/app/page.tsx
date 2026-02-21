@@ -247,26 +247,24 @@ export default function SatelliteVisionPage() {
 
         <div
           className={cn(
-            'absolute top-4 left-0 z-[1000] flex flex-row items-center gap-2 transition-transform duration-300 ease-in-out',
+            'absolute top-4 left-0 z-[1000] flex flex-col items-center gap-2 rounded-lg bg-background/70 p-1 shadow-lg backdrop-blur-sm border border-border transition-transform duration-300 ease-in-out',
             isSidebarCollapsed
               ? 'translate-x-[calc(5rem+1rem)]'
               : 'translate-x-[calc(16rem+1rem)]'
           )}
         >
-           <div className="flex flex-row items-center p-1 rounded-lg bg-background/70 shadow-lg backdrop-blur-sm border border-border">
-              {/* This div is a placeholder for the Leaflet Draw controls, which will be positioned here by Leaflet */}
-              <div className="leaflet-draw-custom-placeholder" />
-              <MapActions
-                activeTool={activeTool}
-                isLoading={isLoading}
-                hasSelection={hasSelection}
-                hasGeoJson={!!geoJson}
-                hasManualFeatures={!!(manualFeatures as any)?.features?.length}
-                onDetect={handleDetect}
-                onDownload={handleDownloadGeoJson}
-                onDownloadDigitized={handleDownloadDigitized}
-              />
-           </div>
+           {/* This div is a placeholder for the Leaflet Draw controls, which will be positioned here by Leaflet */}
+           <div className="leaflet-draw-custom-placeholder" />
+           <MapActions
+            activeTool={activeTool}
+            isLoading={isLoading}
+            hasSelection={hasSelection}
+            hasGeoJson={!!geoJson}
+            hasManualFeatures={!!(manualFeatures as any)?.features?.length}
+            onDetect={handleDetect}
+            onDownload={handleDownloadGeoJson}
+            onDownloadDigitized={handleDownloadDigitized}
+           />
         </div>
 
       </main>

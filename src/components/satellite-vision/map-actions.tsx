@@ -35,7 +35,7 @@ export function MapActions({
 
     return (
         <TooltipProvider>
-            <div className="flex flex-row gap-1">
+            <div className="flex flex-col gap-1">
                 {activeTool === 'detection' && (
                     <>
                         <Tooltip>
@@ -57,7 +57,7 @@ export function MapActions({
                                     </Button>
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={10}>
+                            <TooltipContent side="right" sideOffset={10}>
                                 <p>{hasSelection ? 'Run AI Detection' : 'Select an area first'}</p>
                             </TooltipContent>
                         </Tooltip>
@@ -76,7 +76,7 @@ export function MapActions({
                                     </Button>
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={10}>
+                            <TooltipContent side="right" sideOffset={10}>
                                 <p>{hasGeoJson ? 'Download Detected Data (.zip)' : 'No detection data to download'}</p>
                             </TooltipContent>
                         </Tooltip>
@@ -98,7 +98,7 @@ export function MapActions({
                                 </Button>
                             </div>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" sideOffset={10}>
+                        <TooltipContent side="right" sideOffset={10}>
                             <p>{hasManualFeatures ? 'Download Digitized Layer (.geojson)' : 'Draw features to download'}</p>
                         </TooltipContent>
                     </Tooltip>

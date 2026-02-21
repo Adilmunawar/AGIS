@@ -107,23 +107,21 @@ body {
 
 .leaflet-draw {
     display: flex !important;
-    flex-direction: row !important;
+    flex-direction: column !important;
     align-items: center !important;
-    gap: 8px !important;
-    height: auto !important;
+    gap: 4px !important;
 }
 
 .leaflet-draw-section {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     gap: 4px;
 }
 
 .leaflet-draw-toolbar {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
-    gap: 2px;
     border: none !important;
 }
 
@@ -137,7 +135,6 @@ body {
   background-size: 18px 18px !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
-  background-image: none !important; /* Hide default sprite */
 }
 
 .leaflet-draw-toolbar a:hover {
