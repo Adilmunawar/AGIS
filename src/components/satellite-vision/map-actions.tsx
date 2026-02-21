@@ -82,14 +82,18 @@ export function MapActions({
         return null;
     }
 
+    // This component now renders its own toolbar container.
+    // It's designed to be portaled into the main leaflet-draw container.
     return (
         <div className={cn(
-            "leaflet-bar rounded-lg bg-background/70 p-1 shadow-lg backdrop-blur-sm border border-border mt-2",
+            "leaflet-bar leaflet-draw-toolbar", // Use same classes for consistent styling
+            "mt-0 flex-col", // Remove top margin and ensure column layout
         )}>
             <TooltipProvider>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col items-center gap-1">
                     {showDetection && (
                         <>
+                           <Separator className="my-1 bg-border/50 w-full" />
                             <ActionButton
                                 onClick={onDetect}
                                 disabled={isLoading || !hasSelection}
@@ -114,6 +118,7 @@ export function MapActions({
                     )}
                     {showDigitize && (
                          <>
+                            <Separator className="my-1 bg-border/50 w-full" />
                             <ActionButton
                                 onClick={onDownloadDigitized}
                                 disabled={isLoading || !hasManualFeatures}
@@ -123,9 +128,9 @@ export function MapActions({
                                 <span className="sr-only">Download Digitized Layer</span>
                             </ActionButton>
 
-                             <Separator className="my-1 bg-border/50" />
+                             <Separator className="my-1 bg-border/50 w-full" />
                             
-                            <div className="flex justify-around gap-1 p-1">
+                            <div className="flex flex-col items-center gap-1 p-1">
                                 {COLOR_PALETTE.map((color) => (
                                    <Tooltip key={color.name}>
                                     <TooltipTrigger asChild>
@@ -146,7 +151,7 @@ export function MapActions({
                                 ))}
                             </div>
 
-                            <Separator className="my-1 bg-border/50" />
+                            <Separator className="my-1 bg-border/50 w-full" />
 
                              <Tooltip>
                                 <TooltipTrigger asChild>
@@ -154,8 +159,8 @@ export function MapActions({
                                     <Button
                                         variant={lineStyle === 'solid' ? 'secondary' : 'ghost'}
                                         onClick={() => setLineStyle('solid')}
-                                        className="h-8 w-full"
-                                        size="sm"
+                                        className="h-8 w-8"
+                                        size="icon"
                                     >
                                         <Minus className="h-4 w-4" />
                                     </Button>
@@ -169,8 +174,8 @@ export function MapActions({
                                     <Button
                                         variant={lineStyle === 'dashed' ? 'secondary' : 'ghost'}
                                         onClick={() => setLineStyle('dashed')}
-                                        className="h-8 w-full"
-                                        size="sm"
+                                        className="h-8 w-8"
+                                        size="icon"
                                     >
                                         <MoreHorizontal className="h-4 w-4" />
                                     </Button>

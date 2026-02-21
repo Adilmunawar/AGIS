@@ -46,30 +46,25 @@ function ToolbarPortal({ mapActions }: { mapActions?: React.ReactNode }) {
 
   useEffect(() => {
     if (!map) return;
-    // Find the main leaflet-draw container
-    const drawContainer = map
-      .getContainer()
-      .querySelector('.leaflet-draw.leaflet-control') as HTMLElement;
-    if (drawContainer) {
-      // Find the specific toolbar section within the draw container
-      const toolbar = drawContainer.querySelector(
-        '.leaflet-draw-toolbar'
-      ) as HTMLElement;
-      if (toolbar) {
-        setControlsContainer(toolbar);
-        // Ensure parent containers can hold multiple elements vertically
-        if (drawContainer.parentElement) {
-            drawContainer.parentElement.style.display = 'flex';
-            drawContainer.parentElement.style.flexDirection = 'column';
-            drawContainer.parentElement.style.gap = '8px';
-        }
-      }
+    
+    // This effect finds the Leaflet draw container and prepares it
+    // to host our custom actions, ensuring a single vertical toolbar.
+    const drawControlContainer = (map.getContainer().querySelector('.leaflet-draw.leaflet-control') as HTMLElement)?.parentElement;
+
+    if (drawControlContainer) {
+      // Style the main container to allow for a vertical flex layout
+      drawControlContainer.style.display = 'flex';
+      drawControlContainer.style.flexDirection = 'column';
+      drawControlContainer.style.gap = '0px'; // Remove gap to merge toolbars visually
+      setControlsContainer(drawControlContainer);
     }
+    
   }, [map]);
 
   if (!controlsContainer || !mapActions) return null;
 
-  // Append the actions to the same toolbar
+  // Use a portal to render our custom MapActions component
+  // into the same container as the Leaflet.Draw controls.
   return ReactDOM.createPortal(mapActions, controlsContainer);
 }
 

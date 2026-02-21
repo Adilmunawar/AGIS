@@ -163,7 +163,7 @@ body {
 }
 
 .leaflet-control-layers-toggle {
-    background-image: none !important;
+    /* REMOVED background-image: none !important; to fix icon visibility */
     width: 44px !important;
     height: 44px !important;
 }
