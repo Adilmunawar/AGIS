@@ -8,6 +8,7 @@ import {
   Server,
   ChevronsLeft,
   ChevronsRight,
+  User as UserIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,8 +21,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { AccountSettingsDialog } from '@/components/account/account-settings-dialog';
 
 export type ActiveTool = 'detection' | 'digitize';
 
@@ -48,7 +50,7 @@ function SidebarButton({
   [key: string]: any;
 }) {
   const activeClass = 'bg-accent text-accent-foreground';
-  
+
   const interactionClasses = !disableHoverEffect
     ? 'transition-all duration-200 ease-in-out transform hover:-translate-y-1 hover:scale-105'
     : 'transition-colors duration-200';
@@ -62,7 +64,8 @@ function SidebarButton({
             size="icon"
             className={cn(
               'h-12 w-12 shrink-0 rounded-lg',
-              props.isActive ? activeClass : interactionClasses
+              props.isActive ? activeClass : '',
+              interactionClasses
             )}
             aria-label={label}
             {...props}
@@ -70,8 +73,12 @@ function SidebarButton({
             {icon}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="right" sideOffset={8} className="bg-popover text-popover-foreground border-border rounded-lg shadow-xl">
-            <p className="font-semibold">{label}</p>
+        <TooltipContent
+          side="right"
+          sideOffset={8}
+          className="bg-popover text-popover-foreground border-border rounded-lg shadow-xl"
+        >
+          <p className="font-semibold">{label}</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -82,7 +89,8 @@ function SidebarButton({
       variant="ghost"
       className={cn(
         'h-12 w-full justify-start px-4',
-        props.isActive ? activeClass : interactionClasses
+        props.isActive ? activeClass : '',
+        interactionClasses
       )}
       {...props}
     >
@@ -91,7 +99,6 @@ function SidebarButton({
     </Button>
   );
 }
-
 
 export function ControlsSidebar({
   activeTool,
@@ -103,6 +110,8 @@ export function ControlsSidebar({
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] =
+    React.useState(false);
 
   const handleSignOut = () => {
     initiateSignOut(auth);
@@ -120,52 +129,59 @@ export function ControlsSidebar({
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
-        {/* Tool Switcher */}
-        <nav className="flex flex-col gap-2 p-4 flex-grow">
-          <SidebarButton
-            icon={<Bot size={24} />}
-            label="Auto-Detection"
-            isCollapsed={isCollapsed}
-            isActive={activeTool === 'detection'}
-            onClick={() => setActiveTool('detection')}
-          />
-          <SidebarButton
-            icon={<PenSquare size={24} />}
-            label="Manual Parceling"
-            isCollapsed={isCollapsed}
-            isActive={activeTool === 'digitize'}
-            onClick={() => setActiveTool('digitize')}
-          />
-        </nav>
+        <div className="flex-grow">
+          <nav className="flex flex-col gap-2 p-4">
+            <SidebarButton
+              icon={<Bot size={24} />}
+              label="Auto-Detection"
+              isCollapsed={isCollapsed}
+              isActive={activeTool === 'detection'}
+              onClick={() => setActiveTool('detection')}
+            />
+            <SidebarButton
+              icon={<PenSquare size={24} />}
+              label="Manual Parceling"
+              isCollapsed={isCollapsed}
+              isActive={activeTool === 'digitize'}
+              onClick={() => setActiveTool('digitize')}
+            />
+          </nav>
+        </div>
 
-        {/* Footer actions */}
         <div className="flex flex-col gap-2 p-2">
-           <SidebarButton
+          <SidebarButton
             icon={<Server size={24} />}
             label="Backend Settings"
             isCollapsed={isCollapsed}
             onClick={onOpenSettings}
-            isActive={false} // This button is never "active" in the same way as a tool
+            isActive={false}
           />
 
-          <div className={cn("p-2 rounded-lg transition-all duration-300 ease-in-out", 
-            isCollapsed 
-              ? 'flex justify-center' 
-              : 'flex items-center gap-3 hover:bg-accent/50 transform hover:-translate-y-1'
-          )}>
-             <Avatar className="h-10 w-10 border-2 border-primary/20">
-                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                  {user?.email?.charAt(0).toUpperCase() ?? 'U'}
-                </AvatarFallback>
-              </Avatar>
-              {!isCollapsed && (
-                <div className="flex-1 truncate">
-                  <p className="truncate text-sm font-medium">
-                    {user?.email}
-                  </p>
-                </div>
-              )}
-          </div>
+          <button
+            onClick={() => setIsAccountSettingsOpen(true)}
+            className={cn(
+              'p-2 rounded-lg transition-all duration-300 ease-in-out w-full',
+              'flex items-center gap-3 transform hover:-translate-y-1',
+              isCollapsed && 'justify-center'
+            )}
+          >
+            <Avatar className="h-10 w-10 border-2 border-primary/20">
+              <AvatarImage
+                src={user?.photoURL ?? ''}
+                alt={user?.displayName ?? ''}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                {user?.displayName?.charAt(0).toUpperCase() ??
+                  user?.email?.charAt(0).toUpperCase() ??
+                  'U'}
+              </AvatarFallback>
+            </Avatar>
+            {!isCollapsed && (
+              <div className="flex-1 truncate text-left">
+                <p className="truncate text-sm font-medium">Account</p>
+              </div>
+            )}
+          </button>
 
           <SidebarButton
             icon={<LogOut size={24} />}
@@ -178,14 +194,18 @@ export function ControlsSidebar({
           <Separator className="my-1" />
 
           <SidebarButton
-            icon={isCollapsed ? <ChevronsRight size={24}/> : <ChevronsLeft size={24}/>}
-            label={isCollapsed ? "Expand" : "Collapse"}
+            icon={isCollapsed ? <ChevronsRight size={24} /> : <ChevronsLeft size={24} />}
+            label={isCollapsed ? 'Expand' : 'Collapse'}
             isCollapsed={isCollapsed}
             onClick={() => setIsCollapsed(!isCollapsed)}
             isActive={false}
             disableHoverEffect={true}
           />
         </div>
+        <AccountSettingsDialog
+          isOpen={isAccountSettingsOpen}
+          onOpenChange={setIsAccountSettingsOpen}
+        />
       </aside>
     </TooltipProvider>
   );
