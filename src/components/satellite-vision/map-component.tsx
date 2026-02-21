@@ -40,13 +40,15 @@ interface MapProps {
 function MapClickHandler({
   activeTool,
   setPoints,
+  isDrawing,
 }: {
   activeTool: ActiveTool;
   setPoints: React.Dispatch<React.SetStateAction<GeoPoint[]>>;
+  isDrawing: boolean;
 }) {
   useMapEvents({
     click(e) {
-      if (activeTool === 'detection') {
+      if (activeTool === 'detection' && !isDrawing) {
         setPoints((prev) => [...prev, { lat: e.latlng.lat, lng: e.latlng.lng }]);
       }
     },
@@ -323,7 +325,11 @@ export default function MapComponent({
         <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
         <MapController coords={searchResult} />
 
-        <MapClickHandler activeTool={activeTool} setPoints={setLocalPoints} />
+        <MapClickHandler
+          activeTool={activeTool}
+          setPoints={setLocalPoints}
+          isDrawing={isDrawing}
+        />
 
         {localPoints.map((p, idx) => (
             <Marker key={idx} position={[p.lat, p.lng]} icon={pointIcon}>
