@@ -9,12 +9,20 @@ export type MapLayer = {
 
 export const mapLayers: MapLayer[] = [
   {
-    id: 'google-satellite',
+    id: 'google-satellite-plain',
     name: 'Satellite',
+    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+    attribution: '&copy; Google Maps',
+    previewImageUrl: 'https://picsum.photos/seed/plainsatellite/128/128',
+    imageHint: 'satellite view',
+  },
+  {
+    id: 'google-satellite-hybrid',
+    name: 'Hybrid',
     url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
     attribution: '&copy; Google Maps',
     previewImageUrl: 'https://picsum.photos/seed/satellite/128/128',
-    imageHint: 'satellite view',
+    imageHint: 'satellite labels',
   },
   {
     id: 'esri-world-imagery',
