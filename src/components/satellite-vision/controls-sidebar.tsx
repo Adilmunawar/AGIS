@@ -8,9 +8,6 @@ import {
   Server,
   ChevronsLeft,
   ChevronsRight,
-  Download,
-  FileDown,
-  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,13 +32,6 @@ type ControlsSidebarProps = {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   onOpenSettings: () => void;
-  isLoading: boolean;
-  hasSelection: boolean;
-  hasGeoJson: boolean;
-  onDetect: () => void;
-  onDownloadGeoJson: () => void;
-  onDownloadDigitized: () => void;
-  hasManualFeatures: boolean;
 };
 
 // A more intelligent button that handles collapsed/expanded state
@@ -115,13 +105,6 @@ export function ControlsSidebar({
   isCollapsed,
   setIsCollapsed,
   onOpenSettings,
-  isLoading,
-  hasSelection,
-  hasGeoJson,
-  onDetect,
-  onDownloadGeoJson,
-  onDownloadDigitized,
-  hasManualFeatures,
 }: ControlsSidebarProps) {
   const auth = useAuth();
   const { user } = useUser();
@@ -163,49 +146,6 @@ export function ControlsSidebar({
                 onClick={() => setActiveTool('digitize')}
               />
             </nav>
-
-            <Separator className="mx-4 my-2 w-auto" />
-
-            <div className="flex flex-col gap-2 px-4">
-              {activeTool === 'detection' && (
-                <>
-                  <SidebarButton
-                    icon={
-                      isLoading ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <Bot size={24} />
-                      )
-                    }
-                    label="Run Detection"
-                    isCollapsed={isCollapsed}
-                    onClick={onDetect}
-                    disabled={isLoading || !hasSelection}
-                    isActive={false} // it's an action, not a mode
-                  />
-                  <SidebarButton
-                    icon={<Download size={24} />}
-                    label="Download Results"
-                    isCollapsed={isCollapsed}
-                    onClick={onDownloadGeoJson}
-                    disabled={isLoading || !hasGeoJson}
-                    isActive={false}
-                  />
-                </>
-              )}
-              {activeTool === 'digitize' && (
-                <>
-                  <SidebarButton
-                    icon={<FileDown size={24} />}
-                    label="Download Layer"
-                    isCollapsed={isCollapsed}
-                    onClick={onDownloadDigitized}
-                    disabled={isLoading || !hasManualFeatures}
-                    isActive={false}
-                  />
-                </>
-              )}
-            </div>
           </div>
 
           <div className="flex flex-col gap-2 p-2">

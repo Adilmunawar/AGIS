@@ -23,6 +23,7 @@ import { ConnectServerDialog } from '@/components/satellite-vision/connect-serve
 import { cn } from '@/lib/utils';
 import { MapLayerSwitcher } from '@/components/satellite-vision/map-layer-switcher';
 import { mapLayers, type MapLayer } from '@/lib/map-layers';
+import { MapActions } from '@/components/satellite-vision/map-actions';
 
 const MapComponent = dynamic(
   () => import('@/components/satellite-vision/map-component'),
@@ -218,13 +219,6 @@ export default function SatelliteVisionPage() {
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        isLoading={isLoading}
-        hasSelection={hasSelection}
-        hasGeoJson={!!geoJson}
-        onDetect={handleDetect}
-        onDownloadGeoJson={handleDownloadGeoJson}
-        onDownloadDigitized={handleDownloadDigitized}
-        hasManualFeatures={!!(manualFeatures as any)?.features?.length}
       />
       <main className="relative h-full w-full">
         <MapComponent
@@ -249,6 +243,19 @@ export default function SatelliteVisionPage() {
             <div className="w-80 max-w-xs">
                 <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
             </div>
+        </div>
+
+        <div className="absolute top-1/2 -translate-y-1/2 right-4 z-[1000]">
+          <MapActions
+            activeTool={activeTool}
+            isLoading={isLoading}
+            hasSelection={hasSelection}
+            hasGeoJson={!!geoJson}
+            hasManualFeatures={!!(manualFeatures as any)?.features?.length}
+            onDetect={handleDetect}
+            onDownload={handleDownloadGeoJson}
+            onDownloadDigitized={handleDownloadDigitized}
+          />
         </div>
 
       </main>
