@@ -236,8 +236,8 @@ export default function SatelliteVisionPage() {
           isSidebarCollapsed={isSidebarCollapsed}
         />
         
-        <div className="absolute top-4 right-[74px] z-[1000]">
-            <div className="max-w-xs">
+        <div className="absolute top-4 right-4 z-[1000]">
+            <div className="w-80 max-w-xs">
                 <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
             </div>
         </div>
