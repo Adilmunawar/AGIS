@@ -212,7 +212,7 @@ export default function SatelliteVisionPage() {
   const hasSelection = isDrawing || points.length > 0;
 
   return (
-    <div className="flex h-svh w-full bg-background text-foreground">
+    <div className="relative h-svh w-full bg-background text-foreground">
       <ControlsSidebar
         activeTool={activeTool}
         setActiveTool={setActiveTool}
@@ -220,7 +220,7 @@ export default function SatelliteVisionPage() {
         setIsCollapsed={setIsSidebarCollapsed}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
-      <main className="flex-1 relative transition-all duration-300 ease-in-out rounded-tl-[2.5rem] rounded-bl-[2.5rem] overflow-hidden">
+      <main className="relative h-full w-full">
         <MapComponent
           geoJsonData={geoJson}
           setBBox={handleSetBBox}
