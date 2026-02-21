@@ -39,30 +39,6 @@ interface MapProps {
 
 // --- Helper Components ---
 
-function ToolbarPortal({ mapActions }: { mapActions?: React.ReactNode }) {
-  const map = useMap();
-  const [controlsContainer, setControlsContainer] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!map) return;
-    
-    // Target the .leaflet-draw container directly. This is the single container for all tools.
-    const drawControl = map.getContainer().querySelector('.leaflet-draw.leaflet-control') as HTMLElement;
-
-    if (drawControl) {
-      setControlsContainer(drawControl);
-    }
-    
-  }, [map]);
-
-  if (!controlsContainer || !mapActions) return null;
-
-  // Portal the custom actions directly into the main draw container.
-  // It will be added as a child, and our CSS will stack it vertically.
-  return ReactDOM.createPortal(mapActions, controlsContainer);
-}
-
-
 function MapTracker({
   setBBox,
   isDrawing,
@@ -166,6 +142,7 @@ export default function MapComponent({
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const featureGroupRef = useRef<any>(null);
+  const [toolbarContainer, setToolbarContainer] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     setGeoKey((prev) => prev + 1);
@@ -286,6 +263,12 @@ export default function MapComponent({
     updateFeatures();
   };
   
+  const handleOnMounted = (ctl: any) => {
+    if (ctl && ctl._container) {
+      setToolbarContainer(ctl._container);
+    }
+  };
+
   const dashArray = lineStyle === 'dashed' ? '5, 10' : undefined;
 
   return (
@@ -311,6 +294,7 @@ export default function MapComponent({
           onCreated={onCreated}
           onEdited={onEdited}
           onDeleted={onDeleted}
+          onMounted={handleOnMounted}
           draw={{
             rectangle:
               activeTool === 'detection'
@@ -357,7 +341,7 @@ export default function MapComponent({
           }}
         />
       </FeatureGroup>
-      <ToolbarPortal mapActions={mapActions} />
+      {toolbarContainer && ReactDOM.createPortal(mapActions, toolbarContainer)}
       {geoJsonData && (
         <GeoJSON
           key={geoKey}
