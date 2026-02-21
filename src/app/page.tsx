@@ -224,10 +224,6 @@ export default function SatelliteVisionPage() {
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        drawColor={drawColor}
-        setDrawColor={setDrawColor}
-        lineStyle={lineStyle}
-        setLineStyle={setLineStyle}
       />
       <main className="relative h-full w-full">
         <MapComponent
@@ -253,6 +249,10 @@ export default function SatelliteVisionPage() {
                 onDetect={handleDetect}
                 onDownload={handleDownloadGeoJson}
                 onDownloadDigitized={handleDownloadDigitized}
+                drawColor={drawColor}
+                setDrawColor={setDrawColor}
+                lineStyle={lineStyle}
+                setLineStyle={setLineStyle}
              />
           }
         />

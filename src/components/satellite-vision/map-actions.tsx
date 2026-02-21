@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Bot, Download, Loader2, FileDown } from 'lucide-react';
+import { Bot, Download, Loader2, FileDown, Minus, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { ActiveTool } from './controls-sidebar';
 import { cn } from '@/lib/utils';
+import { Separator } from '../ui/separator';
 
 type MapActionsProps = {
     activeTool: ActiveTool;
@@ -21,7 +22,20 @@ type MapActionsProps = {
     onDetect: () => void;
     onDownload: () => void;
     onDownloadDigitized: () => void;
+    drawColor: string;
+    setDrawColor: (color: string) => void;
+    lineStyle: 'solid' | 'dashed';
+    setLineStyle: (style: 'solid' | 'dashed') => void;
 }
+
+const COLOR_PALETTE = [
+  { name: 'Green', value: 'hsl(var(--primary))' },
+  { name: 'Red', value: 'hsl(var(--destructive))' },
+  { name: 'Blue', value: 'hsl(var(--chart-2))' },
+  { name: 'Yellow', value: 'hsl(var(--chart-3))' },
+  { name: 'Purple', value: 'hsl(var(--chart-5))' },
+];
+
 
 function ActionButton({ tooltip, children, ...props }: { tooltip: string, children: React.ReactNode, [key: string]: any }) {
     return (
@@ -53,7 +67,11 @@ export function MapActions({
     hasManualFeatures,
     onDetect,
     onDownload,
-    onDownloadDigitized
+    onDownloadDigitized,
+    drawColor,
+    setDrawColor,
+    lineStyle,
+    setLineStyle,
 }: MapActionsProps) {
 
     const showDetection = activeTool === 'detection';
@@ -95,14 +113,72 @@ export function MapActions({
                         </>
                     )}
                     {showDigitize && (
-                         <ActionButton
-                            onClick={onDownloadDigitized}
-                            disabled={isLoading || !hasManualFeatures}
-                            tooltip={hasManualFeatures ? 'Download Digitized Layer (.geojson)' : 'Draw features to download'}
-                        >
-                            <FileDown className="h-4 w-4" />
-                            <span className="sr-only">Download Digitized Layer</span>
-                        </ActionButton>
+                         <>
+                            <ActionButton
+                                onClick={onDownloadDigitized}
+                                disabled={isLoading || !hasManualFeatures}
+                                tooltip={hasManualFeatures ? 'Download Digitized Layer (.geojson)' : 'Draw features to download'}
+                            >
+                                <FileDown className="h-4 w-4" />
+                                <span className="sr-only">Download Digitized Layer</span>
+                            </ActionButton>
+
+                             <Separator className="my-1 bg-border/50" />
+                            
+                            <div className="flex justify-around gap-1 p-1">
+                                {COLOR_PALETTE.map((color) => (
+                                   <Tooltip key={color.name}>
+                                    <TooltipTrigger asChild>
+                                       <button
+                                        onClick={() => setDrawColor(color.value)}
+                                        className={cn(
+                                            'h-6 w-6 rounded-full border-2 transition-all',
+                                            drawColor === color.value
+                                            ? 'border-ring scale-110'
+                                            : 'border-transparent hover:scale-110'
+                                        )}
+                                        style={{ backgroundColor: color.value }}
+                                        aria-label={`Set color to ${color.name}`}
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" sideOffset={10}><p>{color.name}</p></TooltipContent>
+                                   </Tooltip>
+                                ))}
+                            </div>
+
+                            <Separator className="my-1 bg-border/50" />
+
+                             <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div>
+                                    <Button
+                                        variant={lineStyle === 'solid' ? 'secondary' : 'ghost'}
+                                        onClick={() => setLineStyle('solid')}
+                                        className="h-8 w-full"
+                                        size="sm"
+                                    >
+                                        <Minus className="h-4 w-4" />
+                                    </Button>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" sideOffset={10}><p>Solid Line</p></TooltipContent>
+                            </Tooltip>
+                             <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div>
+                                    <Button
+                                        variant={lineStyle === 'dashed' ? 'secondary' : 'ghost'}
+                                        onClick={() => setLineStyle('dashed')}
+                                        className="h-8 w-full"
+                                        size="sm"
+                                    >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" sideOffset={10}><p>Dashed Line</p></TooltipContent>
+                            </Tooltip>
+                        </>
                     )}
                 </div>
             </TooltipProvider>
