@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useDropzone } from 'react-dropzone';
 import {
   Dialog,
   DialogContent,
@@ -25,16 +26,16 @@ import {
 import { useUser, useAuth } from '@/firebase';
 import { updateProfile } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, User as UserIcon } from 'lucide-react';
+import { Loader2, User as UserIcon, UploadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-// Schema for form validation
+// Schema for form validation - updated photoURL schema to accept data URIs
 const accountSchema = z.object({
   displayName: z
     .string()
     .min(2, { message: 'Name must be at least 2 characters.' })
     .max(50, { message: 'Name cannot be longer than 50 characters.' }),
-  photoURL: z.string().url({ message: 'Please enter a valid URL.' }).or(z.literal('')),
+  photoURL: z.string(), // Accept any string (URL or data URI)
 });
 
 // Props for the dialog
@@ -69,6 +70,33 @@ export function AccountSettingsDialog({
       });
     }
   }, [user, isOpen, form]);
+  
+  // Dropzone logic to handle file upload and convert to data URI
+  const onDrop = React.useCallback(
+    (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          form.setValue('photoURL', dataUrl, { shouldValidate: true });
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    [form]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/jpeg': ['.jpeg', '.jpg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+    },
+    multiple: false,
+  });
+
 
   const onSubmit = async (values: z.infer<typeof accountSchema>) => {
     if (!auth.currentUser) return;
@@ -114,33 +142,35 @@ export function AccountSettingsDialog({
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-6 pt-4"
           >
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={form.watch('photoURL')} />
-                <AvatarFallback className="bg-primary/10 text-primary font-semibold text-2xl">
-                  {form.watch('displayName')?.charAt(0).toUpperCase() ??
-                    user?.email?.charAt(0).toUpperCase() ??
-                    'A'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="w-full space-y-2">
-                <FormField
-                  control={form.control}
-                  name="photoURL"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Profile Picture URL</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="https://example.com/image.png"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+             <div className="space-y-4">
+               <FormLabel>Profile Picture</FormLabel>
+                <div className="flex items-center gap-4">
+                    <Avatar className="h-20 w-20">
+                        <AvatarImage src={form.watch('photoURL')} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-2xl">
+                        {form.watch('displayName')?.charAt(0).toUpperCase() ??
+                            user?.email?.charAt(0).toUpperCase() ??
+                            'A'}
+                        </AvatarFallback>
+                    </Avatar>
+                    
+                    <div
+                        {...getRootProps()}
+                        className={`
+                        flex-1 h-20 flex flex-col items-center justify-center
+                        p-4 text-center cursor-pointer rounded-lg 
+                        border-2 border-dashed border-border
+                        transition-colors duration-200 ease-in-out
+                        ${isDragActive ? 'bg-accent border-primary' : 'bg-background hover:bg-accent/50'}
+                        `}
+                    >
+                        <input {...getInputProps()} />
+                        <UploadCloud className="h-6 w-6 text-muted-foreground mb-1" />
+                        <p className="text-xs text-muted-foreground">
+                            {isDragActive ? 'Drop the image here...' : "Drag & drop or click to upload"}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <FormField
@@ -150,7 +180,7 @@ export function AccountSettingsDialog({
                 <FormItem>
                   <FormLabel>Display Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input placeholder="Developer" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
