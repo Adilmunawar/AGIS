@@ -8,6 +8,9 @@ import {
   Server,
   ChevronsLeft,
   ChevronsRight,
+  Download,
+  FileDown,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +35,13 @@ type ControlsSidebarProps = {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   onOpenSettings: () => void;
+  isLoading: boolean;
+  hasSelection: boolean;
+  hasGeoJson: boolean;
+  onDetect: () => void;
+  onDownloadGeoJson: () => void;
+  onDownloadDigitized: () => void;
+  hasManualFeatures: boolean;
 };
 
 // A more intelligent button that handles collapsed/expanded state
@@ -105,6 +115,13 @@ export function ControlsSidebar({
   isCollapsed,
   setIsCollapsed,
   onOpenSettings,
+  isLoading,
+  hasSelection,
+  hasGeoJson,
+  onDetect,
+  onDownloadGeoJson,
+  onDownloadDigitized,
+  hasManualFeatures,
 }: ControlsSidebarProps) {
   const auth = useAuth();
   const { user } = useUser();
@@ -128,78 +145,129 @@ export function ControlsSidebar({
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
-        <div className="flex-grow">
-          <nav className="flex flex-col gap-2 p-4">
-            <SidebarButton
-              icon={<Bot size={24} />}
-              label="Auto-Detection"
-              isCollapsed={isCollapsed}
-              isActive={activeTool === 'detection'}
-              onClick={() => setActiveTool('detection')}
-            />
-            <SidebarButton
-              icon={<PenSquare size={24} />}
-              label="Manual Parceling"
-              isCollapsed={isCollapsed}
-              isActive={activeTool === 'digitize'}
-              onClick={() => setActiveTool('digitize')}
-            />
-          </nav>
-        </div>
-
-        <div className="flex flex-col gap-2 p-2">
-          <SidebarButton
-            icon={<Server size={24} />}
-            label="Backend Settings"
-            isCollapsed={isCollapsed}
-            onClick={onOpenSettings}
-            isActive={false}
-          />
-
-          <button
-            onClick={() => setIsAccountSettingsOpen(true)}
-            className={cn(
-              'p-2 rounded-lg transition-all duration-300 ease-in-out w-full',
-              'flex items-center gap-3 transform hover:-translate-y-1',
-              isCollapsed && 'justify-center'
-            )}
-          >
-            <Avatar className="h-10 w-10 border-2 border-primary/20">
-              <AvatarImage
-                src={user?.photoURL ?? ''}
-                alt={user?.displayName ?? ''}
+        <div className="flex flex-1 flex-col">
+          <div className="flex-grow">
+            <nav className="flex flex-col gap-2 p-4">
+              <SidebarButton
+                icon={<Bot size={24} />}
+                label="Auto-Detection"
+                isCollapsed={isCollapsed}
+                isActive={activeTool === 'detection'}
+                onClick={() => setActiveTool('detection')}
               />
-              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                {user?.displayName?.charAt(0).toUpperCase() ??
-                  user?.email?.charAt(0).toUpperCase() ??
-                  'U'}
-              </AvatarFallback>
-            </Avatar>
-            {!isCollapsed && (
-              <div className="flex-1 truncate text-left">
-                <p className="truncate text-sm font-medium">Account</p>
-              </div>
-            )}
-          </button>
+              <SidebarButton
+                icon={<PenSquare size={24} />}
+                label="Manual Parceling"
+                isCollapsed={isCollapsed}
+                isActive={activeTool === 'digitize'}
+                onClick={() => setActiveTool('digitize')}
+              />
+            </nav>
 
-          <SidebarButton
-            icon={<LogOut size={24} />}
-            label="Sign Out"
-            isCollapsed={isCollapsed}
-            onClick={handleSignOut}
-            isActive={false} // This button is never "active"
-          />
+            <Separator className="mx-4 my-2 w-auto" />
 
-          <Separator className="my-1" />
+            <div className="flex flex-col gap-2 px-4">
+              {activeTool === 'detection' && (
+                <>
+                  <SidebarButton
+                    icon={
+                      isLoading ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Bot size={24} />
+                      )
+                    }
+                    label="Run Detection"
+                    isCollapsed={isCollapsed}
+                    onClick={onDetect}
+                    disabled={isLoading || !hasSelection}
+                    isActive={false} // it's an action, not a mode
+                  />
+                  <SidebarButton
+                    icon={<Download size={24} />}
+                    label="Download Results"
+                    isCollapsed={isCollapsed}
+                    onClick={onDownloadGeoJson}
+                    disabled={isLoading || !hasGeoJson}
+                    isActive={false}
+                  />
+                </>
+              )}
+              {activeTool === 'digitize' && (
+                <>
+                  <SidebarButton
+                    icon={<FileDown size={24} />}
+                    label="Download Layer"
+                    isCollapsed={isCollapsed}
+                    onClick={onDownloadDigitized}
+                    disabled={isLoading || !hasManualFeatures}
+                    isActive={false}
+                  />
+                </>
+              )}
+            </div>
+          </div>
 
-          <SidebarButton
-            icon={isCollapsed ? <ChevronsRight size={24} /> : <ChevronsLeft size={24} />}
-            label={isCollapsed ? 'Expand' : 'Collapse'}
-            isCollapsed={isCollapsed}
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            isActive={false}
-            disableHoverEffect={true}
-          />
+          <div className="flex flex-col gap-2 p-2">
+            <SidebarButton
+              icon={<Server size={24} />}
+              label="Backend Settings"
+              isCollapsed={isCollapsed}
+              onClick={onOpenSettings}
+              isActive={false}
+            />
+
+            <button
+              onClick={() => setIsAccountSettingsOpen(true)}
+              className={cn(
+                'p-2 rounded-lg transition-all duration-300 ease-in-out w-full',
+                'flex items-center gap-3 transform hover:-translate-y-1',
+                isCollapsed && 'justify-center'
+              )}
+            >
+              <Avatar className="h-10 w-10 border-2 border-primary/20">
+                <AvatarImage
+                  src={user?.photoURL ?? ''}
+                  alt={user?.displayName ?? ''}
+                />
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                  {user?.displayName?.charAt(0).toUpperCase() ??
+                    user?.email?.charAt(0).toUpperCase() ??
+                    'U'}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <div className="flex-1 truncate text-left">
+                  <p className="truncate text-sm font-medium">Account</p>
+                </div>
+              )}
+            </button>
+
+            <SidebarButton
+              icon={<LogOut size={24} />}
+              label="Sign Out"
+              isCollapsed={isCollapsed}
+              onClick={handleSignOut}
+              isActive={false} // This button is never "active"
+            />
+
+            <Separator className="my-1" />
+
+            <SidebarButton
+              icon={
+                isCollapsed ? (
+                  <ChevronsRight size={24} />
+                ) : (
+                  <ChevronsLeft size={24} />
+                )
+              }
+              label={isCollapsed ? 'Expand' : 'Collapse'}
+              isCollapsed={isCollapsed}
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              isActive={false}
+              disableHoverEffect={true}
+            />
+          </div>
         </div>
         <AccountSettingsDialog
           isOpen={isAccountSettingsOpen}

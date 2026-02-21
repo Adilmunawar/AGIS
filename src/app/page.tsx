@@ -11,7 +11,6 @@ import {
   detectFromBounds,
   downloadGeoJson as downloadShapefile,
   type BBox,
-  type GeoPoint,
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -20,7 +19,6 @@ import {
 } from '@/components/satellite-vision/controls-sidebar';
 import { useUser } from '@/firebase';
 import { MapSearch } from '@/components/satellite-vision/map-search';
-import { MapActions } from '@/components/satellite-vision/map-actions';
 import { ConnectServerDialog } from '@/components/satellite-vision/connect-server-dialog';
 import { cn } from '@/lib/utils';
 import { MapLayerSwitcher } from '@/components/satellite-vision/map-layer-switcher';
@@ -42,7 +40,6 @@ export default function SatelliteVisionPage() {
   const [geoJson, setGeoJson] = React.useState<GeoJsonObject | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [currentBBox, setCurrentBBox] = React.useState<BBox | null>(null);
-  const [points, setPoints] = React.useState<GeoPoint[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   const [searchCoords, setSearchCoords] =
@@ -77,12 +74,12 @@ export default function SatelliteVisionPage() {
       setIsSettingsOpen(true);
       return;
     }
-    if (!currentBBox && points.length === 0) {
+    if (!currentBBox || !isDrawing) {
       toast({
         variant: 'destructive',
         title: 'No Area Selected',
         description:
-          'Please draw a rectangle or click on the map to define an area.',
+          'Please draw a rectangle on the map to define an area for detection.',
       });
       return;
     }
@@ -90,22 +87,18 @@ export default function SatelliteVisionPage() {
     setIsLoading(true);
     setGeoJson(null);
     try {
-      // Use the BBox from the drawn rectangle if it exists, otherwise, the map's current view.
-      // This is a failsafe, but the UI should prevent detection without a selection.
-      const bboxToUse = isDrawing ? currentBBox : currentBBox;
-      if (!bboxToUse) {
+      if (!currentBBox) {
         throw new Error('Bounding box is not defined.');
       }
       
-      const geoJsonData = await detectFromBounds(colabUrl, bboxToUse, points);
+      const geoJsonData = await detectFromBounds(colabUrl, currentBBox);
 
       setGeoJson(geoJsonData);
-      const detectionMode = points.length > 0 ? 'point-guided' : 'automatic';
       toast({
         title: 'Detection Complete',
         description: `Detected ${
           (geoJsonData as any).features?.length ?? 0
-        } building footprints using ${detectionMode} mode.`,
+        } building footprints.`,
       });
     } catch (error) {
       console.error(error);
@@ -118,7 +111,7 @@ export default function SatelliteVisionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [colabUrl, currentBBox, points, toast, isDrawing]);
+  }, [colabUrl, currentBBox, toast, isDrawing]);
 
   const handleDownloadGeoJson = React.useCallback(async () => {
     if (!colabUrl) {
@@ -212,7 +205,7 @@ export default function SatelliteVisionPage() {
     );
   }
 
-  const hasSelection = isDrawing || points.length > 0;
+  const hasSelection = isDrawing;
 
   return (
     <div className={cn(
@@ -225,6 +218,13 @@ export default function SatelliteVisionPage() {
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        isLoading={isLoading}
+        hasSelection={hasSelection}
+        hasGeoJson={!!geoJson}
+        onDetect={handleDetect}
+        onDownloadGeoJson={handleDownloadGeoJson}
+        onDownloadDigitized={handleDownloadDigitized}
+        hasManualFeatures={!!(manualFeatures as any)?.features?.length}
       />
       <main className="relative h-full w-full">
         <MapComponent
@@ -232,7 +232,6 @@ export default function SatelliteVisionPage() {
           layerAttribution={currentLayer.attribution}
           geoJsonData={geoJson}
           setBBox={handleSetBBox}
-          setPoints={setPoints}
           searchResult={searchCoords}
           isDrawing={isDrawing}
           setIsDrawing={setIsDrawing}
@@ -250,20 +249,6 @@ export default function SatelliteVisionPage() {
             <div className="w-80 max-w-xs">
                 <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
             </div>
-        </div>
-        
-        {/* Bottom-right controls: Minimalist action buttons */}
-        <div className="absolute bottom-4 right-4 z-[1000]">
-           <MapActions
-            activeTool={activeTool}
-            isLoading={isLoading}
-            hasGeoJson={!!geoJson}
-            hasSelection={hasSelection}
-            hasManualFeatures={!!(manualFeatures as any)?.features?.length}
-            onDetect={handleDetect}
-            onDownload={handleDownloadGeoJson}
-            onDownloadDigitized={handleDownloadDigitized}
-          />
         </div>
 
       </main>

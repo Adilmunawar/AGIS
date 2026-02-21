@@ -8,7 +8,6 @@ import {
   FeatureGroup,
   useMap,
   useMapEvents,
-  Marker,
   Popup,
 } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
@@ -17,7 +16,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
-import type { BBox, GeoPoint } from '@/lib/api';
+import type { BBox } from '@/lib/api';
 import { CoordinatesControl } from './coordinates-control';
 import type { ActiveTool } from './controls-sidebar';
 
@@ -25,7 +24,6 @@ import type { ActiveTool } from './controls-sidebar';
 interface MapProps {
   geoJsonData: any;
   setBBox: (bbox: BBox | null) => void;
-  setPoints: (points: GeoPoint[]) => void;
   searchResult?: { lat: number; lon: number } | null;
   isDrawing: boolean;
   setIsDrawing: (isDrawing: boolean) => void;
@@ -37,25 +35,6 @@ interface MapProps {
 }
 
 // --- Helper Components ---
-
-function MapClickHandler({
-  activeTool,
-  setPoints,
-  isDrawing,
-}: {
-  activeTool: ActiveTool;
-  setPoints: React.Dispatch<React.SetStateAction<GeoPoint[]>>;
-  isDrawing: boolean;
-}) {
-  useMapEvents({
-    click(e) {
-      if (activeTool === 'detection' && !isDrawing) {
-        setPoints((prev) => [...prev, { lat: e.latlng.lat, lng: e.latlng.lng }]);
-      }
-    },
-  });
-  return null;
-}
 
 function MapTracker({
   setBBox,
@@ -146,7 +125,6 @@ const createLengthPopup = (layer: L.Polyline) => {
 export default function MapComponent({
   geoJsonData,
   setBBox,
-  setPoints,
   searchResult,
   isDrawing,
   setIsDrawing,
@@ -157,18 +135,11 @@ export default function MapComponent({
   layerAttribution,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
-  const [localPoints, setLocalPoints] = useState<GeoPoint[]>([]);
   const featureGroupRef = useRef<any>(null);
 
   useEffect(() => {
-    setPoints(localPoints);
-  }, [localPoints, setPoints]);
-  
-  useEffect(() => {
-    if (activeTool === 'digitize' || isDrawing) {
-       setLocalPoints([]);
-    }
-  }, [activeTool, isDrawing]);
+    setGeoKey((prev) => prev + 1);
+  }, [geoJsonData]);
 
   const geoJsonStyle = {
     color: 'hsl(var(--primary))',
@@ -210,7 +181,6 @@ export default function MapComponent({
     if (type === 'rectangle') {
        if (activeTool === 'detection') {
           setIsDrawing(true);
-          setLocalPoints([]);
 
           if (featureGroupRef.current) {
             featureGroupRef.current.eachLayer((l: any) => {
@@ -270,7 +240,6 @@ export default function MapComponent({
 
     if (wasROIDeleted) {
       setIsDrawing(false);
-      setLocalPoints([]);
       const map = featureGroupRef.current?._map;
       if (map) {
         const bounds = map.getBounds();
@@ -287,21 +256,6 @@ export default function MapComponent({
     updateFeatures();
   };
 
-  useEffect(() => {
-    setGeoKey((prev) => prev + 1);
-  }, [geoJsonData]);
-
-  const pointIcon = new L.Icon({
-    iconUrl:
-      'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    shadowUrl:
-      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
-
   return (
     <MapContainer
       center={[31.5204, 74.3587]}
@@ -317,18 +271,6 @@ export default function MapComponent({
 
         <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
         <MapController coords={searchResult} />
-
-        <MapClickHandler
-          activeTool={activeTool}
-          setPoints={setLocalPoints}
-          isDrawing={isDrawing}
-        />
-
-        {localPoints.map((p, idx) => (
-            <Marker key={idx} position={[p.lat, p.lng]} icon={pointIcon}>
-            <Popup>Point {idx + 1}</Popup>
-            </Marker>
-        ))}
 
         <FeatureGroup ref={featureGroupRef}>
             <EditControl
