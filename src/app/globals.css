@@ -137,12 +137,6 @@ body {
   color: hsl(var(--foreground));
 }
 
-/* New rule to fix layers control overlap */
-.leaflet-top.leaflet-right .leaflet-control-layers {
-    /* Push layers control left to make space for search bar. `w-80` is 20rem. */
-    margin-right: calc(20rem + 0.5rem);
-}
-
 .leaflet-draw-handle,
 .leaflet-editing-icon {
   background: hsl(var(--primary));

@@ -23,6 +23,8 @@ import { MapSearch } from '@/components/satellite-vision/map-search';
 import { MapActions } from '@/components/satellite-vision/map-actions';
 import { ConnectServerDialog } from '@/components/satellite-vision/connect-server-dialog';
 import { cn } from '@/lib/utils';
+import { MapLayerSwitcher } from '@/components/satellite-vision/map-layer-switcher';
+import { mapLayers, type MapLayer } from '@/lib/map-layers';
 
 const MapComponent = dynamic(
   () => import('@/components/satellite-vision/map-component'),
@@ -50,6 +52,7 @@ export default function SatelliteVisionPage() {
   const [isDrawing, setIsDrawing] = React.useState(false);
   const [activeTool, setActiveTool] = React.useState<ActiveTool>('detection');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
+  const [currentLayer, setCurrentLayer] = React.useState<MapLayer>(mapLayers[0]);
 
   const { toast } = useToast();
 
@@ -225,6 +228,8 @@ export default function SatelliteVisionPage() {
       />
       <main className="relative h-full w-full">
         <MapComponent
+          layerUrl={currentLayer.url}
+          layerAttribution={currentLayer.attribution}
           geoJsonData={geoJson}
           setBBox={handleSetBBox}
           setPoints={setPoints}
@@ -236,7 +241,12 @@ export default function SatelliteVisionPage() {
           isSidebarCollapsed={isSidebarCollapsed}
         />
         
-        <div className="absolute top-4 right-4 z-[1000]">
+        <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2">
+           <MapLayerSwitcher
+              layers={mapLayers}
+              currentLayer={currentLayer}
+              onLayerChange={setCurrentLayer}
+            />
             <div className="w-80 max-w-xs">
                 <MapSearch onSearchLocation={(lat, lon) => setSearchCoords({ lat, lon })} />
             </div>

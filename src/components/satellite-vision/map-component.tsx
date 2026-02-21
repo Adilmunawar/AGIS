@@ -6,7 +6,6 @@ import {
   TileLayer,
   GeoJSON,
   FeatureGroup,
-  LayersControl,
   useMap,
   useMapEvents,
   Marker,
@@ -33,6 +32,8 @@ interface MapProps {
   onManualFeaturesChange: (features: any) => void;
   activeTool: ActiveTool;
   isSidebarCollapsed: boolean;
+  layerUrl: string;
+  layerAttribution: string;
 }
 
 // --- Helper Components ---
@@ -152,6 +153,8 @@ export default function MapComponent({
   onManualFeaturesChange,
   activeTool,
   isSidebarCollapsed,
+  layerUrl,
+  layerAttribution,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const [localPoints, setLocalPoints] = useState<GeoPoint[]>([]);
@@ -306,40 +309,11 @@ export default function MapComponent({
       style={{ height: '100%', width: '100%', background: '#111' }}
       zoomControl={false}
     >
-        <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="Google Satellite">
-                <TileLayer
-                    url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-                    attribution='&copy; Google Maps'
-                    maxZoom={22}
-                />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Esri World Imagery">
-                <TileLayer
-                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                    attribution='&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-                    maxZoom={22}
-                />
-            </LayersControl.BaseLayer>
-             <LayersControl.BaseLayer name="OpenStreetMap">
-                <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; OpenStreetMap contributors'
-                />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Topographic Map">
-                <TileLayer
-                    url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-                    attribution='Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
-                />
-            </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="CARTO Light">
-                <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                    attribution='&copy; OpenStreetMap contributors &copy; CARTO'
-                />
-            </LayersControl.BaseLayer>
-        </LayersControl>
+        <TileLayer
+            url={layerUrl}
+            attribution={layerAttribution}
+            maxZoom={22}
+        />
 
         <MapTracker setBBox={setBBox} isDrawing={isDrawing} />
         <MapController coords={searchResult} />
