@@ -165,3 +165,19 @@ body {
 .leaflet-draw-tooltip-right:before {
   display: none;
 }
+
+/* Responsive Leaflet Controls for Collapsible Sidebar */
+.leaflet-top.leaflet-left,
+.leaflet-bottom.leaflet-left {
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.sidebar-expanded .leaflet-top.leaflet-left,
+.sidebar-expanded .leaflet-bottom.leaflet-left {
+  transform: translateX(calc(16rem + 1rem));
+}
+
+.sidebar-collapsed .leaflet-top.leaflet-left,
+.sidebar-collapsed .leaflet-bottom.leaflet-left {
+  transform: translateX(calc(5rem + 1rem));
+}

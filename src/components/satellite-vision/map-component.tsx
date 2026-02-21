@@ -32,6 +32,7 @@ interface MapProps {
   setIsDrawing: (isDrawing: boolean) => void;
   onManualFeaturesChange: (features: any) => void;
   activeTool: ActiveTool;
+  isSidebarCollapsed: boolean;
 }
 
 // --- Helper Components ---
@@ -148,6 +149,7 @@ export default function MapComponent({
   setIsDrawing,
   onManualFeaturesChange,
   activeTool,
+  isSidebarCollapsed,
 }: MapProps) {
   const [geoKey, setGeoKey] = useState(0);
   const [localPoints, setLocalPoints] = useState<GeoPoint[]>([]);
@@ -379,7 +381,7 @@ export default function MapComponent({
             onEachFeature={onEachFeature}
             />
         )}
-        <CoordinatesControl />
+        <CoordinatesControl isSidebarCollapsed={isSidebarCollapsed} />
     </MapContainer>
   );
 }

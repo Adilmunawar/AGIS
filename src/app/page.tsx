@@ -212,7 +212,10 @@ export default function SatelliteVisionPage() {
   const hasSelection = isDrawing || points.length > 0;
 
   return (
-    <div className="relative h-svh w-full bg-background text-foreground">
+    <div className={cn(
+        "relative h-svh w-full bg-background text-foreground",
+        isSidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'
+    )}>
       <ControlsSidebar
         activeTool={activeTool}
         setActiveTool={setActiveTool}
@@ -230,6 +233,7 @@ export default function SatelliteVisionPage() {
           setIsDrawing={setIsDrawing}
           onManualFeaturesChange={setManualFeatures}
           activeTool={activeTool}
+          isSidebarCollapsed={isSidebarCollapsed}
         />
         
         {/* Top-right controls: Search bar is positioned to allow space for the layers control */}
