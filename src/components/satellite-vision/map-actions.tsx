@@ -35,7 +35,7 @@ export function MapActions({
 
     return (
         <TooltipProvider>
-            <div className="flex flex-row gap-2 rounded-lg bg-background/70 p-1 shadow-lg backdrop-blur-sm border border-border">
+            <div className="flex flex-col gap-1 rounded-lg bg-background/70 p-1 shadow-lg backdrop-blur-sm border border-border">
                 {activeTool === 'detection' && (
                     <>
                         <Tooltip>
@@ -44,20 +44,20 @@ export function MapActions({
                                     <Button
                                         variant="secondary"
                                         size="icon"
-                                        className="h-12 w-12 rounded-lg"
+                                        className="h-10 w-10 rounded-lg"
                                         onClick={onDetect}
                                         disabled={isLoading || !hasSelection}
                                     >
                                         {isLoading ? (
-                                            <Loader2 className="h-6 w-6 animate-spin" />
+                                            <Loader2 className="h-5 w-5 animate-spin" />
                                         ) : (
-                                            <Bot className="h-6 w-6" />
+                                            <Bot className="h-5 w-5" />
                                         )}
                                         <span className="sr-only">Detect Buildings</span>
                                     </Button>
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={10}>
+                            <TooltipContent side="right" sideOffset={10}>
                                 <p>{hasSelection ? 'Run AI Detection' : 'Select an area first'}</p>
                             </TooltipContent>
                         </Tooltip>
@@ -67,16 +67,16 @@ export function MapActions({
                                     <Button
                                         variant="secondary"
                                         size="icon"
-                                        className="h-12 w-12 rounded-lg"
+                                        className="h-10 w-10 rounded-lg"
                                         onClick={onDownload}
                                         disabled={!hasGeoJson || isLoading}
                                     >
-                                        <Download className="h-6 w-6" />
+                                        <Download className="h-5 w-5" />
                                         <span className="sr-only">Download Detected Data</span>
                                     </Button>
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={10}>
+                            <TooltipContent side="right" sideOffset={10}>
                                 <p>{hasGeoJson ? 'Download Detected Data (.zip)' : 'No detection data to download'}</p>
                             </TooltipContent>
                         </Tooltip>
@@ -89,16 +89,16 @@ export function MapActions({
                                 <Button
                                     variant="secondary"
                                     size="icon"
-                                    className="h-12 w-12 rounded-lg"
+                                    className="h-10 w-10 rounded-lg"
                                     onClick={onDownloadDigitized}
                                     disabled={isLoading || !hasManualFeatures}
                                 >
-                                    <FileDown className="h-6 w-6" />
+                                    <FileDown className="h-5 w-5" />
                                     <span className="sr-only">Download Digitized Layer</span>
                                 </Button>
                             </div>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" sideOffset={10}>
+                        <TooltipContent side="right" sideOffset={10}>
                             <p>{hasManualFeatures ? 'Download Digitized Layer (.geojson)' : 'Draw features to download'}</p>
                         </TooltipContent>
                     </Tooltip>

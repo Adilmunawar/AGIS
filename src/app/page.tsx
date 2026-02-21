@@ -247,7 +247,7 @@ export default function SatelliteVisionPage() {
 
         <div
           className={cn(
-            'absolute top-[74px] left-0 z-[1000] flex flex-row gap-2 transition-transform duration-300 ease-in-out',
+            'absolute top-[172px] left-0 z-[1000] flex flex-col gap-2 transition-transform duration-300 ease-in-out',
             isSidebarCollapsed
               ? 'translate-x-[calc(5rem+1rem)]'
               : 'translate-x-[calc(16rem+1rem)]'
