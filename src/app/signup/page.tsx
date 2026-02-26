@@ -4,7 +4,8 @@ import { SignUpForm } from '@/components/auth/signup-form';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2, Globe } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 export default function SignUpPage() {
   const { user, isUserLoading } = useUser();
@@ -26,13 +27,20 @@ export default function SignUpPage() {
 
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
-       <div className="animated-gradient hidden lg:flex flex-col items-center justify-center p-12 text-center text-white">
+       <div className="hidden bg-white lg:flex flex-col items-center justify-center p-12 text-center">
         <div className="max-w-md">
-            <Globe className="mx-auto h-24 w-24" />
-            <h1 className="mt-8 text-4xl font-bold tracking-tight">
+            <Image 
+                src="/agis animation/AGIS (1).gif"
+                alt="AGIS Logo Animation"
+                width={192}
+                height={192}
+                className="mx-auto"
+                unoptimized
+            />
+            <h1 className="mt-8 text-4xl font-bold tracking-tight text-foreground">
                 Begin Your Analysis
             </h1>
-            <p className="mt-4 text-lg text-primary-foreground/80">
+            <p className="mt-4 text-lg text-muted-foreground">
                 Create an account to unlock powerful geospatial intelligence tools.
             </p>
         </div>
