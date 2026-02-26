@@ -86,7 +86,6 @@ export default function DigitizeMapClient() {
   const { colabUrl } = useServerConfig();
 
   useEffect(() => {
-    // This worker is now only for the standard engine.
     workerRef.current = new Worker('/workers/digitizeWorker.js');
     workerRef.current.onmessage = (e: MessageEvent) => {
       const { status, message, action, data } = e.data;
@@ -154,7 +153,7 @@ export default function DigitizeMapClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Premium Engine", description: "Sending request to Colab server..." });
+    toast({ title: "Premium Engine", description: "Sending request to external server..." });
 
     try {
         const bbox = [
@@ -164,33 +163,29 @@ export default function DigitizeMapClient() {
             selectionBounds.getNorth()
         ];
 
-        const response = await fetch(`${colabUrl}/detect_bbox`, {
+        const response = await fetch(`${colabUrl}/extract_overture`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // Pass empty points array for automatic mode
-            body: JSON.stringify({ bbox, points: [] }) 
+            body: JSON.stringify({ bbox, type: 'building' })
         });
         
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({details: "Unknown server error"}));
-            throw new Error(errorData.details || `Server returned status ${response.status}`);
+            const errorData = await response.json().catch(() => ({details: `Server returned status ${response.status}`}));
+            throw new Error(errorData.details);
         }
 
         const result = await response.json();
         setGeoData(result);
         toast({
             title: "Premium Extraction Complete",
-            description: `Found ${result?.features?.length || 0} features.`,
+            description: `Found ${result?.features?.length || 0} building features.`,
         });
 
     } catch (error: any) {
-        const isFetchError = error instanceof TypeError && error.message.includes('Failed to fetch');
         toast({
             variant: "destructive",
-            title: "Backend Offline",
-            description: isFetchError 
-                ? "Your Colab tunnel has expired or crashed. Please generate a new link and update your Server Config."
-                : error.message,
+            title: "Backend Server Offline",
+            description: "Please update your Cloudflare link in Server Configurations.",
         });
     } finally {
         setIsProcessing(false);
@@ -242,7 +237,7 @@ export default function DigitizeMapClient() {
                             </AlertDescription>
                         </Alert>
                     ) : (
-                         <p className="text-xs text-muted-foreground">Uses a connected Google Colab backend for advanced AI-powered detection.</p>
+                         <p className="text-xs text-muted-foreground">Uses a connected external server for advanced Overture Maps data extraction.</p>
                     )}
                     <Button onClick={runPremiumExtraction} disabled={!hasSelection || isProcessing || !colabUrl} className="w-full">
                          {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Server className="mr-2 h-4 w-4" /> Run Premium Extraction</>}
@@ -307,3 +302,5 @@ export default function DigitizeMapClient() {
     </div>
   );
 }
+
+    

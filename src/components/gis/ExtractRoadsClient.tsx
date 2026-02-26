@@ -124,7 +124,7 @@ export default function ExtractRoadsClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Premium Engine", description: "Sending request to Colab server..." });
+    toast({ title: "Premium Engine", description: "Sending request to external server..." });
 
     try {
         const bbox = [
@@ -134,7 +134,6 @@ export default function ExtractRoadsClient() {
             selectionBounds.getNorth()
         ];
         
-        // This endpoint does not exist on the user's backend, this will fail gracefully.
         const response = await fetch(`${colabUrl}/extract_overture`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -142,25 +141,22 @@ export default function ExtractRoadsClient() {
         });
         
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({details: "Unknown server error"}));
-            throw new Error(errorData.details || `Server returned status ${response.status}`);
+            const errorData = await response.json().catch(() => ({details: `Server returned status ${response.status}`}));
+            throw new Error(errorData.details);
         }
 
         const result = await response.json();
         setGeoData(result);
         toast({
             title: "Premium Extraction Complete",
-            description: `Found ${result?.features?.length || 0} features.`,
+            description: `Found ${result?.features?.length || 0} road features.`,
         });
 
     } catch (error: any) {
-        const isFetchError = error instanceof TypeError && error.message.includes('Failed to fetch');
         toast({
             variant: "destructive",
-            title: "Backend Offline or Endpoint Missing",
-            description: isFetchError 
-                ? "Your Colab tunnel has expired or crashed. Please generate a new link and update your Server Config."
-                : `The backend does not support this feature or an error occurred: ${error.message}`,
+            title: "Backend Server Offline",
+            description: "Please update your Cloudflare link in Server Configurations.",
         });
     } finally {
         setIsProcessing(false);
@@ -195,7 +191,7 @@ export default function ExtractRoadsClient() {
             <Tabs defaultValue="standard" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="standard">Standard</TabsTrigger>
-                    <TabsTrigger value="premium" disabled>Premium</TabsTrigger>
+                    <TabsTrigger value="premium">Premium</TabsTrigger>
                 </TabsList>
                 <TabsContent value="standard" className="space-y-4 pt-4">
                     <p className="text-xs text-muted-foreground">Extracts open-source road networks via the Overpass API directly in your browser.</p>
@@ -204,7 +200,20 @@ export default function ExtractRoadsClient() {
                     </Button>
                 </TabsContent>
                 <TabsContent value="premium" className="space-y-4 pt-4">
-                     <p className="text-xs text-muted-foreground">Premium road extraction is not yet supported by the connected backend.</p>
+                     {!colabUrl ? (
+                        <Alert variant="destructive">
+                            <ShieldAlert className="h-4 w-4" />
+                            <AlertTitle>Server Not Configured</AlertTitle>
+                            <AlertDescription>
+                            The premium engine requires a Colab Backend. Go to Server Config to connect.
+                            </AlertDescription>
+                        </Alert>
+                    ) : (
+                         <p className="text-xs text-muted-foreground">Uses a connected external server for advanced Overture Maps road data extraction.</p>
+                    )}
+                    <Button onClick={runPremiumExtraction} disabled={!hasSelection || isProcessing || !colabUrl} className="w-full">
+                         {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Server className="mr-2 h-4 w-4" /> Run Premium Extraction</>}
+                    </Button>
                 </TabsContent>
             </Tabs>
             {geoData && (
@@ -262,3 +271,5 @@ export default function ExtractRoadsClient() {
     </div>
   );
 }
+
+    

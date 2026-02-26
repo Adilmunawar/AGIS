@@ -1,18 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import { CheckCircle, ExternalLink, Loader2, Server } from 'lucide-react';
+import { CheckCircle, ExternalLink, Loader2, Server, ShieldX } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 export default function ServerConfigPage() {
   const { colabUrl, saveUrl, isLoaded } = useServerConfig();
   const [currentUrl, setCurrentUrl] = useState(colabUrl);
   const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'fail' | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -20,45 +22,42 @@ export default function ServerConfigPage() {
       setCurrentUrl(colabUrl);
     }
   }, [colabUrl, isLoaded]);
-
+  
   const handleSaveAndTest = async () => {
     setIsTesting(true);
+    setTestResult(null);
     saveUrl(currentUrl);
 
-    // Give state a moment to update before testing
     const urlToTest = currentUrl.trim().replace(/\/+$/, '');
     if (!urlToTest) {
         toast({
             variant: 'destructive',
             title: 'URL is Empty',
-            description: 'Please provide a valid Colab server URL.',
+            description: 'Please provide a valid server URL.',
         });
         setIsTesting(false);
+        setTestResult('fail');
         return;
     }
     
     try {
-      // The provided backend doesn't have `/health`. Let's hit the root.
-      const response = await fetch(urlToTest);
+      const response = await fetch(`${urlToTest}/health`);
 
       if (response.ok) {
+        setTestResult('success');
         toast({
-          title: 'Connection Successful',
-          description: 'Successfully connected to the Premium AI Engine.',
-          action: (
-            <div className="p-1 rounded-md bg-green-500/10">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-            </div>
-          )
+          title: 'Premium Engine Connected',
+          description: 'Successfully connected to the external extraction server.',
         });
       } else {
         throw new Error(`Server responded with status: ${response.status}`);
       }
-    } catch (error: any) {
+    } catch (error) {
+        setTestResult('fail');
         toast({
             variant: 'destructive',
             title: 'Server Offline',
-            description: 'The Colab link has expired or the notebook is disconnected. Please restart Colab and enter the new link.',
+            description: 'The Cloudflare link has expired or the Colab notebook is not running.',
         });
     } finally {
       setIsTesting(false);
@@ -80,20 +79,32 @@ export default function ServerConfigPage() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">
                 <Server className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl font-bold">External AI Server Configuration</CardTitle>
+            <CardTitle className="text-2xl font-bold">Premium Engine Configuration</CardTitle>
             <CardDescription className="mt-2 text-lg text-muted-foreground">
-                Connect AGIS to the Colab GPU engine for premium features.
+                Connect AGIS to your external Overture Maps extraction server.
             </CardDescription>
         </CardHeader>
-        <CardContent className="px-6 py-4 space-y-6">
+        <CardContent className="px-6 py-4 space-y-4">
             <div className="space-y-2">
-                <label htmlFor="colab-url" className="text-sm font-medium text-foreground">Colab Server URL</label>
-                <Input
-                    id="colab-url"
-                    placeholder="https://unique-id.ngrok-free.app"
-                    value={currentUrl}
-                    onChange={(e) => setCurrentUrl(e.target.value)}
-                />
+                <label htmlFor="colab-url" className="text-sm font-medium text-foreground">Cloudflare Tunnel URL</label>
+                 <div className="flex items-center gap-2">
+                    <Input
+                        id="colab-url"
+                        placeholder="https://unique-id.trycloudflare.com"
+                        value={currentUrl}
+                        onChange={(e) => setCurrentUrl(e.target.value)}
+                        className={cn(
+                            testResult === 'success' && 'border-green-500 ring-green-500/50',
+                            testResult === 'fail' && 'border-red-500 ring-red-500/50'
+                        )}
+                    />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md border">
+                        {isTesting ? <Loader2 className="h-5 w-5 animate-spin"/> :
+                         testResult === 'success' ? <CheckCircle className="h-5 w-5 text-green-500" /> :
+                         testResult === 'fail' ? <ShieldX className="h-5 w-5 text-red-500" /> :
+                         <Server className="h-5 w-5 text-muted-foreground"/>}
+                    </div>
+                </div>
             </div>
             
             <Alert>
@@ -103,12 +114,15 @@ export default function ServerConfigPage() {
                     Run the provided Python script in your Google Colab notebook. It will output a public URL that you can paste here.
                 </AlertDescription>
             </Alert>
-            
-            <Button onClick={handleSaveAndTest} disabled={isTesting} className="w-full h-12 text-lg">
+        </CardContent>
+        <CardFooter>
+             <Button onClick={handleSaveAndTest} disabled={isTesting} className="w-full h-12 text-lg">
                 {isTesting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Testing...</> : 'Save & Test Connection'}
             </Button>
-        </CardContent>
+        </CardFooter>
       </Card>
     </div>
   );
 }
+
+    

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const LOCAL_STORAGE_KEY = 'agis_colab_url';
+const LOCAL_STORAGE_KEY = 'agis_premium_url';
 
 export function useServerConfig() {
   const [colabUrl, setColabUrl] = useState<string>('');
@@ -35,3 +35,5 @@ export function useServerConfig() {
 
   return { colabUrl, saveUrl, isLoaded };
 }
+
+    
