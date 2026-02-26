@@ -30,7 +30,7 @@ export function LoginPageClient() {
       <div className="hidden bg-white lg:flex flex-col items-center justify-center p-12 text-center">
         <div className="max-w-md">
             <Image 
-                src="/agis animation/AGIS (1).gif"
+                src="/AGIS animation/AGIS (1).gif"
                 alt="AGIS Logo Animation"
                 width={192}
                 height={192}
