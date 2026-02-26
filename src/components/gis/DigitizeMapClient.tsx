@@ -149,11 +149,11 @@ export default function DigitizeMapClient() {
     }
   };
 
-  const runPremiumExtraction = async () => {
+  const runRealtimeExtraction = async () => {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Premium Engine", description: "Sending request to external server..." });
+    toast({ title: "AGIS Realtime Engine", description: "Sending request to external server..." });
 
     try {
         const bbox = [
@@ -177,7 +177,7 @@ export default function DigitizeMapClient() {
         const result = await response.json();
         setGeoData(result);
         toast({
-            title: "Premium Extraction Complete",
+            title: "AGIS Realtime Extraction Complete",
             description: `Found ${result?.features?.length || 0} building features.`,
         });
 
@@ -219,7 +219,7 @@ export default function DigitizeMapClient() {
             <Tabs defaultValue="standard" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="standard">Standard</TabsTrigger>
-                    <TabsTrigger value="premium">Premium</TabsTrigger>
+                    <TabsTrigger value="premium">AGIS Realtime</TabsTrigger>
                 </TabsList>
                 <TabsContent value="standard" className="space-y-4 pt-4">
                     <p className="text-xs text-muted-foreground">Extracts open-source building footprints via the Overpass API directly in your browser.</p>
@@ -233,14 +233,14 @@ export default function DigitizeMapClient() {
                             <ShieldAlert className="h-4 w-4" />
                             <AlertTitle>Server Not Configured</AlertTitle>
                             <AlertDescription>
-                            The premium engine requires a Colab Backend. Go to Server Config to connect.
+                            The AGIS Realtime engine requires a Colab Backend. Go to Server Config to connect.
                             </AlertDescription>
                         </Alert>
                     ) : (
                          <p className="text-xs text-muted-foreground">Uses a connected external server for advanced Overture Maps data extraction.</p>
                     )}
-                    <Button onClick={runPremiumExtraction} disabled={!hasSelection || isProcessing || !colabUrl} className="w-full">
-                         {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Server className="mr-2 h-4 w-4" /> Run Premium Extraction</>}
+                    <Button onClick={runRealtimeExtraction} disabled={!hasSelection || isProcessing || !colabUrl} className="w-full">
+                         {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Server className="mr-2 h-4 w-4" /> Run AGIS Realtime Extraction</>}
                     </Button>
                 </TabsContent>
             </Tabs>
@@ -302,5 +302,3 @@ export default function DigitizeMapClient() {
     </div>
   );
 }
-
-    

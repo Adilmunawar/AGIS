@@ -65,7 +65,7 @@ if run_server:
 
     @app.route("/")
     def index():
-        return "<h1>AGIS Overture Maps Colab Backend</h1><p>The backend is running correctly.</p>"
+        return "<h1>AGIS Realtime Engine - Colab Backend</h1><p>The backend is running correctly.</p>"
 
     @app.route("/health")
     def health_check():
@@ -116,10 +116,8 @@ if run_server:
         ngrok.kill() # Ensure no old tunnels are running
         public_url = ngrok.connect(PORT).public_url
         print("=" * 80)
-        print(f" * PREMIUM ENGINE IS LIVE! *")
+        print(f" * AGIS REALTIME ENGINE IS LIVE! *")
         print(f" * Copy this URL and paste it into your AGIS web application: {public_url}")
         print("==============================================================================")
 
         threading.Thread(target=run_app).start()
-
-    

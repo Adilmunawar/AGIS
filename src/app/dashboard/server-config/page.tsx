@@ -45,7 +45,7 @@ export default function ServerConfigPage() {
       if (response.ok) {
         setTestResult('success');
         toast({
-          title: 'Premium Engine Connected',
+          title: 'AGIS Realtime Engine Connected',
           description: 'Successfully connected to the external extraction server.',
         });
       } else {
@@ -73,7 +73,6 @@ export default function ServerConfigPage() {
 
   const instructions = [
     "Open the notebook via the button below.",
-    "Navigate to Runtime > Change runtime type and select T4 GPU.",
     "Execute the core service cell to initialize the environment.",
     "Copy the generated Cloudflare URL (e.g., https://...).",
     "Paste the link into the Server Endpoint field and verify the connection."
@@ -90,7 +89,7 @@ export default function ServerConfigPage() {
                         </div>
                         <div>
                             <CardTitle className="text-xl font-bold">Backend Service Initialization</CardTitle>
-                            <CardDescription className="mt-1">Follow these steps to connect the AGIS premium geospatial engine.</CardDescription>
+                            <CardDescription className="mt-1">Follow these steps to connect the AGIS Realtime geospatial engine.</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
