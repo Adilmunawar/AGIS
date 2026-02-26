@@ -186,8 +186,8 @@ export default function DigitizeMapClient() {
     } catch (error: any) {
         toast({
             variant: "destructive",
-            title: "Backend Server Offline",
-            description: "Please update your Cloudflare link in Server Configurations.",
+            title: "Backend Connection Error",
+            description: "Could not connect to the AGIS Realtime engine. Please check your Server Configuration.",
         });
     } finally {
         setIsProcessing(false);
