@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Map, Route, LayersIcon, Download, LogOut, User as UserIcon } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -39,7 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               href={item.href}
               className={cn(
                 "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                pathname === item.href
+                pathname.startsWith(item.href)
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-black/5"
               )}
