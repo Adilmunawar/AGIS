@@ -125,7 +125,7 @@ export function SignUpForm() {
     <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg transition-all duration-300 sm:hover:shadow-2xl sm:hover:-translate-y-1 sm:hover:shadow-primary/10">
       <CardHeader className="text-center">
         <Image 
-          src="/agis.svg"
+          src="/AGIS.svg"
           alt="AGIS Logo"
           width="150"
           height="50"
