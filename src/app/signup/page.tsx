@@ -30,10 +30,10 @@ export default function SignUpPage() {
         <div className="max-w-md">
             <Globe className="mx-auto h-24 w-24" />
             <h1 className="mt-8 text-4xl font-bold tracking-tight">
-                Create Your Account
+                Begin Your Analysis
             </h1>
             <p className="mt-4 text-lg text-primary-foreground/80">
-                Join the platform for advanced satellite imagery analysis and building detection.
+                Create an account to unlock powerful geospatial intelligence tools.
             </p>
         </div>
       </div>

@@ -30,10 +30,10 @@ export default function LoginPage() {
         <div className="max-w-md">
             <Globe className="mx-auto h-24 w-24" />
             <h1 className="mt-8 text-4xl font-bold tracking-tight">
-                Unlock Geospatial Intelligence
+                Access Your World
             </h1>
             <p className="mt-4 text-lg text-primary-foreground/80">
-                The advanced platform for satellite imagery analysis and building detection.
+                Log in to the premier platform for advanced satellite imagery analysis.
             </p>
         </div>
       </div>
