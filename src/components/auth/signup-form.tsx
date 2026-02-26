@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, Globe, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import {
   Auth,
   createUserWithEmailAndPassword,
@@ -25,7 +25,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -131,7 +130,7 @@ export function SignUpForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg">
+    <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg transition-all duration-300 sm:hover:shadow-2xl sm:hover:-translate-y-1 sm:hover:shadow-primary/10">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Create Your AGIS Account</CardTitle>
         <CardDescription>
@@ -148,8 +147,8 @@ export function SignUpForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative group">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
                         placeholder="developer@agis.com"
                         {...field}
@@ -169,8 +168,8 @@ export function SignUpForm() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative group">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
                         type={showPassword ? 'text' : 'password'}
                         placeholder="••••••••"
@@ -200,8 +199,8 @@ export function SignUpForm() {
                 <FormItem>
                   <FormLabel>Confirm Password</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <div className="relative group">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
                         type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="••••••••"
@@ -224,7 +223,7 @@ export function SignUpForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11 text-base transition-transform duration-300 hover:-translate-y-0.5" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>
@@ -240,7 +239,7 @@ export function SignUpForm() {
                 </span>
             </div>
         </div>
-        <Button variant="outline" className="w-full h-11" onClick={onGoogleSignIn} disabled={isLoading}>
+        <Button variant="outline" className="w-full h-11 transition-transform duration-300 hover:-translate-y-0.5" onClick={onGoogleSignIn} disabled={isLoading}>
             {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -256,7 +255,7 @@ export function SignUpForm() {
           Already have an account?{' '}
           <Link
             href="/login"
-            className="font-medium text-primary hover:underline"
+            className="font-medium text-primary hover:underline hover:text-primary/90"
           >
             Sign In
           </Link>
