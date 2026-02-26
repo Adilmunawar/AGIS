@@ -13,7 +13,7 @@ export default function DashboardHome() {
                     Welcome to the GIS Dashboard
                 </CardTitle>
                 <CardDescription className="mt-2 text-lg text-muted-foreground">
-                    Your serverless geospatial processing platform.
+                    Your advanced geospatial processing platform.
                 </CardDescription>
             </CardHeader>
             <CardContent>

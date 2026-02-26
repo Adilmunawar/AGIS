@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside className="w-64 flex-shrink-0 border-r bg-gray-50 flex flex-col">
         <div className="p-4 border-b">
           <h1 className="text-xl font-bold tracking-tight text-primary">AGIS</h1>
-          <p className="text-xs text-muted-foreground">Serverless Geo-Processing</p>
+          <p className="text-xs text-muted-foreground">Advanced Geo-Processing</p>
         </div>
         <nav className="flex-1 space-y-1 p-2">
           {sidebarNavItems.map((item) => (
