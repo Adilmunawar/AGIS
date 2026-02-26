@@ -11,31 +11,73 @@ import type { LatLng } from 'leaflet';
 const { BaseLayer } = LayersControl;
 
 function osmToGeoJSON(osmData: any): GeoJSON.FeatureCollection {
-  const features = osmData.elements
-    .filter((element: any) => element.type === 'way' && element.nodes)
-    .map((way: any) => {
-      const coordinates = way.nodes.map((nodeId: number) => {
-        const node = osmData.elements.find((el: any) => el.id === nodeId);
-        return node ? [node.lon, node.lat] : null;
-      }).filter(Boolean);
+  const nodes = new Map<number, number[]>();
+  const ways = new Map<number, any>();
 
-      if (coordinates.length > 1 && JSON.stringify(coordinates[0]) !== JSON.stringify(coordinates[coordinates.length - 1])) {
-        coordinates.push(coordinates[0]);
+  // Pre-process all nodes and ways for quick lookups
+  for (const el of osmData.elements) {
+    if (el.type === 'node') {
+      nodes.set(el.id, [el.lon, el.lat]);
+    } else if (el.type === 'way') {
+      ways.set(el.id, el);
+    }
+  }
+
+  const processedWayIds = new Set<number>();
+  const finalFeatures: GeoJSON.Feature[] = [];
+
+  // Process relations first, as they are more complex structures
+  osmData.elements.forEach((el: any) => {
+      if (el.type !== 'relation' || !el.tags?.building) return;
+
+      const outerRings: any[][] = [];
+      const innerRings: any[][] = [];
+      const memberWayIds = new Set<number>();
+
+      el.members.forEach((member: any) => {
+          if (member.type !== 'way') return;
+          const way = ways.get(member.ref);
+          if (!way) return;
+          memberWayIds.add(way.id);
+
+          const ring = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
+          if (ring.length > 1 && JSON.stringify(ring[0]) !== JSON.stringify(ring[ring.length-1])) {
+              ring.push(ring[0]);
+          }
+          if (ring.length < 4) return;
+
+          if (member.role === 'outer') outerRings.push(ring);
+          else if (member.role === 'inner') innerRings.push(ring);
+      });
+
+      // A valid GeoJSON Polygon has one outer ring and zero or more inner rings.
+      if (outerRings.length === 1) {
+          finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [outerRings[0], ...innerRings] } });
+          memberWayIds.forEach(id => processedWayIds.add(id));
+      } 
+      // A MultiPolygon is made of multiple outer rings. This is a simplified handling.
+      else if (outerRings.length > 1) {
+          outerRings.forEach(ring => {
+              // Note: This simplification ignores which inner rings belong to which outer ring.
+              finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [ring] } });
+          });
+          memberWayIds.forEach(id => processedWayIds.add(id));
       }
-      
-      if (coordinates.length < 4) return null;
+  });
 
-      return {
-        type: 'Feature',
-        properties: way.tags || {},
-        geometry: {
-          type: 'Polygon',
-          coordinates: [coordinates],
-        },
-      };
-    }).filter(Boolean);
+  // Process simple ways that are buildings and were not part of a processed relation
+  ways.forEach((way: any) => {
+      if (!way.tags?.building || processedWayIds.has(way.id)) return;
+      const coordinates = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
+      if (coordinates.length > 1 && JSON.stringify(coordinates[0]) !== JSON.stringify(coordinates[coordinates.length - 1])) {
+          coordinates.push(coordinates[0]);
+      }
+      if (coordinates.length < 4) return;
 
-  return { type: 'FeatureCollection', features: features as GeoJSON.Feature[] };
+      finalFeatures.push({ type: 'Feature', properties: way.tags, geometry: { type: 'Polygon', coordinates: [coordinates] } });
+  });
+
+  return { type: 'FeatureCollection', features: finalFeatures };
 }
 
 

@@ -11,13 +11,19 @@ import type { LatLng } from 'leaflet';
 const { BaseLayer } = LayersControl;
 
 function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
+  const nodes = new Map<number, number[]>();
+  for (const el of osmData.elements) {
+    if (el.type === 'node') {
+      nodes.set(el.id, [el.lon, el.lat]);
+    }
+  }
+
   const features = osmData.elements
     .filter((element: any) => element.type === 'way' && element.nodes)
     .map((way: any) => {
-      const coordinates = way.nodes.map((nodeId: number) => {
-        const node = osmData.elements.find((el: any) => el.id === nodeId);
-        return node ? [node.lon, node.lat] : null;
-      }).filter(Boolean);
+      const coordinates = way.nodes
+        .map((nodeId: number) => nodes.get(nodeId))
+        .filter(Boolean);
 
       if (coordinates.length < 2) return null;
 
