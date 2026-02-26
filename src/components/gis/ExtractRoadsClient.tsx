@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Download, Play, Route as RouteIcon } from 'lucide-react';
-import type { LatLngBounds } from 'leaflet';
+import type { LatLng } from 'leaflet';
 
 const { BaseLayer } = LayersControl;
 
@@ -36,7 +36,7 @@ function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
 
 
 export default function ExtractRoadsClient() {
-  const [bounds, setBounds] = useState<LatLngBounds | null>(null);
+  const [polygonCoords, setPolygonCoords] = useState<string | null>(null);
   const [geoData, setGeoData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const workerRef = useRef<Worker | null>(null);
@@ -63,18 +63,19 @@ export default function ExtractRoadsClient() {
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
-    setBounds(layer.getBounds());
+    const latlngs = layer.getLatLngs()[0];
+    const polyString = latlngs.map((ll: LatLng) => `${ll.lat} ${ll.lng}`).join(' ');
+    setPolygonCoords(polyString);
   };
 
   const fetchOverpassData = async () => {
-    if (!bounds) return;
+    if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
     toast({ title: "Step 1/2", description: "Fetching Road Network Data..." });
 
     try {
-      const b = bounds;
-      const query = `[out:json][timeout:25];(way["highway"](${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}););(._;>;);out;`;
+      const query = `[out:json][timeout:25];(way["highway"](poly:"${polygonCoords}"););(._;>;);out;`;
       const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
       
       if (!response.ok) {
@@ -120,15 +121,15 @@ export default function ExtractRoadsClient() {
         <Card className="rounded-xl border-0 bg-white/90 shadow-xl backdrop-blur-md">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-xl"><RouteIcon className="h-6 w-6 text-primary"/> Extract Roads</CardTitle>
-            <CardDescription>Draw a rectangle to extract the road network.</CardDescription>
+            <CardDescription>Draw a polygon to extract the road network.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
              <div className="rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-              {bounds ? `Selection: ${bounds.getNorth().toFixed(4)}N, ${bounds.getEast().toFixed(4)}E` : "Draw a rectangle on the map to activate."}
+              {polygonCoords ? "Polygon area selected." : "Draw a polygon on the map to activate."}
             </div>
             
             <div className="flex flex-col gap-2">
-              <Button onClick={fetchOverpassData} disabled={!bounds || isProcessing} size="lg">
+              <Button onClick={fetchOverpassData} disabled={!polygonCoords || isProcessing} size="lg">
                 {isProcessing ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</> : <><Play className="mr-2 h-5 w-5" /> Extract Road Network</>}
               </Button>
               
@@ -161,27 +162,29 @@ export default function ExtractRoadsClient() {
             onCreated={handleCreated}
             onEdited={(e) => {
               const layers = e.layers;
-              if (layers.getLayers().length > 0) {
-                  setBounds(layers.getBounds());
-              }
+              layers.eachLayer((layer: any) => {
+                const latlngs = layer.getLatLngs()[0];
+                const polyString = latlngs.map((ll: LatLng) => `${ll.lat} ${ll.lng}`).join(' ');
+                setPolygonCoords(polyString);
+              });
             }}
             onDeleted={() => {
-              setBounds(null);
+              setPolygonCoords(null);
               setGeoData(null);
             }} 
             draw={{ 
-              polygon: false, 
-              circle: false, 
-              marker: false, 
-              polyline: false, 
-              circlemarker: false,
-              rectangle: {
+              polygon: {
                   shapeOptions: {
                     color: '#16a34a',
                     weight: 2,
                     fillOpacity: 0.1,
                   }
-              }
+              },
+              rectangle: false,
+              circle: false, 
+              marker: false, 
+              polyline: false, 
+              circlemarker: false
             }}
             edit={{
               edit: true,
