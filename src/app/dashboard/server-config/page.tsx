@@ -56,7 +56,7 @@ export default function ServerConfigPage() {
       toast({
         variant: 'destructive',
         title: 'Connection Failed',
-        description: 'Could not connect. Ensure the tunnel is active and you have visited the URL in your browser to bypass any warning screens.',
+        description: 'Could not connect. Ensure the backend script is running and the URL is correct.',
       });
     } finally {
       setIsTesting(false);
@@ -73,11 +73,10 @@ export default function ServerConfigPage() {
 
   const instructions = [
     "Open the AGIS Backend notebook using the button below.",
-    "Run the script cell once. It will install dependencies and stop.",
-    "Run the same cell a second time. This will start the server.",
-    "Copy the public ngrok URL that is generated (e.g., https://....ngrok-free.app).",
-    "Important: Open the ngrok URL in a new browser tab to authorize access.",
-    "Paste the URL into the input field below and test the connection."
+    "Run the single script cell. It will install dependencies and start the server automatically.",
+    "The script will generate and display a secure public URL ending in `.trycloudflare.com`.",
+    "Copy this URL and paste it into the input field below.",
+    "Click 'Save & Test Connection' to link your application to the backend."
   ];
 
   return (
@@ -129,11 +128,11 @@ export default function ServerConfigPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-2">
-                        <label htmlFor="colab-url" className="text-sm font-medium text-foreground">Ngrok Tunnel URL</label>
+                        <label htmlFor="colab-url" className="text-sm font-medium text-foreground">Backend Tunnel URL</label>
                         <div className="flex items-center gap-2">
                             <Input
                                 id="colab-url"
-                                placeholder="https://....ngrok-free.app"
+                                placeholder="https://....trycloudflare.com"
                                 value={currentUrl}
                                 onChange={(e) => setCurrentUrl(e.target.value)}
                                 className={cn(

@@ -1,123 +1,132 @@
 # ==============================================================================
-#           AGIS - OVERTURE MAPS EXTRACTION BACKEND (COLAB)
-# ==============================================================================
-#
-# INSTRUCTIONS:
-# 1. RUN THIS CELL. It will install dependencies and then stop.
-# 2. RUN THIS CELL AGAIN. It will now start the backend server.
-#
-# It will output a public ngrok URL (e.g., https://...).
-# Paste this URL into your AGIS web app's "Server Config" page.
-#
+# AGIS ENGINE - CORE SERVICE MODULE
+# System: Google Colab Runtime (Safe-Mode)
+# Network Configuration: Port 8888 | Cloudflare Tunneling Service
 # ==============================================================================
 
 import sys
 import subprocess
+import os
+import time
+import threading
+import tempfile
+import json
 
-# --- Step 1: Dependency Check ---
-try:
-    import leafmap
-    print("--- Dependencies are already installed. ---")
-    run_server = True
-except ImportError:
-    print("--- Installing required packages... This may take a few minutes. ---")
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "flask",
-            "flask-cors",
-            "pyngrok",
-            "geopandas",
-            "leafmap",
-            "duckdb",
-            "pyarrow"
-        ],
-        check=True,
-    )
-    print("\n" + "=" * 80)
-    print("IMPORTANT: Packages installed. Please RE-RUN THIS CELL to start the server.")
-    print("=" * 80 + "\n")
-    run_server = False
+# --- SYSTEM INITIALIZATION: NETWORK PURGE ---
+print("[SYSTEM] Initializing network stack and clearing active ports...")
+!fuser -k 8888/tcp > /dev/null 2>&1
+!pkill -f cloudflared > /dev/null 2>&1
+time.sleep(2)
 
-# --- Main Execution Block ---
-if run_server:
-    # --- Step 2: Import all libraries ---
-    import io
-    import threading
-    import os
-    import json
-    import logging
-    import geopandas as gpd
-    import leafmap.overture as overture
-    from flask import Flask, request, jsonify
-    from flask_cors import CORS
-    from pyngrok import ngrok
+# --- DEPENDENCY MANAGEMENT ---
+print("[SYSTEM] Installing core GIS dependencies and Overture Maps SDK...")
+subprocess.run([sys.executable, "-m", "pip", "install", "-q", "flask", "flask-cors", "overturemaps", "geopandas"], check=True)
 
-    # --- Step 3: Backend Server Configuration and Logic ---
-    PORT = 8080
+import geopandas as gpd
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
-    app = Flask(__name__)
-    CORS(app)
-    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+# --- BACKEND SERVER CONFIGURATION ---
+app = Flask(__name__)
+CORS(app)
 
-    @app.route("/")
-    def index():
-        return "<h1>AGIS Realtime Engine - Colab Backend</h1><p>The backend is running correctly.</p>"
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Service health monitoring endpoint."""
+    return jsonify({
+        "status": "online",
+        "message": "AGIS Realtime Engine service is operational."
+    }), 200
 
-    @app.route("/health")
-    def health_check():
-        return jsonify({"status": "ok"}), 200
+@app.route('/extract_overture', methods=['POST'])
+def extract_overture_endpoint():
+    """Endpoint for Overture Maps data extraction."""
+    try:
+        data = request.json
+        bbox = data.get('bbox')
+        theme_type = data.get('type', 'building')
+        
+        print(f"\n🌍 Request: BBox {bbox}, Type: {theme_type}")
 
-    @app.route('/extract_overture', methods=['POST'])
-    def extract_overture_endpoint():
-        try:
-            data = request.json
-            bbox = data['bbox']           # Expected: [west, south, east, north]
-            theme_type = data['type'] # Expected: 'building' or 'segment'
+        theme = ''
+        if theme_type == 'building':
+            theme = 'buildings'
+        elif theme_type == 'segment':
+            theme = 'transportation'
+        else:
+            return jsonify({"error": "Invalid extraction type specified"}), 400
 
-            print(f"\n🌍 Request: BBox {bbox}, Type: {theme_type}")
+        print(f"🗺️  Querying Overture Maps for theme '{theme}'...")
 
-            theme = ''
-            gdf_type = ''
-            if theme_type == 'building':
-                theme = 'buildings'
-                gdf_type = 'building_part'
-            elif theme_type == 'segment':
-                theme = 'transportation'
-                gdf_type = 'segment'
-            else:
-                return jsonify({"error": "Invalid extraction type specified"}), 400
+        # Format bounding box for Overture Maps SDK
+        bbox_str = f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}"
+        raw_geojson = os.path.join(tempfile.gettempdir(), f"raw_data_{theme}.geojson")
 
-            print(f"🗺️  Querying Overture Maps for theme '{theme}'...")
-            gdf = overture.overture_data(bbox=bbox, theme=theme, type=gdf_type)
+        if os.path.exists(raw_geojson):
+            os.remove(raw_geojson)
 
-            if gdf.empty:
-                print("-> No features found in the specified area.")
-                return jsonify(json.loads('{"type": "FeatureCollection", "features": []}'))
+        # Execute SDK download command
+        cmd = ["overturemaps", "download", "--bbox", bbox_str, "-f", "geojson", "--type", theme_type, "-o", raw_geojson]
+        subprocess.run(cmd, capture_output=True, text=True)
 
-            print(f"-> Extraction successful: {len(gdf)} features found.")
-            return jsonify(json.loads(gdf.to_json()))
+        # Process and sanitize geospatial data
+        gdf = gpd.read_file(raw_geojson)
+        if gdf.empty:
+            print("-> No features found in the specified area.")
+            return jsonify({"type": "FeatureCollection", "features": []})
 
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": "An internal error occurred", "details": str(e)}), 500
+        print(f"-> Extraction successful: {len(gdf)} features found.")
+        # Maintain only required geometry for transfer efficiency
+        gdf_clean = gdf[['geometry']].copy()
+        if 'Plot_ID' not in gdf_clean.columns:
+            gdf_clean['Plot_ID'] = range(len(gdf_clean))
 
+        # Cleanup temporary filesystem resources
+        os.remove(raw_geojson)
 
-    def run_app():
-        app.run(port=PORT, use_reloader=False)
+        return jsonify(json.loads(gdf_clean.to_json()))
 
-    # --- Step 4: Start the server and ngrok tunnel ---
-    if __name__ == '__main__':
-        print("--- Starting Flask server and ngrok tunnel... ---")
-        ngrok.kill() # Ensure no old tunnels are running
-        public_url = ngrok.connect(PORT).public_url
-        print("=" * 80)
-        print(f" * AGIS REALTIME ENGINE IS LIVE! *")
-        print(f" * Copy this URL and paste it into your AGIS web application: {public_url}")
-        print("==============================================================================")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "error": "Data Extraction Failure",
+            "details": str(e)
+        }), 500
 
-        threading.Thread(target=run_app).start()
+def start_backend_service():
+    """Initializes the Flask application on the designated system port."""
+    app.run(port=8888, host='0.0.0.0', use_reloader=False)
+
+# --- SERVICE DEPLOYMENT ---
+print("[SYSTEM] Deploying local server and initializing secure tunnel...")
+!wget -q -c -nc https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+!chmod +x cloudflared-linux-amd64
+
+threading.Thread(target=start_backend_service, daemon=True).start()
+time.sleep(3)
+
+# --- NETWORK TUNNELING: ENDPOINT GENERATION ---
+print("[SYSTEM] Generating secure public API endpoint...")
+process = subprocess.Popen(
+    ['./cloudflared-linux-amd64', 'tunnel', '--url', 'http://127.0.0.1:8888'],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True
+)
+
+print("-" * 80)
+for line in process.stdout:
+    if "trycloudflare.com" in line:
+        parts = line.split(" ")
+        for part in parts:
+            if "trycloudflare.com" in part:
+                endpoint_url = part
+                print(f"[STATUS] AGIS REALTIME ENGINE IS ONLINE")
+                print(f"[ENDPOINT] AGIS SERVER CONFIG: {endpoint_url}")
+                print("-" * 80)
+                break
+    if endpoint_url:
+        break
+
+process.wait()
