@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Auth, signInWithEmailAndPassword } from 'firebase/auth';
-import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -22,10 +21,8 @@ import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { useAuth } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -113,11 +110,11 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg transition-all duration-300 sm:hover:shadow-2xl sm:hover:-translate-y-1 sm:hover:shadow-primary/10">
       <CardHeader className="text-center">
-        <Image 
+        <img 
           src="/agis.svg"
           alt="AGIS Logo"
-          width={150}
-          height={50}
+          width="150"
+          height="50"
           className="mx-auto mb-2"
         />
       </CardHeader>
