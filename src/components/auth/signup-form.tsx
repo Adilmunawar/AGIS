@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -123,12 +124,13 @@ export function SignUpForm() {
   return (
     <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg transition-all duration-300 sm:hover:shadow-2xl sm:hover:-translate-y-1 sm:hover:shadow-primary/10">
       <CardHeader className="text-center">
-        <img 
+        <Image 
           src="/agis.svg"
           alt="AGIS Logo"
           width="150"
           height="50"
           className="mx-auto mb-2"
+          unoptimized
         />
       </CardHeader>
       <CardContent>
