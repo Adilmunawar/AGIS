@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/card';
 import { useAuth } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { initiateGoogleSignIn } from '@/firebase/non-blocking-login';
+import { initiateGoogleSignIn, initiateEmailSignIn } from '@/firebase/non-blocking-login';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -36,14 +36,6 @@ const formSchema = z.object({
     .string()
     .min(1, { message: 'Password is required.' }),
 });
-
-function initiateEmailSignIn(
-  authInstance: Auth,
-  email: string,
-  password: string
-) {
-  return signInWithEmailAndPassword(authInstance, email, password);
-}
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>

@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/card';
 import { useAuth } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { initiateGoogleSignIn } from '@/firebase/non-blocking-login';
+import { initiateGoogleSignIn, initiateEmailSignUp } from '@/firebase/non-blocking-login';
 
 const formSchema = z
   .object({
@@ -45,14 +45,6 @@ const formSchema = z
     message: "Passwords don't match.",
     path: ['confirmPassword'],
   });
-
-function initiateEmailSignUp(
-  authInstance: Auth,
-  email: string,
-  password: string
-) {
-  return createUserWithEmailAndPassword(authInstance, email, password);
-}
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
