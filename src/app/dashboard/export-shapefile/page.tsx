@@ -16,7 +16,7 @@ export default function ExportShapefilePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    workerRef.current = new Worker('/gisWorker.js');
+    workerRef.current = new Worker('/workers/exportWorker.js');
     workerRef.current.onmessage = async (e: MessageEvent) => {
       const { status, message, action, payload } = e.data;
 

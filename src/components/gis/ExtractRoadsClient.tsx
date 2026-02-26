@@ -43,7 +43,7 @@ export default function ExtractRoadsClient() {
   const { toast } = useToast();
 
   useEffect(() => {
-    workerRef.current = new Worker('/gisWorker.js');
+    workerRef.current = new Worker('/workers/roadsWorker.js');
     workerRef.current.onmessage = (e: MessageEvent) => {
       const { status, message, action, data } = e.data;
 
@@ -115,16 +115,16 @@ export default function ExtractRoadsClient() {
   };
 
   return (
-    <div className="relative w-full h-full">
-      <div className="absolute top-4 left-4 z-[1000] w-96">
-        <Card className="shadow-lg border-border/20 bg-background/80 backdrop-blur-md">
+    <div className="absolute inset-0 z-0">
+      <div className="absolute top-6 left-6 z-[1000] w-80 max-w-[90vw] transition-all">
+        <Card className="rounded-xl border-0 bg-white/90 shadow-xl backdrop-blur-md">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl flex items-center gap-2"><RouteIcon className="w-6 h-6 text-primary"/> Extract Roads</CardTitle>
-            <CardDescription>Draw a rectangle to select an area and extract the road network.</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-xl"><RouteIcon className="h-6 w-6 text-primary"/> Extract Roads</CardTitle>
+            <CardDescription>Draw a rectangle to extract the road network.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-             <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg border">
-              {bounds ? `Selected Area: ${bounds.getNorth().toFixed(4)}N, ${bounds.getEast().toFixed(4)}E` : "Draw a rectangle on the map to begin."}
+             <div className="rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+              {bounds ? `Selection: ${bounds.getNorth().toFixed(4)}N, ${bounds.getEast().toFixed(4)}E` : "Draw a rectangle on the map to activate."}
             </div>
             
             <div className="flex flex-col gap-2">
@@ -142,7 +142,7 @@ export default function ExtractRoadsClient() {
         </Card>
       </div>
 
-      <MapContainer center={[31.46, 74.38]} zoom={16} style={{ height: '100%', width: '100%', zIndex: 1 }}>
+      <MapContainer center={[31.46, 74.38]} zoom={16} style={{ height: '100%', width: '100%' }}>
         <LayersControl position="topright">
           <BaseLayer checked name="ESRI Satellite">
             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
@@ -182,7 +182,11 @@ export default function ExtractRoadsClient() {
                     fillOpacity: 0.1,
                   }
               }
-            }} 
+            }}
+            edit={{
+              edit: true,
+              remove: true
+            }}
             />
         </FeatureGroup>
         

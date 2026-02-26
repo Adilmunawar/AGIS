@@ -15,7 +15,7 @@ export default function MergeJSONsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    workerRef.current = new Worker('/gisWorker.js');
+    workerRef.current = new Worker('/workers/mergeWorker.js');
     workerRef.current.onmessage = (e: MessageEvent) => {
       const { status, message, action, data } = e.data;
       if (status === 'info') {
