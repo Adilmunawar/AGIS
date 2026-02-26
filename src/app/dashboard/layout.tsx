@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Loader2 } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Loader2, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -19,6 +19,10 @@ const sidebarNavItems = [
   { href: '/dashboard/extract-roads', label: 'Extract Roads', icon: Route },
   { href: '/dashboard/merge-jsons', label: 'Merge JSONs', icon: LayersIcon },
   { href: '/dashboard/export-shapefile', label: 'Export Shapefile', icon: Download },
+];
+
+const secondaryNavItems = [
+    { href: '/dashboard/server-config', label: 'Server Config', icon: Server },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -65,6 +69,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           ))}
         </nav>
+        <div className="p-2 border-t">
+          <nav className="space-y-1">
+             {secondaryNavItems.map((item) => (
+                <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                    "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    pathname.startsWith(item.href)
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-black/5"
+                )}
+                >
+                <item.icon className="mr-3 h-5 w-5" />
+                {item.label}
+                </Link>
+            ))}
+          </nav>
+        </div>
         <div className="mt-auto border-t p-2">
           <div className="p-2 rounded-lg hover:bg-black/5">
               <div className="flex items-center">

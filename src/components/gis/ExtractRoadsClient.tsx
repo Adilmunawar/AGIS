@@ -4,9 +4,12 @@ import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from 'r
 import { EditControl } from 'react-leaflet-draw';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Download, Play, Route as RouteIcon } from 'lucide-react';
-import type { LatLng } from 'leaflet';
+import { useServerConfig } from '@/hooks/use-server-config';
+import { Loader2, Download, Play, Route as RouteIcon, Server, ShieldAlert } from 'lucide-react';
+import type { LatLng, LatLngBounds } from 'leaflet';
 
 const { BaseLayer } = LayersControl;
 
@@ -43,10 +46,12 @@ function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
 
 export default function ExtractRoadsClient() {
   const [polygonCoords, setPolygonCoords] = useState<string | null>(null);
+  const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
   const [geoData, setGeoData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
+  const { colabUrl } = useServerConfig();
 
   useEffect(() => {
     workerRef.current = new Worker('/workers/roadsWorker.js');
@@ -69,16 +74,23 @@ export default function ExtractRoadsClient() {
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
-    const latlngs = layer.getLatLngs()[0];
-    const polyString = latlngs.map((ll: LatLng) => `${ll.lat} ${ll.lng}`).join(' ');
+    const latlngs: LatLng[] = layer.getLatLngs()[0];
+    const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
     setPolygonCoords(polyString);
+    setSelectionBounds(layer.getBounds());
   };
 
-  const fetchOverpassData = async () => {
+  const handleDeleted = () => {
+    setPolygonCoords(null);
+    setSelectionBounds(null);
+    setGeoData(null);
+  };
+
+  const runStandardExtraction = async () => {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Step 1/2", description: "Fetching Road Network Data..." });
+    toast({ title: "Step 1/2: Standard", description: "Fetching Road Network Data..." });
 
     try {
       const query = `[out:json][timeout:25];(way["highway"](poly:"${polygonCoords}"););(._;>;);out;`;
@@ -97,7 +109,7 @@ export default function ExtractRoadsClient() {
          return;
       }
 
-      toast({ title: "Step 2/2", description: "Running Python Engine..." });
+      toast({ title: "Step 2/2: Standard", description: "Running Browser Python Engine..." });
       workerRef.current?.postMessage({
         action: "EXTRACT_ROADS",
         payload: { roads: roadsGeoJSON }
@@ -107,6 +119,54 @@ export default function ExtractRoadsClient() {
       toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
     }
   };
+  
+  const runPremiumExtraction = async () => {
+    if (!selectionBounds || !colabUrl) return;
+    setIsProcessing(true);
+    setGeoData(null);
+    toast({ title: "Premium Engine", description: "Sending request to Colab server..." });
+
+    try {
+        const bbox = [
+            selectionBounds.getWest(),
+            selectionBounds.getSouth(),
+            selectionBounds.getEast(),
+            selectionBounds.getNorth()
+        ];
+        
+        // This endpoint does not exist on the user's backend, this will fail gracefully.
+        const response = await fetch(`${colabUrl}/extract_overture`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bbox: bbox, type: "segment" })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({details: "Unknown server error"}));
+            throw new Error(errorData.details || `Server returned status ${response.status}`);
+        }
+
+        const result = await response.json();
+        setGeoData(result);
+        toast({
+            title: "Premium Extraction Complete",
+            description: `Found ${result?.features?.length || 0} features.`,
+        });
+
+    } catch (error: any) {
+        const isFetchError = error instanceof TypeError && error.message.includes('Failed to fetch');
+        toast({
+            variant: "destructive",
+            title: "Backend Offline or Endpoint Missing",
+            description: isFetchError 
+                ? "Your Colab tunnel has expired or crashed. Please generate a new link and update your Server Config."
+                : `The backend does not support this feature or an error occurred: ${error.message}`,
+        });
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
 
   const handleDownload = () => {
     if (!geoData) return;
@@ -120,6 +180,8 @@ export default function ExtractRoadsClient() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  
+  const hasSelection = !!polygonCoords;
 
   return (
     <div className="absolute inset-0 z-0">
@@ -127,24 +189,31 @@ export default function ExtractRoadsClient() {
         <Card className="rounded-xl border-0 bg-white/90 shadow-xl backdrop-blur-md">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-xl"><RouteIcon className="h-6 w-6 text-primary"/> Extract Roads</CardTitle>
-            <CardDescription>Draw a polygon to extract the road network.</CardDescription>
+            <CardDescription>{hasSelection ? "Polygon area selected." : "Draw a polygon on the map to begin."}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-             <div className="rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-              {polygonCoords ? "Polygon area selected." : "Draw a polygon on the map to activate."}
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <Button onClick={fetchOverpassData} disabled={!polygonCoords || isProcessing} size="lg">
-                {isProcessing ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</> : <><Play className="mr-2 h-5 w-5" /> Extract Road Network</>}
-              </Button>
-              
-              {geoData && (
-                <Button onClick={handleDownload} variant="outline" size="lg">
-                  <Download className="mr-2 h-5 w-5" /> Download GeoJSON
+          <CardContent>
+            <Tabs defaultValue="standard" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="standard">Standard</TabsTrigger>
+                    <TabsTrigger value="premium" disabled>Premium</TabsTrigger>
+                </TabsList>
+                <TabsContent value="standard" className="space-y-4 pt-4">
+                    <p className="text-xs text-muted-foreground">Extracts open-source road networks via the Overpass API directly in your browser.</p>
+                    <Button onClick={runStandardExtraction} disabled={!hasSelection || isProcessing} className="w-full">
+                        {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Play className="mr-2 h-4 w-4" /> Run Standard Extraction</>}
+                    </Button>
+                </TabsContent>
+                <TabsContent value="premium" className="space-y-4 pt-4">
+                     <p className="text-xs text-muted-foreground">Premium road extraction is not yet supported by the connected backend.</p>
+                </TabsContent>
+            </Tabs>
+            {geoData && (
+                <div className="pt-4 mt-4 border-t">
+                <Button onClick={handleDownload} variant="outline" size="sm" className="w-full">
+                  <Download className="mr-2 h-4 w-4" /> Download GeoJSON
                 </Button>
-              )}
-            </div>
+                </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -169,33 +238,22 @@ export default function ExtractRoadsClient() {
             onEdited={(e) => {
               const layers = e.layers;
               layers.eachLayer((layer: any) => {
-                const latlngs = layer.getLatLngs()[0];
-                const polyString = latlngs.map((ll: LatLng) => `${ll.lat} ${ll.lng}`).join(' ');
+                const latlngs: LatLng[] = layer.getLatLngs()[0];
+                const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
                 setPolygonCoords(polyString);
+                setSelectionBounds(layer.getBounds());
               });
             }}
-            onDeleted={() => {
-              setPolygonCoords(null);
-              setGeoData(null);
-            }} 
+            onDeleted={handleDeleted}
             draw={{ 
-              polygon: {
-                  shapeOptions: {
-                    color: '#16a34a',
-                    weight: 2,
-                    fillOpacity: 0.1,
-                  }
-              },
+              polygon: { shapeOptions: { color: '#16a34a', weight: 2, fillOpacity: 0.1 } },
               rectangle: false,
               circle: false, 
               marker: false, 
               polyline: false, 
               circlemarker: false
             }}
-            edit={{
-              edit: true,
-              remove: true
-            }}
+            edit={{ edit: true, remove: true }}
             />
         </FeatureGroup>
         

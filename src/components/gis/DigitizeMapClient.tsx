@@ -4,91 +4,89 @@ import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from 'r
 import { EditControl } from 'react-leaflet-draw';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Download, Play, Map as MapIcon } from 'lucide-react';
-import type { LatLng } from 'leaflet';
+import { useServerConfig } from '@/hooks/use-server-config';
+import { Loader2, Download, Play, Map as MapIcon, Server, ShieldAlert } from 'lucide-react';
+import type { LatLng, LatLngBounds } from 'leaflet';
 
 const { BaseLayer } = LayersControl;
 
 function osmToGeoJSON(osmData: any): GeoJSON.FeatureCollection {
-  const nodes = new Map<number, number[]>();
-  const ways = new Map<number, any>();
+    const nodes = new Map<number, number[]>();
+    const ways = new Map<number, any>();
 
-  // Pre-process all nodes and ways for quick lookups
-  for (const el of osmData.elements) {
-    if (el.type === 'node') {
-      nodes.set(el.id, [el.lon, el.lat]);
-    } else if (el.type === 'way') {
-      ways.set(el.id, el);
+    for (const el of osmData.elements) {
+        if (el.type === 'node') {
+            nodes.set(el.id, [el.lon, el.lat]);
+        } else if (el.type === 'way') {
+            ways.set(el.id, el);
+        }
     }
-  }
 
-  const processedWayIds = new Set<number>();
-  const finalFeatures: GeoJSON.Feature[] = [];
+    const processedWayIds = new Set<number>();
+    const finalFeatures: GeoJSON.Feature[] = [];
 
-  // Process relations first, as they are more complex structures
-  osmData.elements.forEach((el: any) => {
-      if (el.type !== 'relation' || !el.tags?.building) return;
+    osmData.elements.forEach((el: any) => {
+        if (el.type !== 'relation' || !el.tags?.building) return;
 
-      const outerRings: any[][] = [];
-      const innerRings: any[][] = [];
-      const memberWayIds = new Set<number>();
+        const outerRings: any[][] = [];
+        const innerRings: any[][] = [];
+        const memberWayIds = new Set<number>();
 
-      el.members.forEach((member: any) => {
-          if (member.type !== 'way') return;
-          const way = ways.get(member.ref);
-          if (!way) return;
-          memberWayIds.add(way.id);
+        el.members.forEach((member: any) => {
+            if (member.type !== 'way') return;
+            const way = ways.get(member.ref);
+            if (!way) return;
+            memberWayIds.add(way.id);
 
-          const ring = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
-          if (ring.length > 1 && JSON.stringify(ring[0]) !== JSON.stringify(ring[ring.length-1])) {
-              ring.push(ring[0]);
-          }
-          if (ring.length < 4) return;
+            const ring = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
+            if (ring.length > 1 && JSON.stringify(ring[0]) !== JSON.stringify(ring[ring.length-1])) {
+                ring.push(ring[0]);
+            }
+            if (ring.length < 4) return;
 
-          if (member.role === 'outer') outerRings.push(ring);
-          else if (member.role === 'inner') innerRings.push(ring);
-      });
+            if (member.role === 'outer') outerRings.push(ring);
+            else if (member.role === 'inner') innerRings.push(ring);
+        });
 
-      // A valid GeoJSON Polygon has one outer ring and zero or more inner rings.
-      if (outerRings.length === 1) {
-          finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [outerRings[0], ...innerRings] } });
-          memberWayIds.forEach(id => processedWayIds.add(id));
-      } 
-      // A MultiPolygon is made of multiple outer rings. This is a simplified handling.
-      else if (outerRings.length > 1) {
-          outerRings.forEach(ring => {
-              // Note: This simplification ignores which inner rings belong to which outer ring.
-              finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [ring] } });
-          });
-          memberWayIds.forEach(id => processedWayIds.add(id));
-      }
-  });
+        if (outerRings.length === 1) {
+            finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [outerRings[0], ...innerRings] } });
+            memberWayIds.forEach(id => processedWayIds.add(id));
+        } else if (outerRings.length > 1) {
+            outerRings.forEach(ring => {
+                finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [ring] } });
+            });
+            memberWayIds.forEach(id => processedWayIds.add(id));
+        }
+    });
 
-  // Process simple ways that are buildings and were not part of a processed relation
-  ways.forEach((way: any) => {
-      if (!way.tags?.building || processedWayIds.has(way.id)) return;
-      const coordinates = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
-      if (coordinates.length > 1 && JSON.stringify(coordinates[0]) !== JSON.stringify(coordinates[coordinates.length - 1])) {
-          coordinates.push(coordinates[0]);
-      }
-      if (coordinates.length < 4) return;
+    ways.forEach((way: any) => {
+        if (!way.tags?.building || processedWayIds.has(way.id)) return;
+        const coordinates = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
+        if (coordinates.length > 1 && JSON.stringify(coordinates[0]) !== JSON.stringify(coordinates[coordinates.length - 1])) {
+            coordinates.push(coordinates[0]);
+        }
+        if (coordinates.length < 4) return;
 
-      finalFeatures.push({ type: 'Feature', properties: way.tags, geometry: { type: 'Polygon', coordinates: [coordinates] } });
-  });
+        finalFeatures.push({ type: 'Feature', properties: way.tags, geometry: { type: 'Polygon', coordinates: [coordinates] } });
+    });
 
-  return { type: 'FeatureCollection', features: finalFeatures };
+    return { type: 'FeatureCollection', features: finalFeatures };
 }
-
 
 export default function DigitizeMapClient() {
   const [polygonCoords, setPolygonCoords] = useState<string | null>(null);
+  const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
   const [geoData, setGeoData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
+  const { colabUrl } = useServerConfig();
 
   useEffect(() => {
+    // This worker is now only for the standard engine.
     workerRef.current = new Worker('/workers/digitizeWorker.js');
     workerRef.current.onmessage = (e: MessageEvent) => {
       const { status, message, action, data } = e.data;
@@ -109,25 +107,29 @@ export default function DigitizeMapClient() {
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
-    const latlngs = layer.getLatLngs()[0];
-    const polyString = latlngs.map((ll: LatLng) => `${ll.lat} ${ll.lng}`).join(' ');
+    const latlngs: LatLng[] = layer.getLatLngs()[0];
+    const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
     setPolygonCoords(polyString);
+    setSelectionBounds(layer.getBounds());
+  };
+  
+  const handleDeleted = () => {
+    setPolygonCoords(null);
+    setSelectionBounds(null);
+    setGeoData(null);
   };
 
-  const fetchOverpassData = async () => {
+  const runStandardExtraction = async () => {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Step 1/2", description: "Fetching Satellite Data..." });
+    toast({ title: "Step 1/2: Standard", description: "Fetching OpenStreetMap data..." });
 
     try {
       const query = `[out:json][timeout:25];(way["building"](poly:"${polygonCoords}");relation["building"](poly:"${polygonCoords}"););out body;>;out skel qt;`;
       const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
       
-      if (!response.ok) {
-        throw new Error(`Overpass API failed with status ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`Overpass API failed: ${response.status}`);
       const rawData = await response.json();
       const buildingsGeoJSON = osmToGeoJSON(rawData);
 
@@ -137,7 +139,7 @@ export default function DigitizeMapClient() {
          return;
       }
 
-      toast({ title: "Step 2/2", description: "Running Python Engine..." });
+      toast({ title: "Step 2/2: Standard", description: "Running Browser Python Engine..." });
       workerRef.current?.postMessage({
         action: "DIGITIZE_MAP",
         payload: { buildings: buildingsGeoJSON }
@@ -145,6 +147,53 @@ export default function DigitizeMapClient() {
     } catch (error: any) {
       setIsProcessing(false);
       toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
+    }
+  };
+
+  const runPremiumExtraction = async () => {
+    if (!selectionBounds || !colabUrl) return;
+    setIsProcessing(true);
+    setGeoData(null);
+    toast({ title: "Premium Engine", description: "Sending request to Colab server..." });
+
+    try {
+        const bbox = [
+            selectionBounds.getWest(),
+            selectionBounds.getSouth(),
+            selectionBounds.getEast(),
+            selectionBounds.getNorth()
+        ];
+
+        const response = await fetch(`${colabUrl}/detect_bbox`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // Pass empty points array for automatic mode
+            body: JSON.stringify({ bbox, points: [] }) 
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({details: "Unknown server error"}));
+            throw new Error(errorData.details || `Server returned status ${response.status}`);
+        }
+
+        const result = await response.json();
+        setGeoData(result);
+        toast({
+            title: "Premium Extraction Complete",
+            description: `Found ${result?.features?.length || 0} features.`,
+        });
+
+    } catch (error: any) {
+        const isFetchError = error instanceof TypeError && error.message.includes('Failed to fetch');
+        toast({
+            variant: "destructive",
+            title: "Backend Offline",
+            description: isFetchError 
+                ? "Your Colab tunnel has expired or crashed. Please generate a new link and update your Server Config."
+                : error.message,
+        });
+    } finally {
+        setIsProcessing(false);
     }
   };
 
@@ -160,6 +209,8 @@ export default function DigitizeMapClient() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  
+  const hasSelection = !!polygonCoords;
 
   return (
     <div className="absolute inset-0 z-0">
@@ -167,24 +218,45 @@ export default function DigitizeMapClient() {
         <Card className="rounded-xl border-0 bg-white/90 shadow-xl backdrop-blur-md">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-xl"><MapIcon className="h-6 w-6 text-primary"/> Digitize Area</CardTitle>
-            <CardDescription>Draw a polygon to detect building footprints.</CardDescription>
+            <CardDescription>{hasSelection ? "Polygon area selected." : "Draw a polygon on the map to begin."}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-             <div className="rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-              {polygonCoords ? "Polygon area selected." : "Draw a polygon on the map to activate."}
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <Button onClick={fetchOverpassData} disabled={!polygonCoords || isProcessing} size="lg">
-                {isProcessing ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</> : <><Play className="mr-2 h-5 w-5" /> Run Digitization</>}
-              </Button>
-              
-              {geoData && (
-                <Button onClick={handleDownload} variant="outline" size="lg">
-                  <Download className="mr-2 h-5 w-5" /> Download GeoJSON
+          <CardContent>
+            <Tabs defaultValue="standard" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="standard">Standard</TabsTrigger>
+                    <TabsTrigger value="premium">Premium</TabsTrigger>
+                </TabsList>
+                <TabsContent value="standard" className="space-y-4 pt-4">
+                    <p className="text-xs text-muted-foreground">Extracts open-source building footprints via the Overpass API directly in your browser.</p>
+                    <Button onClick={runStandardExtraction} disabled={!hasSelection || isProcessing} className="w-full">
+                        {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Play className="mr-2 h-4 w-4" /> Run Standard Extraction</>}
+                    </Button>
+                </TabsContent>
+                <TabsContent value="premium" className="space-y-4 pt-4">
+                    {!colabUrl ? (
+                        <Alert variant="destructive">
+                            <ShieldAlert className="h-4 w-4" />
+                            <AlertTitle>Server Not Configured</AlertTitle>
+                            <AlertDescription>
+                            The premium engine requires a Colab Backend. Go to Server Config to connect.
+                            </AlertDescription>
+                        </Alert>
+                    ) : (
+                         <p className="text-xs text-muted-foreground">Uses a connected Google Colab backend for advanced AI-powered detection.</p>
+                    )}
+                    <Button onClick={runPremiumExtraction} disabled={!hasSelection || isProcessing || !colabUrl} className="w-full">
+                         {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Server className="mr-2 h-4 w-4" /> Run Premium Extraction</>}
+                    </Button>
+                </TabsContent>
+            </Tabs>
+
+            {geoData && (
+                <div className="pt-4 mt-4 border-t">
+                <Button onClick={handleDownload} variant="outline" size="sm" className="w-full">
+                  <Download className="mr-2 h-4 w-4" /> Download GeoJSON
                 </Button>
-              )}
-            </div>
+                </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -209,22 +281,16 @@ export default function DigitizeMapClient() {
             onEdited={(e) => {
               const layers = e.layers;
               layers.eachLayer((layer: any) => {
-                const latlngs = layer.getLatLngs()[0];
-                const polyString = latlngs.map((ll: LatLng) => `${ll.lat} ${ll.lng}`).join(' ');
+                const latlngs: LatLng[] = layer.getLatLngs()[0];
+                const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
                 setPolygonCoords(polyString);
+                setSelectionBounds(layer.getBounds());
               });
             }}
-            onDeleted={() => {
-              setPolygonCoords(null);
-              setGeoData(null);
-            }} 
+            onDeleted={handleDeleted} 
             draw={{ 
               polygon: {
-                  shapeOptions: {
-                    color: '#16a34a',
-                    weight: 2,
-                    fillOpacity: 0.1,
-                  }
+                  shapeOptions: { color: '#16a34a', weight: 2, fillOpacity: 0.1 }
               },
               rectangle: false,
               circle: false, 
@@ -232,10 +298,7 @@ export default function DigitizeMapClient() {
               polyline: false, 
               circlemarker: false
             }}
-            edit={{
-              edit: true,
-              remove: true
-            }}
+            edit={{ edit: true, remove: true }}
             />
         </FeatureGroup>
         
