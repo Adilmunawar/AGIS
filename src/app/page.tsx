@@ -3,10 +3,12 @@
 import { useUser, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function HomePage() {
   const { user, isUserLoading } = useUser();
@@ -37,21 +39,32 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-foreground">
-          Welcome to AGIS
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          You are logged in as {user.email}.
-        </p>
-        <p className="mt-2 text-muted-foreground">
-          We're ready to build something amazing from scratch.
-        </p>
-        <Button onClick={handleSignOut} className="mt-8">
-          Sign Out
-        </Button>
-      </div>
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-secondary/40">
+      <Card className="w-full max-w-md shadow-2xl">
+        <CardHeader className="text-center">
+          <Avatar className="mx-auto h-24 w-24 border-4 border-primary/20">
+            <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
+            <AvatarFallback>
+              <UserIcon className="h-12 w-12 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
+        </CardHeader>
+        <CardContent className="text-center">
+            <CardTitle className="text-3xl">Welcome to AGIS</CardTitle>
+            <CardDescription className="mt-2 text-lg">
+                You are logged in as
+            </CardDescription>
+            <p className="mt-1 font-semibold text-lg text-foreground">
+                {user.displayName || user.email}
+            </p>
+        </CardContent>
+        <CardFooter>
+            <Button onClick={handleSignOut} className="w-full" variant="secondary">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+            </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

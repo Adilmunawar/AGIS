@@ -92,3 +92,23 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .animated-gradient {
+    background: linear-gradient(-45deg, hsl(160 80% 35%), hsl(200 80% 45%), hsl(280 80% 60%), hsl(220 80% 55%));
+    background-size: 400% 400%;
+    animation: gradient-move 15s ease infinite;
+  }
+
+  @keyframes gradient-move {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, Globe, Mail, Lock } from 'lucide-react';
+import { Loader2, Globe, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import {
   Auth,
   createUserWithEmailAndPassword,
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/card';
 import { useAuth } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { initiateGoogleSignIn } from '@/firebase/non-blocking-login';
 
 const formSchema = z
   .object({
@@ -45,7 +46,6 @@ const formSchema = z
     path: ['confirmPassword'],
   });
 
-// This is a non-blocking sign-up function.
 function initiateEmailSignUp(
   authInstance: Auth,
   email: string,
@@ -54,8 +54,16 @@ function initiateEmailSignUp(
   return createUserWithEmailAndPassword(authInstance, email, password);
 }
 
+const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.05 1.05-2.36 1.67-4.05 1.67-3.42 0-6.22-2.8-6.22-6.22s2.8-6.22 6.22-6.22c1.93 0 3.25.78 4.05 1.5l2.6-2.6C16.99 3.29 14.99 2 12.48 2 7.23 2 3.23 6.03 3.23 11.28s4 9.28 9.25 9.28c2.66 0 4.97-1 6.55-2.64 1.74-1.74 2.36-4.05 2.36-6.22 0-.6-.05-1.16-.16-1.7z" />
+    </svg>
+);
+
 export function SignUpForm() {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const auth = useAuth();
   const { toast } = useToast();
 
@@ -68,34 +76,47 @@ export function SignUpForm() {
     },
   });
 
+  const handleAuthError = (error: any) => {
+    let description = 'An unknown error occurred.';
+    if (error.code === 'auth/email-already-in-use') {
+      description = 'This email address is already in use by another account.';
+    } else if (error.code === 'auth/weak-password') {
+      description = 'The password is too weak. Please use at least 6 characters.';
+    } else if (error.code === 'auth/popup-closed-by-user') {
+      description = 'Sign-up process was cancelled.';
+    }
+    toast({
+      variant: 'destructive',
+      title: 'Sign Up Failed',
+      description,
+    });
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
       await initiateEmailSignUp(auth, values.email, values.password);
-      // The onAuthStateChanged listener will handle the redirect on success.
     } catch (error: any) {
-      let description = 'An unknown error occurred.';
-      if (error.code === 'auth/email-already-in-use') {
-        description = 'This email address is already in use by another account.';
-      } else if (error.code === 'auth/weak-password') {
-        description = 'The password is too weak. Please use at least 6 characters.';
-      }
-      toast({
-        variant: 'destructive',
-        title: 'Sign Up Failed',
-        description,
-      });
+      handleAuthError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function onGoogleSignIn() {
+    setIsLoading(true);
+    try {
+      await initiateGoogleSignIn(auth);
+    } catch (error: any) {
+      handleAuthError(error);
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg">
       <CardHeader className="text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-          <Globe className="h-10 w-10 text-primary" />
-        </div>
         <CardTitle className="text-2xl">Create an Account</CardTitle>
         <CardDescription>
           Get started with your new geospatial dashboard.
@@ -135,12 +156,21 @@ export function SignUpForm() {
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         placeholder="••••••••"
                         {...field}
                         autoComplete="new-password"
-                        className="pl-10"
+                        className="pl-10 pr-10"
                       />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </Button>
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -157,12 +187,21 @@ export function SignUpForm() {
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input
-                        type="password"
+                        type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="••••••••"
                         {...field}
                         autoComplete="new-password"
-                        className="pl-10"
+                        className="pl-10 pr-10"
                       />
+                       <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </Button>
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -175,6 +214,26 @@ export function SignUpForm() {
             </Button>
           </form>
         </Form>
+        <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                    Or continue with
+                </span>
+            </div>
+        </div>
+        <Button variant="outline" className="w-full h-11" onClick={onGoogleSignIn} disabled={isLoading}>
+            {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <>
+                    <GoogleIcon className="mr-2 h-5 w-5" />
+                    Sign Up with Google
+                </>
+            )}
+        </Button>
       </CardContent>
       <CardFooter className="flex justify-center text-sm">
         <p className="text-muted-foreground">
