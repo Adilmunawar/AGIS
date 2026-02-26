@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -22,14 +23,29 @@ const sidebarNavItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-background">
       <aside className="w-64 flex-shrink-0 border-r bg-gray-50 flex flex-col">
         <div className="p-4 border-b">
-          <h1 className="text-xl font-bold tracking-tight text-primary">GIS Platform</h1>
+          <h1 className="text-xl font-bold tracking-tight text-primary">AGIS</h1>
           <p className="text-xs text-muted-foreground">Serverless Geo-Processing</p>
         </div>
         <nav className="flex-1 space-y-1 p-2">
