@@ -44,42 +44,27 @@ def extract_overture_endpoint():
     try:
         data = request.json
         bbox = data.get('bbox')
-        theme_type = data.get('type', 'building')
-        
-        print(f"\n🌍 Request: BBox {bbox}, Type: {theme_type}")
-
-        theme = ''
-        if theme_type == 'building':
-            theme = 'buildings'
-        elif theme_type == 'segment':
-            theme = 'transportation'
-        else:
-            return jsonify({"error": "Invalid extraction type specified"}), 400
-
-        print(f"🗺️  Querying Overture Maps for theme '{theme}'...")
+        map_type = data.get('type', 'building')
 
         # Format bounding box for Overture Maps SDK
         bbox_str = f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}"
-        raw_geojson = os.path.join(tempfile.gettempdir(), f"raw_data_{theme}.geojson")
+        raw_geojson = os.path.join(tempfile.gettempdir(), f"raw_data_{map_type}.geojson")
 
         if os.path.exists(raw_geojson):
             os.remove(raw_geojson)
 
         # Execute SDK download command
-        cmd = ["overturemaps", "download", "--bbox", bbox_str, "-f", "geojson", "--type", theme_type, "-o", raw_geojson]
+        cmd = ["overturemaps", "download", "--bbox", bbox_str, "-f", "geojson", "--type", map_type, "-o", raw_geojson]
         subprocess.run(cmd, capture_output=True, text=True)
 
         # Process and sanitize geospatial data
         gdf = gpd.read_file(raw_geojson)
         if gdf.empty:
-            print("-> No features found in the specified area.")
             return jsonify({"type": "FeatureCollection", "features": []})
 
-        print(f"-> Extraction successful: {len(gdf)} features found.")
         # Maintain only required geometry for transfer efficiency
         gdf_clean = gdf[['geometry']].copy()
-        if 'Plot_ID' not in gdf_clean.columns:
-            gdf_clean['Plot_ID'] = range(len(gdf_clean))
+        gdf_clean['Plot_ID'] = ''
 
         # Cleanup temporary filesystem resources
         os.remove(raw_geojson)
@@ -87,8 +72,6 @@ def extract_overture_endpoint():
         return jsonify(json.loads(gdf_clean.to_json()))
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({
             "error": "Data Extraction Failure",
             "details": str(e)
@@ -115,6 +98,7 @@ process = subprocess.Popen(
     text=True
 )
 
+endpoint_url = ''
 print("-" * 80)
 for line in process.stdout:
     if "trycloudflare.com" in line:
