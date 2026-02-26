@@ -1,4 +1,5 @@
-"use client";
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
@@ -10,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
 import { Loader2, Download, Play, Map as MapIcon, Server, ShieldAlert } from 'lucide-react';
 import type { LatLng, LatLngBounds } from 'leaflet';
+import { MapSearchControl } from './MapSearchControl';
 
 const { BaseLayer } = LayersControl;
 
@@ -257,6 +259,7 @@ export default function DigitizeMapClient() {
       </div>
 
       <MapContainer center={[31.46, 74.38]} zoom={16} style={{ height: '100%', width: '100%' }}>
+        <MapSearchControl />
         <LayersControl position="topright">
           <BaseLayer checked name="ESRI Satellite">
             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
