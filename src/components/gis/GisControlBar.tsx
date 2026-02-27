@@ -57,7 +57,7 @@ export function GisControlBar({
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             {/* Title and Status */}
             <div className="flex items-center gap-3">
-              <div className="flex-shrink-0">{title}</div>
+              <div className="flex-shrink-0 flex items-center gap-2 font-medium text-foreground">{title}</div>
               <AnimatePresence mode="wait">
                 <motion.p
                   key={hasSelection ? 'selected' : 'unselected'}
