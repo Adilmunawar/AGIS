@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import {
   Auth,
   createUserWithEmailAndPassword,
@@ -34,6 +34,7 @@ import { initiateGoogleSignIn, initiateEmailSignUp } from '@/firebase/non-blocki
 
 const formSchema = z
   .object({
+    name: z.string().min(1, { message: 'Please enter your name.' }),
     email: z.string().email({ message: 'Please enter a valid email.' }),
     password: z
       .string()
@@ -77,6 +78,7 @@ export function SignUpForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -102,7 +104,7 @@ export function SignUpForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      await initiateEmailSignUp(auth, values.email, values.password);
+      await initiateEmailSignUp(auth, values.email, values.password, values.name);
     } catch (error: any) {
       handleAuthError(error);
     } finally {
@@ -136,6 +138,27 @@ export function SignUpForm() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <div className="relative group">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                      <Input
+                        placeholder="John Doe"
+                        {...field}
+                        autoComplete="name"
+                        className="pl-10"
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="email"

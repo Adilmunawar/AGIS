@@ -7,6 +7,7 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
+  updateProfile,
 } from 'firebase/auth';
 
 /** Initiate anonymous sign-in (non-blocking). */
@@ -17,10 +18,21 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 }
 
 /** Initiate email/password sign-up (non-blocking). */
-export function initiateEmailSignUp(authInstance: Auth, email: string, password: string) {
-  // CRITICAL: Call createUserWithEmailAndPassword directly. Do NOT use 'await createUserWithEmailAndPassword(...)'.
-  return createUserWithEmailAndPassword(authInstance, email, password);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+export function initiateEmailSignUp(authInstance: Auth, email: string, password: string, displayName: string) {
+  // CRITICAL: Chain promises. Do NOT use 'await'.
+  return createUserWithEmailAndPassword(authInstance, email, password)
+    .then(userCredential => {
+      // Once user is created, update their profile with the display name
+      if (userCredential.user) {
+        // Return the promise from updateProfile to keep the chain going
+        return updateProfile(userCredential.user, { displayName }).then(() => {
+          // After profile update, return the original userCredential
+          return userCredential;
+        });
+      }
+      // If no user, just return the credential
+      return userCredential;
+    });
 }
 
 /** Initiate email/password sign-in (non-blocking). */
