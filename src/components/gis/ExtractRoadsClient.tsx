@@ -219,7 +219,7 @@ export default function ExtractRoadsClient() {
 
   return (
     <div className="absolute inset-0 z-0">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] w-auto max-w-[90vw]">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] w-auto max-w-[90vw]">
         <div ref={controlRef}>
           <GisControlBar
             title={<><RouteIcon className="h-5 w-5 text-primary"/> Extract Roads</>}
