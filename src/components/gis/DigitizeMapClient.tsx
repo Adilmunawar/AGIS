@@ -93,7 +93,8 @@ const baseLayers: BaseLayer[] = [
       name: 'ESRI Satellite', 
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       attribution: 'Tiles &copy; Esri',
-      previewUrl: 'https://picsum.photos/seed/esrisat/400/300'
+      previewUrl: 'https://picsum.photos/seed/esrisat/400/300',
+      subdomains: [],
     },
 ];
 
@@ -249,29 +250,32 @@ export default function DigitizeMapClient() {
 
   return (
     <div className="absolute inset-0 z-0">
-       <div ref={controlRef} className="leaflet-top leaflet-left p-3">
-         <GisControlBar
-            title={<><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</>}
-            hasSelection={hasSelection}
-            isProcessing={isProcessing}
-            geoData={geoData}
-            colabUrl={colabUrl}
-            statusMessage={statusMessage}
-            onRunStandard={runStandardExtraction}
-            onRunRealtime={runRealtimeExtraction}
-            onDownload={handleDownload}
-            standardTab={{
-                title: 'Standard',
-                description: 'Extracts building footprints using standard open-source data. Good for general use.',
-                buttonText: 'Run Standard'
-            }}
-            realtimeTab={{
-                title: 'AGIS Realtime',
-                description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
-                buttonText: 'Run Realtime'
-            }}
-        />
-       </div>
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] w-auto max-w-[90vw]">
+        <div ref={controlRef}>
+          <GisControlBar
+              title={<><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</>}
+              hasSelection={hasSelection}
+              isProcessing={isProcessing}
+              geoData={geoData}
+              colabUrl={colabUrl}
+              statusMessage={statusMessage}
+              onRunStandard={runStandardExtraction}
+              onRunRealtime={runRealtimeExtraction}
+              onDownload={handleDownload}
+              standardTab={{
+                  title: 'Standard',
+                  description: 'Extracts building footprints using standard open-source data. Good for general use.',
+                  buttonText: 'Run Standard'
+              }}
+              realtimeTab={{
+                  title: 'AGIS Realtime',
+                  description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
+                  buttonText: 'Run Realtime'
+              }}
+          />
+        </div>
+      </div>
+
 
       <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={true} style={{ height: '100%', width: '100%' }}>
         <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />

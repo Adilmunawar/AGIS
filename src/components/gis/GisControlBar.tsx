@@ -51,10 +51,10 @@ export function GisControlBar({
   const [activeTab, setActiveTab] = React.useState('standard');
 
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="flex flex-col items-center gap-2">
       <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-2xl backdrop-blur-xl overflow-hidden">
         <div className="p-2">
-          <div className="flex flex-wrap items-center justify-start gap-x-4 gap-y-2">
+          <div className="flex w-full flex-wrap items-center justify-center md:justify-between gap-4">
             <div className="flex items-center gap-2">
               <div className="flex-shrink-0 flex items-center gap-2 font-medium text-foreground">{title}</div>
               <p
@@ -65,10 +65,8 @@ export function GisControlBar({
             </div>
 
             {hasSelection && (
-                <div
-                  className="flex flex-wrap items-center justify-center gap-3"
-                >
-                  <Tabs defaultValue="standard" value={activeTab} onValueChange={setActiveTab}>
+                <div className="flex items-center gap-3">
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList>
                       <TabsTrigger value="standard">{standardTab.title}</TabsTrigger>
                       <TabsTrigger value="realtime">{realtimeTab.title}</TabsTrigger>
