@@ -47,6 +47,7 @@ export default function ExtractRoadsClient() {
   const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
   const [geoData, setGeoData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
@@ -57,13 +58,15 @@ export default function ExtractRoadsClient() {
       const { status, message, action, data } = e.data;
 
       if (status === 'info') {
-        toast({ title: "Python Engine", description: message });
+        setStatusMessage(message);
       } else if (status === 'success' && action === 'EXTRACT_ROADS') {
         setGeoData(data);
         setIsProcessing(false);
-        toast({ title: "Roads Extracted", description: "Geometry successfully processed." });
+        setStatusMessage(`Extraction complete. ${data?.features?.length || 0} features loaded.`);
+        toast({ title: "Roads Extracted", description: "Road network successfully processed." });
       } else if (status === 'error') {
         setIsProcessing(false);
+        setStatusMessage(message);
         toast({ title: "Processing Error", description: message, variant: "destructive" });
       }
     };
@@ -76,19 +79,22 @@ export default function ExtractRoadsClient() {
     const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
     setPolygonCoords(polyString);
     setSelectionBounds(layer.getBounds());
+    setStatusMessage(null);
+    setGeoData(null);
   };
 
   const handleDeleted = () => {
     setPolygonCoords(null);
     setSelectionBounds(null);
     setGeoData(null);
+    setStatusMessage(null);
   };
 
   const runStandardExtraction = async () => {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Standard Extraction", description: "Fetching road network data..." });
+    setStatusMessage("Fetching road network from OpenStreetMap...");
 
     try {
       const query = `[out:json][timeout:25];(way["highway"](poly:"${polygonCoords}"););(._;>;);out;`;
@@ -104,16 +110,18 @@ export default function ExtractRoadsClient() {
       if (!roadsGeoJSON.features.length) {
          toast({ title: "No Data Found", description: "No roads were found in the selected area.", variant: "destructive" });
          setIsProcessing(false);
+         setStatusMessage("No roads found in the selected area.");
          return;
       }
 
-      toast({ title: "Standard Extraction", description: "Processing road geometries..." });
+      setStatusMessage("Processing road geometries...");
       workerRef.current?.postMessage({
         action: "EXTRACT_ROADS",
         payload: { roads: roadsGeoJSON }
       });
     } catch (error: any) {
       setIsProcessing(false);
+      setStatusMessage("Failed to fetch map data.");
       toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
     }
   };
@@ -122,7 +130,7 @@ export default function ExtractRoadsClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "AGIS Realtime", description: "Requesting data from the extraction engine..." });
+    setStatusMessage("Requesting data from the AGIS Realtime engine...");
 
     try {
         const bbox = [
@@ -145,12 +153,14 @@ export default function ExtractRoadsClient() {
 
         const result = await response.json();
         setGeoData(result);
+        setStatusMessage(`Found ${result?.features?.length || 0} road features.`);
         toast({
             title: "AGIS Realtime Extraction Complete",
             description: `Found ${result?.features?.length || 0} road features.`,
         });
 
     } catch (error: any) {
+        setStatusMessage("Backend connection failed.");
         toast({
             variant: "destructive",
             title: "Backend Connection Error",
@@ -185,6 +195,7 @@ export default function ExtractRoadsClient() {
         isProcessing={isProcessing}
         geoData={geoData}
         colabUrl={colabUrl}
+        statusMessage={statusMessage}
         onRunStandard={runStandardExtraction}
         onRunRealtime={runRealtimeExtraction}
         onDownload={handleDownload}

@@ -21,6 +21,7 @@ interface GisControlBarProps {
   isProcessing: boolean;
   geoData: any;
   colabUrl?: string;
+  statusMessage: string | null;
   onRunStandard: () => void;
   onRunRealtime: () => void;
   onDownload: () => void;
@@ -42,6 +43,7 @@ export function GisControlBar({
   isProcessing,
   geoData,
   colabUrl,
+  statusMessage,
   onRunStandard,
   onRunRealtime,
   onDownload,
@@ -51,11 +53,10 @@ export function GisControlBar({
   const [activeTab, setActiveTab] = React.useState('standard');
 
   return (
-    <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-[95%] max-w-fit">
+    <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-auto max-w-[95%] flex flex-col items-center gap-2">
       <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-2xl backdrop-blur-xl overflow-hidden">
         <motion.div layout className="p-2">
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            {/* Title and Status */}
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 flex items-center gap-2 font-medium text-foreground">{title}</div>
               <AnimatePresence mode="wait">
@@ -72,7 +73,6 @@ export function GisControlBar({
               </AnimatePresence>
             </div>
 
-            {/* Controls - only show when there is a selection */}
             <AnimatePresence>
               {hasSelection && (
                 <motion.div
@@ -92,7 +92,7 @@ export function GisControlBar({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                           <span tabIndex={0}> {/* Wrapper for tooltip on disabled button */}
+                           <span tabIndex={0}>
                             <motion.div
                               key={activeTab + (colabUrl ? '1' : '0')}
                               initial={{ opacity: 0, scale: 0.8 }}
@@ -144,6 +144,21 @@ export function GisControlBar({
           </div>
         </motion.div>
       </Card>
+      
+      <AnimatePresence>
+        {statusMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
+          >
+            {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            <p className="text-muted-foreground">{statusMessage}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

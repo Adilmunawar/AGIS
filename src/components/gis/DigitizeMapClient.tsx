@@ -80,6 +80,7 @@ export default function DigitizeMapClient() {
   const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
   const [geoData, setGeoData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
@@ -90,13 +91,15 @@ export default function DigitizeMapClient() {
       const { status, message, action, data } = e.data;
 
       if (status === 'info') {
-        toast({ title: "Python Engine", description: message });
+        setStatusMessage(message);
       } else if (status === 'success' && action === 'DIGITIZE_MAP') {
         setGeoData(data);
         setIsProcessing(false);
-        toast({ title: "Map Digitized", description: "Geometry successfully processed." });
+        setStatusMessage(`Extraction complete. ${data?.features?.length || 0} features loaded.`);
+        toast({ title: "Map Digitized", description: "Building footprints successfully processed." });
       } else if (status === 'error') {
         setIsProcessing(false);
+        setStatusMessage(message);
         toast({ title: "Processing Error", description: message, variant: "destructive" });
       }
     };
@@ -109,19 +112,22 @@ export default function DigitizeMapClient() {
     const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
     setPolygonCoords(polyString);
     setSelectionBounds(layer.getBounds());
+    setStatusMessage(null);
+    setGeoData(null);
   };
   
   const handleDeleted = () => {
     setPolygonCoords(null);
     setSelectionBounds(null);
     setGeoData(null);
+    setStatusMessage(null);
   };
 
   const runStandardExtraction = async () => {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Standard Extraction", description: "Fetching building footprints..." });
+    setStatusMessage("Fetching building footprints from OpenStreetMap...");
 
     try {
       const query = `[out:json][timeout:25];(way["building"](poly:"${polygonCoords}");relation["building"](poly:"${polygonCoords}"););out body;>;out skel qt;`;
@@ -134,16 +140,18 @@ export default function DigitizeMapClient() {
       if (!buildingsGeoJSON.features.length) {
          toast({ title: "No Data Found", description: "No buildings were found in the selected area.", variant: "destructive" });
          setIsProcessing(false);
+         setStatusMessage("No buildings found in the selected area.");
          return;
       }
 
-      toast({ title: "Standard Extraction", description: "Processing geometries..." });
+      setStatusMessage("Processing geometries...");
       workerRef.current?.postMessage({
         action: "DIGITIZE_MAP",
         payload: { buildings: buildingsGeoJSON }
       });
     } catch (error: any) {
       setIsProcessing(false);
+      setStatusMessage("Failed to fetch map data.");
       toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
     }
   };
@@ -152,7 +160,7 @@ export default function DigitizeMapClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "AGIS Realtime", description: "Requesting data from the extraction engine..." });
+    setStatusMessage("Requesting data from the AGIS Realtime engine...");
 
     try {
         const bbox = [
@@ -175,12 +183,14 @@ export default function DigitizeMapClient() {
 
         const result = await response.json();
         setGeoData(result);
+        setStatusMessage(`Found ${result?.features?.length || 0} building features.`);
         toast({
             title: "AGIS Realtime Extraction Complete",
             description: `Found ${result?.features?.length || 0} building features.`,
         });
 
     } catch (error: any) {
+        setStatusMessage("Backend connection failed.");
         toast({
             variant: "destructive",
             title: "Backend Connection Error",
@@ -214,6 +224,7 @@ export default function DigitizeMapClient() {
         isProcessing={isProcessing}
         geoData={geoData}
         colabUrl={colabUrl}
+        statusMessage={statusMessage}
         onRunStandard={runStandardExtraction}
         onRunRealtime={runRealtimeExtraction}
         onDownload={handleDownload}
