@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Loader2, Server } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Loader2, Server, Crosshair, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -19,6 +19,8 @@ const sidebarNavItems = [
   { href: '/dashboard/extract-roads', label: 'Extract Roads', icon: Route },
   { href: '/dashboard/merge-jsons', label: 'Merge JSONs', icon: LayersIcon },
   { href: '/dashboard/export-shapefile', label: 'Export Shapefile', icon: Download },
+  { href: '/dashboard/import-shapefiles', label: 'Import Shapefiles', icon: Package },
+  { href: '/dashboard/ai-vision', label: 'Real-Time AI Vision', icon: Crosshair },
 ];
 
 const secondaryNavItems = [
@@ -116,5 +118,3 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
-
-    
