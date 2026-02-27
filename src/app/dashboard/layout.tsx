@@ -19,7 +19,6 @@ const sidebarNavItems = [
   { href: '/dashboard/extract-roads', label: 'Extract Roads', icon: Route },
   { href: '/dashboard/merge-jsons', label: 'Merge JSONs', icon: LayersIcon },
   { href: '/dashboard/export-shapefile', label: 'Export Shapefile', icon: Download },
-  { href: '/dashboard/import-shapefiles', label: 'Import Shapefiles', icon: Package },
   { href: '/dashboard/ai-vision', label: 'Real-Time AI Vision', icon: Crosshair },
 ];
 
