@@ -4,9 +4,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Download, Play, Server, ShieldAlert } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
   Tooltip,
   TooltipContent,
@@ -53,32 +51,21 @@ export function GisControlBar({
   const [activeTab, setActiveTab] = React.useState('standard');
 
   return (
-    <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-auto max-w-[95%] flex flex-col items-center gap-2">
+    <div className="flex flex-col items-start gap-2">
       <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-2xl backdrop-blur-xl overflow-hidden">
-        <motion.div layout className="p-2">
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <div className="flex items-center gap-3">
+        <div className="p-2">
+          <div className="flex flex-wrap items-center justify-start gap-x-4 gap-y-2">
+            <div className="flex items-center gap-2">
               <div className="flex-shrink-0 flex items-center gap-2 font-medium text-foreground">{title}</div>
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={hasSelection ? 'selected' : 'unselected'}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-xs text-muted-foreground hidden sm:block"
-                >
-                  {hasSelection ? 'Area selected.' : 'Draw a polygon to begin.'}
-                </motion.p>
-              </AnimatePresence>
+              <p
+                className="text-xs text-muted-foreground hidden sm:block"
+              >
+                {hasSelection ? 'Area selected.' : 'Draw a polygon to begin.'}
+              </p>
             </div>
 
-            <AnimatePresence>
-              {hasSelection && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
+            {hasSelection && (
+                <div
                   className="flex flex-wrap items-center justify-center gap-3"
                 >
                   <Tabs defaultValue="standard" value={activeTab} onValueChange={setActiveTab}>
@@ -93,11 +80,7 @@ export function GisControlBar({
                       <Tooltip>
                         <TooltipTrigger asChild>
                            <span tabIndex={0}>
-                            <motion.div
-                              key={activeTab + (colabUrl ? '1' : '0')}
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                            >
+                            <div>
                               {activeTab === 'standard' ? (
                                 <Button onClick={onRunStandard} disabled={isProcessing} size="sm">
                                   {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
@@ -114,7 +97,7 @@ export function GisControlBar({
                                   {realtimeTab.buttonText}
                                 </Button>
                               )}
-                            </motion.div>
+                            </div>
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -131,34 +114,27 @@ export function GisControlBar({
                     </TooltipProvider>
 
                     {geoData && (
-                      <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }}>
+                      <div>
                         <Button onClick={onDownload} variant="outline" size="icon" className="h-9 w-9">
                           <Download className="h-4 w-4" />
                         </Button>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+            )}
           </div>
-        </motion.div>
+        </div>
       </Card>
       
-      <AnimatePresence>
-        {statusMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.3 }}
+      {statusMessage && (
+          <div
             className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
           >
             {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             <p className="text-muted-foreground">{statusMessage}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </div>
   );
 }

@@ -83,10 +83,10 @@ const baseLayers: BaseLayer[] = [
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     },
     { 
-      name: 'Google Maps',
-      url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      name: 'Google Satellite',
+      url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
       attribution: '&copy; Google',
-      previewUrl: 'https://picsum.photos/seed/googleplain/400/300',
+      previewUrl: 'https://picsum.photos/seed/googlesatellite/400/300',
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     },
     { 
@@ -249,7 +249,7 @@ export default function DigitizeMapClient() {
 
   return (
     <div className="absolute inset-0 z-0">
-       <div ref={controlRef} className="leaflet-top leaflet-left">
+       <div ref={controlRef} className="leaflet-top leaflet-left p-3">
          <GisControlBar
             title={<><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</>}
             hasSelection={hasSelection}
