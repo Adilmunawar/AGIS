@@ -26,10 +26,10 @@ export function LoginPageClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <main className="flex flex-grow items-center justify-center p-6">
+      <main className="flex flex-grow items-center justify-center p-4">
         <LoginForm />
       </main>
-      <footer className="w-full flex-shrink-0 py-6 text-center text-sm text-muted-foreground">
+      <footer className="w-full flex-shrink-0 py-4 text-center text-sm text-muted-foreground">
         <p>
           Proudly developed by{' '}
           <span className="font-semibold text-primary">Adil Munawar</span>

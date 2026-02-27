@@ -125,19 +125,19 @@ export function SignUpForm() {
 
   return (
     <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg transition-all duration-300 sm:hover:shadow-2xl sm:hover:-translate-y-1 sm:hover:shadow-primary/10">
-      <CardHeader className="text-center">
+      <CardHeader className="text-center p-4">
         <Image 
           src="/AGIS animation/AGIS (1).gif"
           alt="AGIS Logo Animation"
-          width="128"
-          height="128"
-          className="mx-auto mb-4"
+          width="96"
+          height="96"
+          className="mx-auto mb-2"
           unoptimized
         />
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 pt-0">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
             <FormField
               control={form.control}
               name="name"
@@ -248,7 +248,7 @@ export function SignUpForm() {
             </Button>
           </form>
         </Form>
-        <div className="relative my-6">
+        <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
             </div>
@@ -269,7 +269,7 @@ export function SignUpForm() {
             )}
         </Button>
       </CardContent>
-      <CardFooter className="flex justify-center text-sm">
+      <CardFooter className="flex justify-center text-sm p-4 pt-0">
         <p className="text-muted-foreground">
           Already have an account?{' '}
           <Link href="/login" className="font-semibold text-primary hover:underline">
