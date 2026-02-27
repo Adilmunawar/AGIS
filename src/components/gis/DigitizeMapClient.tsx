@@ -158,7 +158,7 @@ export default function DigitizeMapClient() {
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
-  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
+  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[2]);
   
   useEffect(() => {
     workerRef.current = new Worker('/workers/digitizeWorker.js');
