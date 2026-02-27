@@ -92,36 +92,40 @@ export function GisControlBar({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <motion.div
-                            key={activeTab}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                          >
-                            {activeTab === 'standard' ? (
-                              <Button onClick={onRunStandard} disabled={isProcessing} size="sm">
-                                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                                {standardTab.buttonText}
-                              </Button>
-                            ) : (
-                              <Button onClick={onRunRealtime} disabled={isProcessing || !colabUrl} size="sm">
-                                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Server className="mr-2 h-4 w-4" />}
-                                {realtimeTab.buttonText}
-                              </Button>
-                            )}
-                          </motion.div>
+                           <span tabIndex={0}> {/* Wrapper for tooltip on disabled button */}
+                            <motion.div
+                              key={activeTab + (colabUrl ? '1' : '0')}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                            >
+                              {activeTab === 'standard' ? (
+                                <Button onClick={onRunStandard} disabled={isProcessing} size="sm">
+                                  {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                                  {standardTab.buttonText}
+                                </Button>
+                              ) : !colabUrl ? (
+                                <Button variant="outline" size="sm" disabled style={{pointerEvents: 'none'}}>
+                                  <ShieldAlert className="mr-2 h-4 w-4 text-destructive" />
+                                  Server Not Connected
+                                </Button>
+                              ) : (
+                                <Button onClick={onRunRealtime} disabled={isProcessing} size="sm">
+                                  {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Server className="mr-2 h-4 w-4" />}
+                                  {realtimeTab.buttonText}
+                                </Button>
+                              )}
+                            </motion.div>
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="text-xs max-w-xs">
-                            {activeTab === 'standard' ? standardTab.description : 
-                              !colabUrl ? 'AGIS Realtime engine is unavailable. Please configure it.' : realtimeTab.description
+                           <p className="text-xs max-w-xs">
+                            {activeTab === 'standard'
+                                ? standardTab.description
+                                : !colabUrl
+                                ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.'
+                                : realtimeTab.description
                             }
                           </p>
-                            {!colabUrl && activeTab === 'realtime' && (
-                                <Alert variant="destructive" className="p-2 mt-2 text-xs">
-                                    <ShieldAlert className="h-4 w-4" />
-                                    <AlertTitle className="font-semibold">Server Not Configured</AlertTitle>
-                                </Alert>
-                            )}
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
