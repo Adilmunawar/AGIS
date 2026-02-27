@@ -120,7 +120,7 @@ export default function ExtractRoadsClient() {
   const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
   const [geoData, setGeoData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>('Engine ready. Draw a polygon to begin.');
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
@@ -152,7 +152,7 @@ export default function ExtractRoadsClient() {
     const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
     setPolygonCoords(polyString);
     setSelectionBounds(layer.getBounds());
-    setStatusMessage(null);
+    setStatusMessage('Area selected. Ready for extraction.');
     setGeoData(null);
   };
 
@@ -160,7 +160,7 @@ export default function ExtractRoadsClient() {
     setPolygonCoords(null);
     setSelectionBounds(null);
     setGeoData(null);
-    setStatusMessage(null);
+    setStatusMessage('Selection cleared. Draw a new polygon to begin.');
   };
 
   const runStandardExtraction = async () => {

@@ -53,6 +53,15 @@ export function GisControlBar({
   realtimeTab,
 }: GisControlBarProps) {
   const [activeTab, setActiveTab] = React.useState('standard');
+  
+  const runButtonTooltipContent = !hasSelection
+    ? 'Please draw a polygon on the map to enable extraction.'
+    : activeTab === 'standard'
+      ? standardTab.description
+      : !colabUrl
+        ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.'
+        : realtimeTab.description;
+
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -86,72 +95,63 @@ export function GisControlBar({
                 </p>
               </div>
 
-              {hasSelection && (
-                  <div className="flex items-center gap-3">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden sm:block">
-                      <TabsList>
-                        <TabsTrigger value="standard">{standardTab.title}</TabsTrigger>
-                        <TabsTrigger value="realtime">{realtimeTab.title}</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
+              <div className="flex items-center gap-3">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden sm:block">
+                  <TabsList>
+                    <TabsTrigger value="standard">{standardTab.title}</TabsTrigger>
+                    <TabsTrigger value="realtime">{realtimeTab.title}</TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
-                    <div className="flex items-center gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                              <div>
-                                {activeTab === 'standard' ? (
-                                  <Button onClick={onRunStandard} disabled={isProcessing} size="sm">
-                                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                                    {standardTab.buttonText}
-                                  </Button>
-                                ) : !colabUrl ? (
-                                  <Button variant="outline" size="sm" disabled style={{pointerEvents: 'none'}}>
-                                    <ShieldAlert className="mr-2 h-4 w-4 text-destructive" />
-                                    Server Not Connected
-                                  </Button>
-                                ) : (
-                                  <Button onClick={onRunRealtime} disabled={isProcessing} size="sm">
-                                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Server className="mr-2 h-4 w-4" />}
-                                    {realtimeTab.buttonText}
-                                  </Button>
-                                )}
-                              </div>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs max-w-xs">
-                              {activeTab === 'standard'
-                                  ? standardTab.description
-                                  : !colabUrl
-                                  ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.'
-                                  : realtimeTab.description
-                              }
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0}>
+                          <div>
+                            {activeTab === 'standard' ? (
+                              <Button onClick={onRunStandard} disabled={!hasSelection || isProcessing} size="sm">
+                                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                                {standardTab.buttonText}
+                              </Button>
+                            ) : !colabUrl ? (
+                              <Button variant="outline" size="sm" disabled style={{pointerEvents: 'none'}}>
+                                <ShieldAlert className="mr-2 h-4 w-4 text-destructive" />
+                                Server Not Connected
+                              </Button>
+                            ) : (
+                              <Button onClick={onRunRealtime} disabled={!hasSelection || isProcessing} size="sm">
+                                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Server className="mr-2 h-4 w-4" />}
+                                {realtimeTab.buttonText}
+                              </Button>
+                            )}
+                          </div>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs max-w-xs">{runButtonTooltipContent}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
 
-                      {geoData && (
-                        <div>
-                           <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button onClick={onDownload} variant="outline" size="icon" className="h-9 w-9">
-                                            <Download className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Download GeoJSON</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                           </TooltipProvider>
-                        </div>
-                      )}
+                  {geoData && (
+                    <div>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button onClick={onDownload} variant="outline" size="icon" className="h-9 w-9">
+                                        <Download className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Download GeoJSON</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
-                  </div>
-              )}
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </Card>
@@ -174,14 +174,12 @@ export function GisControlBar({
         </Card>
       </div>
       
-      {statusMessage && (
-          <div
-            className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
-          >
-            {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-            <p className="text-muted-foreground">{statusMessage}</p>
-          </div>
-      )}
+      <div
+        className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
+      >
+        {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        <p className="text-muted-foreground">{statusMessage}</p>
+      </div>
     </div>
   );
 }
