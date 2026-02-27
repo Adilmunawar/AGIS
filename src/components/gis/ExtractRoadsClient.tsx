@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
@@ -64,6 +64,57 @@ const baseLayers: BaseLayer[] = [
     },
 ];
 
+function MapControlsWrapper({
+    polygonCoords, isProcessing, geoData, colabUrl, statusMessage,
+    runStandardExtraction, runRealtimeExtraction, handleDownload
+} : {
+    polygonCoords: string | null; isProcessing: boolean; geoData: any;
+    colabUrl: string; statusMessage: string | null; runStandardExtraction: () => void;
+    runRealtimeExtraction: () => void; handleDownload: () => void;
+}) {
+    const map = useMap();
+    const controlRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (controlRef.current) {
+            L.DomEvent.disableClickPropagation(controlRef.current);
+            L.DomEvent.disableScrollPropagation(controlRef.current);
+        }
+    }, []);
+
+    const hasSelection = !!polygonCoords;
+
+    return (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] w-auto max-w-[90vw]">
+            <div ref={controlRef}>
+              <GisControlBar
+                title={<><RouteIcon className="h-5 w-5 text-primary"/> Extract Roads</>}
+                hasSelection={hasSelection}
+                isProcessing={isProcessing}
+                geoData={geoData}
+                colabUrl={colabUrl}
+                statusMessage={statusMessage}
+                onRunStandard={runStandardExtraction}
+                onRunRealtime={runRealtimeExtraction}
+                onDownload={handleDownload}
+                onZoomIn={() => map.zoomIn()}
+                onZoomOut={() => map.zoomOut()}
+                standardTab={{
+                    title: 'Standard',
+                    description: 'Extracts road networks using standard open-source data. Ideal for quick analysis.',
+                    buttonText: 'Run Standard'
+                }}
+                realtimeTab={{
+                    title: 'AGIS Realtime',
+                    description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
+                    buttonText: 'Run Realtime'
+                }}
+              />
+            </div>
+        </div>
+    );
+}
+
 export default function ExtractRoadsClient() {
   const [polygonCoords, setPolygonCoords] = useState<string | null>(null);
   const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
@@ -74,15 +125,7 @@ export default function ExtractRoadsClient() {
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
-  const controlRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (controlRef.current) {
-        L.DomEvent.disableClickPropagation(controlRef.current);
-        L.DomEvent.disableScrollPropagation(controlRef.current);
-    }
-  }, []);
-
+  
   useEffect(() => {
     workerRef.current = new Worker('/workers/roadsWorker.js');
     workerRef.current.onmessage = (e: MessageEvent) => {
@@ -215,37 +258,9 @@ export default function ExtractRoadsClient() {
     URL.revokeObjectURL(url);
   };
   
-  const hasSelection = !!polygonCoords;
-
   return (
     <div className="absolute inset-0 z-0">
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] w-auto max-w-[90vw]">
-        <div ref={controlRef}>
-          <GisControlBar
-            title={<><RouteIcon className="h-5 w-5 text-primary"/> Extract Roads</>}
-            hasSelection={hasSelection}
-            isProcessing={isProcessing}
-            geoData={geoData}
-            colabUrl={colabUrl}
-            statusMessage={statusMessage}
-            onRunStandard={runStandardExtraction}
-            onRunRealtime={runRealtimeExtraction}
-            onDownload={handleDownload}
-            standardTab={{
-                title: 'Standard',
-                description: 'Extracts road networks using standard open-source data. Ideal for quick analysis.',
-                buttonText: 'Run Standard'
-            }}
-            realtimeTab={{
-                title: 'AGIS Realtime',
-                description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
-                buttonText: 'Run Realtime'
-            }}
-          />
-        </div>
-      </div>
-
-      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={true} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={false} style={{ height: '100%', width: '100%' }}>
         <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
 
         <TileLayer
@@ -282,6 +297,17 @@ export default function ExtractRoadsClient() {
         </FeatureGroup>
         
         {geoData && <GeoJSON data={geoData} style={{ color: '#ef4444', weight: 4 }} />}
+
+         <MapControlsWrapper 
+            polygonCoords={polygonCoords}
+            isProcessing={isProcessing}
+            geoData={geoData}
+            colabUrl={colabUrl}
+            statusMessage={statusMessage}
+            runStandardExtraction={runStandardExtraction}
+            runRealtimeExtraction={runRealtimeExtraction}
+            handleDownload={handleDownload}
+        />
       </MapContainer>
     </div>
   );
