@@ -1,15 +1,13 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
 import { Route as RouteIcon } from 'lucide-react';
 import type { LatLng, LatLngBounds } from 'leaflet';
-import { MapSearchControl } from './MapSearchControl';
 import { GisControlBar } from './GisControlBar';
-
-const { BaseLayer } = LayersControl;
+import { MapHeader, type BaseLayer } from './MapHeader';
 
 function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
   const nodes = new Map<number, number[]>();
@@ -41,6 +39,27 @@ function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features: features as GeoJSON.Feature[] };
 }
 
+const baseLayers: BaseLayer[] = [
+    { 
+      name: 'ESRI Satellite', 
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri',
+      previewUrl: 'https://picsum.photos/seed/esrisat/400/300'
+    },
+    { 
+      name: 'Google Hybrid', 
+      url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      attribution: '&copy; Google',
+      previewUrl: 'https://picsum.photos/seed/googlehybrid/400/300',
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    },
+    { 
+      name: 'ESRI Terrain',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri',
+      previewUrl: 'https://picsum.photos/seed/esriterrain/400/300'
+    },
+];
 
 export default function ExtractRoadsClient() {
   const [polygonCoords, setPolygonCoords] = useState<string | null>(null);
@@ -51,6 +70,7 @@ export default function ExtractRoadsClient() {
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
+  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[1]);
 
   useEffect(() => {
     workerRef.current = new Worker('/workers/roadsWorker.js');
@@ -210,19 +230,15 @@ export default function ExtractRoadsClient() {
         }}
       />
 
-      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={true} style={{ height: '100%', width: '100%' }}>
-        <MapSearchControl />
-        <LayersControl position="topright">
-          <BaseLayer checked name="ESRI Satellite">
-            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
-          </BaseLayer>
-          <BaseLayer name="Google Satellite">
-            <TileLayer url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" attribution="&copy; Google" />
-          </BaseLayer>
-          <BaseLayer name="ESRI Terrain">
-            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
-          </BaseLayer>
-        </LayersControl>
+      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+        <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
+
+        <TileLayer
+          key={activeLayer.url}
+          url={activeLayer.url}
+          attribution={activeLayer.attribution}
+          subdomains={activeLayer.subdomains}
+        />
         
         <FeatureGroup>
           <EditControl 
