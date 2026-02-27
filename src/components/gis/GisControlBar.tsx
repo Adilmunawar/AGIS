@@ -71,7 +71,7 @@ export function GisControlBar({
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button onClick={onZoomIn} variant="ghost" size="icon" className="h-9 w-9">
+                            <Button onClick={onZoomIn} variant="ghost" size="icon" className="h-9 w-9 gap-0">
                                 <Plus className="h-5 w-5" />
                             </Button>
                         </TooltipTrigger>
@@ -161,7 +161,7 @@ export function GisControlBar({
                <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button onClick={onZoomOut} variant="ghost" size="icon" className="h-9 w-9">
+                            <Button onClick={onZoomOut} variant="ghost" size="icon" className="h-9 w-9 gap-0">
                                 <Minus className="h-5 w-5" />
                             </Button>
                         </TooltipTrigger>
