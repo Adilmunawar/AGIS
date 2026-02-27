@@ -237,7 +237,7 @@ export default function ExtractRoadsClient() {
           key={activeLayer.url}
           url={activeLayer.url}
           attribution={activeLayer.attribution}
-          subdomains={activeLayer.subdomains}
+          subdomains={activeLayer.subdomains || ''}
         />
         
         <FeatureGroup>

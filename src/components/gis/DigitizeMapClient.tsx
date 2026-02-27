@@ -268,7 +268,7 @@ export default function DigitizeMapClient() {
           key={activeLayer.url}
           url={activeLayer.url}
           attribution={activeLayer.attribution}
-          subdomains={activeLayer.subdomains}
+          subdomains={activeLayer.subdomains || ''}
         />
         
         <FeatureGroup>
