@@ -4,7 +4,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, Play, Server, ShieldAlert, ZoomIn, ZoomOut } from 'lucide-react';
+import { Loader2, Download, Play, Server, ShieldAlert, Plus, Minus } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -72,7 +72,7 @@ export function GisControlBar({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button onClick={onZoomIn} variant="ghost" size="icon" className="h-9 w-9">
-                                <ZoomIn className="h-5 w-5" />
+                                <Plus className="h-5 w-5" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -162,7 +162,7 @@ export function GisControlBar({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button onClick={onZoomOut} variant="ghost" size="icon" className="h-9 w-9">
-                                <ZoomOut className="h-5 w-5" />
+                                <Minus className="h-5 w-5" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
