@@ -95,12 +95,11 @@ export default function DigitizeMapClient() {
       } else if (status === 'success' && action === 'DIGITIZE_MAP') {
         setGeoData(data);
         setIsProcessing(false);
-        setStatusMessage(`Extraction complete. ${data?.features?.length || 0} features loaded.`);
-        toast({ title: "Map Digitized", description: "Building footprints successfully processed." });
+        setStatusMessage(`Vectorization complete. ${data?.features?.length || 0} building footprints delineated.`);
       } else if (status === 'error') {
         setIsProcessing(false);
         setStatusMessage(message);
-        toast({ title: "Processing Error", description: message, variant: "destructive" });
+        toast({ title: "Geoprocessing Error", description: message, variant: "destructive" });
       }
     };
     return () => workerRef.current?.terminate();
@@ -127,7 +126,7 @@ export default function DigitizeMapClient() {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    setStatusMessage("Fetching building footprints from OpenStreetMap...");
+    setStatusMessage("Initiating query to OSM Overpass API for building polygons...");
 
     try {
       const query = `[out:json][timeout:25];(way["building"](poly:"${polygonCoords}");relation["building"](poly:"${polygonCoords}"););out body;>;out skel qt;`;
@@ -138,20 +137,20 @@ export default function DigitizeMapClient() {
       const buildingsGeoJSON = osmToGeoJSON(rawData);
 
       if (!buildingsGeoJSON.features.length) {
-         toast({ title: "No Data Found", description: "No buildings were found in the selected area.", variant: "destructive" });
+         toast({ title: "No Data Found", description: "No building footprints were found in the selected area.", variant: "destructive" });
          setIsProcessing(false);
-         setStatusMessage("No buildings found in the selected area.");
+         setStatusMessage("No building footprints found in the selected area.");
          return;
       }
 
-      setStatusMessage("Processing geometries...");
+      setStatusMessage("Executing geometric simplification and validation...");
       workerRef.current?.postMessage({
         action: "DIGITIZE_MAP",
         payload: { buildings: buildingsGeoJSON }
       });
     } catch (error: any) {
       setIsProcessing(false);
-      setStatusMessage("Failed to fetch map data.");
+      setStatusMessage("OSM data retrieval failed. Check API endpoint.");
       toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
     }
   };
@@ -160,7 +159,7 @@ export default function DigitizeMapClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    setStatusMessage("Requesting data from the AGIS Realtime engine...");
+    setStatusMessage("Interfacing with AGIS Realtime service for Overture data...");
 
     try {
         const bbox = [
@@ -183,14 +182,14 @@ export default function DigitizeMapClient() {
 
         const result = await response.json();
         setGeoData(result);
-        setStatusMessage(`Found ${result?.features?.length || 0} building features.`);
+        setStatusMessage(`Vectorization complete. ${result?.features?.length || 0} features delineated.`);
         toast({
             title: "AGIS Realtime Extraction Complete",
             description: `Found ${result?.features?.length || 0} building features.`,
         });
 
     } catch (error: any) {
-        setStatusMessage("Backend connection failed.");
+        setStatusMessage("AGIS service endpoint unreachable.");
         toast({
             variant: "destructive",
             title: "Backend Connection Error",

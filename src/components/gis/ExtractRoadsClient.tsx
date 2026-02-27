@@ -62,12 +62,11 @@ export default function ExtractRoadsClient() {
       } else if (status === 'success' && action === 'EXTRACT_ROADS') {
         setGeoData(data);
         setIsProcessing(false);
-        setStatusMessage(`Extraction complete. ${data?.features?.length || 0} features loaded.`);
-        toast({ title: "Roads Extracted", description: "Road network successfully processed." });
+        setStatusMessage(`Topological analysis finished. ${data?.features?.length || 0} linear features extracted.`);
       } else if (status === 'error') {
         setIsProcessing(false);
         setStatusMessage(message);
-        toast({ title: "Processing Error", description: message, variant: "destructive" });
+        toast({ title: "Network Analysis Error", description: message, variant: "destructive" });
       }
     };
     return () => workerRef.current?.terminate();
@@ -94,7 +93,7 @@ export default function ExtractRoadsClient() {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    setStatusMessage("Fetching road network from OpenStreetMap...");
+    setStatusMessage("Querying OSM Overpass API for highway vectors...");
 
     try {
       const query = `[out:json][timeout:25];(way["highway"](poly:"${polygonCoords}"););(._;>;);out;`;
@@ -114,14 +113,14 @@ export default function ExtractRoadsClient() {
          return;
       }
 
-      setStatusMessage("Processing road geometries...");
+      setStatusMessage("Performing topological structuring on linear features...");
       workerRef.current?.postMessage({
         action: "EXTRACT_ROADS",
         payload: { roads: roadsGeoJSON }
       });
     } catch (error: any) {
       setIsProcessing(false);
-      setStatusMessage("Failed to fetch map data.");
+      setStatusMessage("Vector data retrieval failed. Check API endpoint.");
       toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
     }
   };
@@ -130,7 +129,7 @@ export default function ExtractRoadsClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    setStatusMessage("Requesting data from the AGIS Realtime engine...");
+    setStatusMessage("Contacting AGIS Realtime service for transport segments...");
 
     try {
         const bbox = [
@@ -153,14 +152,14 @@ export default function ExtractRoadsClient() {
 
         const result = await response.json();
         setGeoData(result);
-        setStatusMessage(`Found ${result?.features?.length || 0} road features.`);
+        setStatusMessage(`Topological analysis finished. ${result?.features?.length || 0} linear features extracted.`);
         toast({
             title: "AGIS Realtime Extraction Complete",
             description: `Found ${result?.features?.length || 0} road features.`,
         });
 
     } catch (error: any) {
-        setStatusMessage("Backend connection failed.");
+        setStatusMessage("AGIS service endpoint unreachable.");
         toast({
             variant: "destructive",
             title: "Backend Connection Error",
