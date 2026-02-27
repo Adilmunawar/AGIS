@@ -25,14 +25,16 @@ export function SignUpPageClient() {
   }
 
   return (
-    <>
-      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-6">
+    <div className="flex min-h-screen flex-col bg-background">
+      <main className="flex flex-grow items-center justify-center p-6">
         <SignUpForm />
-      </div>
-      <p className="fixed bottom-6 w-full text-center text-sm text-muted-foreground">
-        Proudly developed by{' '}
-        <span className="font-semibold text-primary">Adil Munawar</span>
-      </p>
-    </>
+      </main>
+      <footer className="w-full flex-shrink-0 py-6 text-center text-sm text-muted-foreground">
+        <p>
+          Proudly developed by{' '}
+          <span className="font-semibold text-primary">Adil Munawar</span>
+        </p>
+      </footer>
+    </div>
   );
 }
