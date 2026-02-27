@@ -148,7 +148,7 @@ export function SignUpForm() {
                     <div className="relative group">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
-                        placeholder="John Doe"
+                        placeholder="Adil Munawar"
                         {...field}
                         autoComplete="name"
                         className="pl-10"
@@ -271,13 +271,7 @@ export function SignUpForm() {
       </CardContent>
       <CardFooter className="flex justify-center text-sm">
         <p className="text-muted-foreground">
-          Already have an account?{' '}
-          <Link
-            href="/login"
-            className="font-medium text-primary hover:underline hover:text-primary/90"
-          >
-            Sign In
-          </Link>
+          Proudly developed by Adil Munawar
         </p>
       </CardFooter>
     </Card>
