@@ -66,22 +66,23 @@ export function GisControlBar({
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
-        <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-2xl backdrop-blur-xl overflow-hidden">
-            <div className="p-1">
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button onClick={onZoomIn} variant="ghost" size="icon" className="h-9 w-9 gap-0">
-                                <Plus className="h-5 w-5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Zoom In</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        </Card>
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        onClick={onZoomIn}
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 rounded-full border-slate-200/50 bg-white/80 shadow-lg backdrop-blur-xl hover:bg-white/90"
+                    >
+                        <Plus className="h-5 w-5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                    <p>Zoom In</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
 
         <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-2xl backdrop-blur-xl overflow-hidden">
           <div className="p-2">
@@ -128,50 +129,49 @@ export function GisControlBar({
                           </div>
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="top">
                         <p className="text-xs max-w-xs">{runButtonTooltipContent}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
 
-                  {geoData && (
-                    <div>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button onClick={onDownload} variant="outline" size="icon" className="h-9 w-9">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span tabIndex={0}>
+                                    <Button onClick={onDownload} variant="outline" size="icon" className="h-9 w-9" disabled={!geoData}>
                                         <Download className="h-4 w-4" />
                                     </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Download GeoJSON</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-                  )}
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>Download GeoJSON</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
               </div>
             </div>
           </div>
         </Card>
 
-        <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-2xl backdrop-blur-xl overflow-hidden">
-            <div className="p-1">
-               <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button onClick={onZoomOut} variant="ghost" size="icon" className="h-9 w-9 gap-0">
-                                <Minus className="h-5 w-5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Zoom Out</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        </Card>
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                     <Button
+                        onClick={onZoomOut}
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 rounded-full border-slate-200/50 bg-white/80 shadow-lg backdrop-blur-xl hover:bg-white/90"
+                    >
+                        <Minus className="h-5 w-5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                    <p>Zoom Out</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
       </div>
       
       <div
