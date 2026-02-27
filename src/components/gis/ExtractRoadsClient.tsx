@@ -8,6 +8,7 @@ import { Route as RouteIcon } from 'lucide-react';
 import type { LatLng, LatLngBounds } from 'leaflet';
 import { GisControlBar } from './GisControlBar';
 import { MapHeader, type BaseLayer } from './MapHeader';
+import L from 'leaflet';
 
 function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
   const nodes = new Map<number, number[]>();
@@ -41,12 +42,6 @@ function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
 
 const baseLayers: BaseLayer[] = [
     { 
-      name: 'ESRI Satellite', 
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      attribution: 'Tiles &copy; Esri',
-      previewUrl: 'https://picsum.photos/seed/esrisat/400/300'
-    },
-    { 
       name: 'Google Hybrid', 
       url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
       attribution: '&copy; Google',
@@ -54,10 +49,17 @@ const baseLayers: BaseLayer[] = [
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     },
     { 
-      name: 'ESRI Terrain',
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}',
+      name: 'Google Maps',
+      url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      attribution: '&copy; Google',
+      previewUrl: 'https://picsum.photos/seed/googleplain/400/300',
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    },
+    { 
+      name: 'ESRI Satellite', 
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       attribution: 'Tiles &copy; Esri',
-      previewUrl: 'https://picsum.photos/seed/esriterrain/400/300'
+      previewUrl: 'https://picsum.photos/seed/esrisat/400/300'
     },
 ];
 
@@ -70,7 +72,15 @@ export default function ExtractRoadsClient() {
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
-  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[1]);
+  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
+  const controlRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (controlRef.current) {
+        L.DomEvent.disableClickPropagation(controlRef.current);
+        L.DomEvent.disableScrollPropagation(controlRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     workerRef.current = new Worker('/workers/roadsWorker.js');
@@ -113,7 +123,7 @@ export default function ExtractRoadsClient() {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    setStatusMessage("Querying OSM Overpass API for highway vectors...");
+    setStatusMessage("Querying data source for highway vectors...");
 
     try {
       const query = `[out:json][timeout:25];(way["highway"](poly:"${polygonCoords}"););(._;>;);out;`;
@@ -140,7 +150,7 @@ export default function ExtractRoadsClient() {
       });
     } catch (error: any) {
       setIsProcessing(false);
-      setStatusMessage("Vector data retrieval failed. Check API endpoint.");
+      setStatusMessage("Vector data retrieval failed. Check data source endpoint.");
       toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
     }
   };
@@ -208,29 +218,31 @@ export default function ExtractRoadsClient() {
 
   return (
     <div className="absolute inset-0 z-0">
-      <GisControlBar
-        title={<><RouteIcon className="h-5 w-5 text-primary"/> Extract Roads</>}
-        hasSelection={hasSelection}
-        isProcessing={isProcessing}
-        geoData={geoData}
-        colabUrl={colabUrl}
-        statusMessage={statusMessage}
-        onRunStandard={runStandardExtraction}
-        onRunRealtime={runRealtimeExtraction}
-        onDownload={handleDownload}
-        standardTab={{
-            title: 'Standard',
-            description: 'Extracts road networks using standard open-source data. Ideal for quick analysis.',
-            buttonText: 'Run Standard'
-        }}
-        realtimeTab={{
-            title: 'AGIS Realtime',
-            description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
-            buttonText: 'Run Realtime'
-        }}
-      />
+      <div ref={controlRef} className="leaflet-top leaflet-left">
+        <GisControlBar
+          title={<><RouteIcon className="h-5 w-5 text-primary"/> Extract Roads</>}
+          hasSelection={hasSelection}
+          isProcessing={isProcessing}
+          geoData={geoData}
+          colabUrl={colabUrl}
+          statusMessage={statusMessage}
+          onRunStandard={runStandardExtraction}
+          onRunRealtime={runRealtimeExtraction}
+          onDownload={handleDownload}
+          standardTab={{
+              title: 'Standard',
+              description: 'Extracts road networks using standard open-source data. Ideal for quick analysis.',
+              buttonText: 'Run Standard'
+          }}
+          realtimeTab={{
+              title: 'AGIS Realtime',
+              description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
+              buttonText: 'Run Realtime'
+          }}
+        />
+      </div>
 
-      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={true} style={{ height: '100%', width: '100%' }}>
         <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
 
         <TileLayer
