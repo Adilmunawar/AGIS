@@ -271,7 +271,10 @@ export function SignUpForm() {
       </CardContent>
       <CardFooter className="flex justify-center text-sm">
         <p className="text-muted-foreground">
-          Proudly developed by Adil Munawar
+          Already have an account?{' '}
+          <Link href="/login" className="font-semibold text-primary hover:underline">
+            Sign in
+          </Link>
         </p>
       </CardFooter>
     </Card>

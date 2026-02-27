@@ -45,8 +45,11 @@ export function LoginPageClient() {
             </p>
         </div>
       </div>
-      <div className="flex items-center justify-center p-6 py-12 sm:p-12 bg-background">
+      <div className="relative flex flex-col items-center justify-center p-6 py-12 sm:p-12 bg-background">
         <LoginForm />
+        <p className="absolute bottom-6 text-center text-sm text-muted-foreground">
+          Proudly developed by Adil Munawar
+        </p>
       </div>
     </div>
   );
