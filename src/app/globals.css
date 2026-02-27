@@ -139,3 +139,90 @@ body {
   accent-color: hsl(var(--primary));
   margin-top: 2px;
 }
+
+
+/* Reposition default zoom controls to bottom right */
+.leaflet-top.leaflet-left {
+  top: auto !important;
+  left: auto !important;
+  bottom: 10px !important;
+  right: 10px !important;
+}
+
+/* Move draw controls (already in bottom-right) up to stack above zoom */
+.leaflet-bottom.leaflet-right {
+  bottom: 112px !important; /* height of zoom (88) + spacing (10) + border (2*2) = 100 */
+  right: 0px !important;
+}
+
+
+/* Restyle zoom controls to match */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  margin: 0 !important;
+}
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  width: 44px !important;
+  height: 44px !important;
+  background-color: hsla(0, 0%, 100%, 0.9) !important;
+  border: 1px solid hsl(var(--border) / 0.5) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: hsl(var(--foreground)) !important;
+  font-size: 1.8rem !important;
+  line-height: 44px !important;
+  font-weight: 300 !important;
+}
+
+.leaflet-control-zoom-in {
+  border-radius: 0.75rem 0.75rem 0 0 !important;
+  border-bottom: 0.5px solid hsl(var(--border) / 0.5) !important;
+}
+
+.leaflet-control-zoom-out {
+  border-radius: 0 0 0.75rem 0.75rem !important;
+}
+
+/* Style the draw controls to match */
+.leaflet-draw-toolbar a,
+.leaflet-draw-toolbar a:hover {
+  background-color: hsla(0, 0%, 100%, 0.9) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border) / 0.5) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
+.leaflet-draw-toolbar a:first-child {
+    border-top-left-radius: 0.75rem !important;
+    border-top-right-radius: 0.75rem !important;
+}
+.leaflet-draw-toolbar a:last-child {
+    border-bottom-left-radius: 0.75rem !important;
+    border-bottom-right-radius: 0.75rem !important;
+}
+
+.leaflet-draw-actions li:first-child a {
+    border-radius: 0.5rem !important;
+}
+.leaflet-draw-actions li:last-child a {
+    border-radius: 0.5rem !important;
+}
+
+.leaflet-draw-actions a {
+  background-color: hsla(0, 0%, 100%, 0.9) !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: hsl(var(--foreground)) !important;
+}
+
+.leaflet-draw-tooltip {
+    border-radius: 0.5rem !important;
+    background-color: hsla(220, 20%, 10%, 0.8) !important;
+    color: white !important;
+    border: none !important;
+}

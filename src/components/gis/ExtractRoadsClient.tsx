@@ -2,15 +2,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import { Loader2, Download, Play, Route as RouteIcon, Server, ShieldAlert } from 'lucide-react';
+import { Route as RouteIcon } from 'lucide-react';
 import type { LatLng, LatLngBounds } from 'leaflet';
 import { MapSearchControl } from './MapSearchControl';
+import { GisControlBar } from './GisControlBar';
 
 const { BaseLayer } = LayersControl;
 
@@ -91,26 +88,26 @@ export default function ExtractRoadsClient() {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Step 1/2: Standard", description: "Fetching Road Network Data..." });
+    toast({ title: "Standard Extraction", description: "Fetching road network data..." });
 
     try {
       const query = `[out:json][timeout:25];(way["highway"](poly:"${polygonCoords}"););(._;>;);out;`;
       const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
       
       if (!response.ok) {
-        throw new Error(`Overpass API failed with status ${response.status}`);
+        throw new Error(`Data fetching failed: ${response.status}`);
       }
       
       const rawData = await response.json();
       const roadsGeoJSON = osmToGeoJSONRoads(rawData);
 
       if (!roadsGeoJSON.features.length) {
-         toast({ title: "No Data", description: "No roads found in the selected area.", variant: "destructive" });
+         toast({ title: "No Data Found", description: "No roads were found in the selected area.", variant: "destructive" });
          setIsProcessing(false);
          return;
       }
 
-      toast({ title: "Step 2/2: Standard", description: "Running Browser Python Engine..." });
+      toast({ title: "Standard Extraction", description: "Processing road geometries..." });
       workerRef.current?.postMessage({
         action: "EXTRACT_ROADS",
         payload: { roads: roadsGeoJSON }
@@ -125,7 +122,7 @@ export default function ExtractRoadsClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "AGIS Realtime Engine", description: "Sending request to external server..." });
+    toast({ title: "AGIS Realtime", description: "Requesting data from the extraction engine..." });
 
     try {
         const bbox = [
@@ -157,7 +154,7 @@ export default function ExtractRoadsClient() {
         toast({
             variant: "destructive",
             title: "Backend Connection Error",
-            description: "Could not connect to the AGIS Realtime engine. Please check your Server Configuration.",
+            description: "Could not connect to the AGIS Realtime engine. Check Server Configuration.",
         });
     } finally {
         setIsProcessing(false);
@@ -182,53 +179,28 @@ export default function ExtractRoadsClient() {
 
   return (
     <div className="absolute inset-0 z-0">
-      <div className="absolute top-6 left-6 z-[1000] w-80 max-w-[90vw] transition-all">
-        <Card className="rounded-xl border-0 bg-white/90 shadow-xl backdrop-blur-md">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-xl"><RouteIcon className="h-6 w-6 text-primary"/> Extract Roads</CardTitle>
-            <CardDescription>{hasSelection ? "Polygon area selected." : "Draw a polygon on the map to begin."}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="standard" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="standard">Standard</TabsTrigger>
-                    <TabsTrigger value="premium">AGIS Realtime</TabsTrigger>
-                </TabsList>
-                <TabsContent value="standard" className="space-y-4 pt-4">
-                    <p className="text-xs text-muted-foreground">Extracts open-source road networks via the Overpass API directly in your browser.</p>
-                    <Button onClick={runStandardExtraction} disabled={!hasSelection || isProcessing} className="w-full">
-                        {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Play className="mr-2 h-4 w-4" /> Run Standard Extraction</>}
-                    </Button>
-                </TabsContent>
-                <TabsContent value="premium" className="space-y-4 pt-4">
-                     {!colabUrl ? (
-                        <Alert variant="destructive">
-                            <ShieldAlert className="h-4 w-4" />
-                            <AlertTitle>Server Not Configured</AlertTitle>
-                            <AlertDescription>
-                            The AGIS Realtime engine requires a Colab Backend. Go to Server Config to connect.
-                            </AlertDescription>
-                        </Alert>
-                    ) : (
-                         <p className="text-xs text-muted-foreground">Uses a connected external server for advanced Overture Maps road data extraction.</p>
-                    )}
-                    <Button onClick={runRealtimeExtraction} disabled={!hasSelection || isProcessing || !colabUrl} className="w-full">
-                         {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Server className="mr-2 h-4 w-4" /> Run AGIS Realtime Extraction</>}
-                    </Button>
-                </TabsContent>
-            </Tabs>
-            {geoData && (
-                <div className="pt-4 mt-4 border-t">
-                <Button onClick={handleDownload} variant="outline" size="sm" className="w-full">
-                  <Download className="mr-2 h-4 w-4" /> Download GeoJSON
-                </Button>
-                </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <GisControlBar
+        title={<><RouteIcon className="h-5 w-5 text-primary"/> Extract Roads</>}
+        hasSelection={hasSelection}
+        isProcessing={isProcessing}
+        geoData={geoData}
+        colabUrl={colabUrl}
+        onRunStandard={runStandardExtraction}
+        onRunRealtime={runRealtimeExtraction}
+        onDownload={handleDownload}
+        standardTab={{
+            title: 'Standard',
+            description: 'Extracts road networks using standard open-source data. Ideal for quick analysis.',
+            buttonText: 'Run Standard'
+        }}
+        realtimeTab={{
+            title: 'AGIS Realtime',
+            description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
+            buttonText: 'Run Realtime'
+        }}
+      />
 
-      <MapContainer center={[31.46, 74.38]} zoom={16} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={true} style={{ height: '100%', width: '100%' }}>
         <MapSearchControl />
         <LayersControl position="topright">
           <BaseLayer checked name="ESRI Satellite">

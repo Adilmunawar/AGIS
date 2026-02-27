@@ -3,15 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, LayersControl, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import { Loader2, Download, Play, Map as MapIcon, Server, ShieldAlert } from 'lucide-react';
+import { Map as MapIcon } from 'lucide-react';
 import type { LatLng, LatLngBounds } from 'leaflet';
 import { MapSearchControl } from './MapSearchControl';
+import { GisControlBar } from './GisControlBar';
 
 const { BaseLayer } = LayersControl;
 
@@ -124,23 +121,23 @@ export default function DigitizeMapClient() {
     if (!polygonCoords) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "Step 1/2: Standard", description: "Fetching OpenStreetMap data..." });
+    toast({ title: "Standard Extraction", description: "Fetching building footprints..." });
 
     try {
       const query = `[out:json][timeout:25];(way["building"](poly:"${polygonCoords}");relation["building"](poly:"${polygonCoords}"););out body;>;out skel qt;`;
       const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
       
-      if (!response.ok) throw new Error(`Overpass API failed: ${response.status}`);
+      if (!response.ok) throw new Error(`Data fetching failed: ${response.status}`);
       const rawData = await response.json();
       const buildingsGeoJSON = osmToGeoJSON(rawData);
 
       if (!buildingsGeoJSON.features.length) {
-         toast({ title: "No Data", description: "No buildings found in the selected area.", variant: "destructive" });
+         toast({ title: "No Data Found", description: "No buildings were found in the selected area.", variant: "destructive" });
          setIsProcessing(false);
          return;
       }
 
-      toast({ title: "Step 2/2: Standard", description: "Running Browser Python Engine..." });
+      toast({ title: "Standard Extraction", description: "Processing geometries..." });
       workerRef.current?.postMessage({
         action: "DIGITIZE_MAP",
         payload: { buildings: buildingsGeoJSON }
@@ -155,7 +152,7 @@ export default function DigitizeMapClient() {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
     setGeoData(null);
-    toast({ title: "AGIS Realtime Engine", description: "Sending request to external server..." });
+    toast({ title: "AGIS Realtime", description: "Requesting data from the extraction engine..." });
 
     try {
         const bbox = [
@@ -187,7 +184,7 @@ export default function DigitizeMapClient() {
         toast({
             variant: "destructive",
             title: "Backend Connection Error",
-            description: "Could not connect to the AGIS Realtime engine. Please check your Server Configuration.",
+            description: "Could not connect to the AGIS Realtime engine. Check Server Configuration.",
         });
     } finally {
         setIsProcessing(false);
@@ -211,54 +208,28 @@ export default function DigitizeMapClient() {
 
   return (
     <div className="absolute inset-0 z-0">
-      <div className="absolute top-6 left-6 z-[1000] w-80 max-w-[90vw] transition-all">
-        <Card className="rounded-xl border-0 bg-white/90 shadow-xl backdrop-blur-md">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-xl"><MapIcon className="h-6 w-6 text-primary"/> Digitize Area</CardTitle>
-            <CardDescription>{hasSelection ? "Polygon area selected." : "Draw a polygon on the map to begin."}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="standard" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="standard">Standard</TabsTrigger>
-                    <TabsTrigger value="premium">AGIS Realtime</TabsTrigger>
-                </TabsList>
-                <TabsContent value="standard" className="space-y-4 pt-4">
-                    <p className="text-xs text-muted-foreground">Extracts open-source building footprints via the Overpass API directly in your browser.</p>
-                    <Button onClick={runStandardExtraction} disabled={!hasSelection || isProcessing} className="w-full">
-                        {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Play className="mr-2 h-4 w-4" /> Run Standard Extraction</>}
-                    </Button>
-                </TabsContent>
-                <TabsContent value="premium" className="space-y-4 pt-4">
-                    {!colabUrl ? (
-                        <Alert variant="destructive">
-                            <ShieldAlert className="h-4 w-4" />
-                            <AlertTitle>Server Not Configured</AlertTitle>
-                            <AlertDescription>
-                            The AGIS Realtime engine requires a Colab Backend. Go to Server Config to connect.
-                            </AlertDescription>
-                        </Alert>
-                    ) : (
-                         <p className="text-xs text-muted-foreground">Uses a connected external server for advanced Overture Maps data extraction.</p>
-                    )}
-                    <Button onClick={runRealtimeExtraction} disabled={!hasSelection || isProcessing || !colabUrl} className="w-full">
-                         {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Server className="mr-2 h-4 w-4" /> Run AGIS Realtime Extraction</>}
-                    </Button>
-                </TabsContent>
-            </Tabs>
+      <GisControlBar
+        title={<><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</>}
+        hasSelection={hasSelection}
+        isProcessing={isProcessing}
+        geoData={geoData}
+        colabUrl={colabUrl}
+        onRunStandard={runStandardExtraction}
+        onRunRealtime={runRealtimeExtraction}
+        onDownload={handleDownload}
+        standardTab={{
+            title: 'Standard',
+            description: 'Extracts building footprints using standard open-source data. Good for general use.',
+            buttonText: 'Run Standard'
+        }}
+        realtimeTab={{
+            title: 'AGIS Realtime',
+            description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
+            buttonText: 'Run Realtime'
+        }}
+      />
 
-            {geoData && (
-                <div className="pt-4 mt-4 border-t">
-                <Button onClick={handleDownload} variant="outline" size="sm" className="w-full">
-                  <Download className="mr-2 h-4 w-4" /> Download GeoJSON
-                </Button>
-                </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <MapContainer center={[31.46, 74.38]} zoom={16} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={true} style={{ height: '100%', width: '100%' }}>
         <MapSearchControl />
         <LayersControl position="topright">
           <BaseLayer checked name="ESRI Satellite">
