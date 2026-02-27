@@ -25,11 +25,14 @@ export function LoginPageClient() {
   }
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-6">
-      <LoginForm />
-      <p className="absolute bottom-6 text-center text-sm text-muted-foreground">
-        Proudly developed by Adil Munawar
+    <>
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-6">
+        <LoginForm />
+      </div>
+      <p className="fixed bottom-6 w-full text-center text-sm text-muted-foreground">
+        Proudly developed by{' '}
+        <span className="font-semibold text-primary">Adil Munawar</span>
       </p>
-    </div>
+    </>
   );
 }

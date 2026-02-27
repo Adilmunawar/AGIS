@@ -25,11 +25,14 @@ export function SignUpPageClient() {
   }
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-6">
+    <>
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-6">
         <SignUpForm />
-        <p className="absolute bottom-6 text-center text-sm text-muted-foreground">
-          Proudly developed by Adil Munawar
-        </p>
-    </div>
+      </div>
+      <p className="fixed bottom-6 w-full text-center text-sm text-muted-foreground">
+        Proudly developed by{' '}
+        <span className="font-semibold text-primary">Adil Munawar</span>
+      </p>
+    </>
   );
 }
