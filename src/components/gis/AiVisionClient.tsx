@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ScanSearch, Download, Plus, Minus, Cpu, MousePointerSquare, ShieldAlert } from 'lucide-react';
+import { Loader2, ScanSearch, Download, Plus, Minus, Cpu, MousePointer, ShieldAlert } from 'lucide-react';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -116,7 +116,7 @@ function AiVisionControlBar({
                                         </span>
                                     </div>
                                     <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                                        {!hasSelection && <MousePointerSquare className="h-3 w-3" />}
+                                        {!hasSelection && <MousePointer className="h-3 w-3" />}
                                         {hasSelection ? 'Area selected for scan.' : 'Draw a polygon to begin.'}
                                     </p>
                                 </div>
