@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMap } from 'react-leaflet';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search as SearchIcon, Loader2, X } from 'lucide-react';
+import { Search as SearchIcon, Loader2, X, MapPin, Building, Globe } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 
 interface Suggestion {
@@ -21,6 +21,21 @@ interface Suggestion {
   importance: number;
   icon?: string;
 }
+
+const getSuggestionIcon = (suggestion: Suggestion) => {
+    switch (suggestion.class) {
+      case 'place':
+        return <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+      case 'building':
+      case 'amenity':
+        return <Building className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+      case 'boundary':
+      case 'highway':
+         return <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+      default:
+        return <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+    }
+};
 
 /**
  * A search control component for the Leaflet map that uses the Nominatim API
@@ -94,7 +109,7 @@ export function MapSearchControl() {
   };
 
   return (
-    <div ref={searchContainerRef} className="absolute top-6 right-6 z-[1000] w-80 max-w-[calc(100vw-4rem)]">
+    <div ref={searchContainerRef} className="absolute top-6 right-20 z-[1000] w-80 max-w-[calc(100vw-8rem)]">
       <div className="relative">
         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
         <Input
@@ -124,9 +139,10 @@ export function MapSearchControl() {
                 <li
                   key={suggestion.place_id}
                   onClick={() => handleSuggestionClick(suggestion)}
-                  className="px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors text-sm"
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors text-sm"
                 >
-                  {suggestion.display_name}
+                  {getSuggestionIcon(suggestion)}
+                  <span className="truncate">{suggestion.display_name}</span>
                 </li>
               ))}
             </ul>
