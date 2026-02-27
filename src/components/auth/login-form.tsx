@@ -110,24 +110,24 @@ export function LoginForm() {
 
   return (
     <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg transition-all duration-300 sm:hover:shadow-2xl sm:hover:-translate-y-1 sm:hover:shadow-primary/10">
-      <CardHeader className="text-center p-4">
+      <CardHeader className="text-center p-2">
         <Image 
           src="/AGIS animation/AGIS (1).gif"
           alt="AGIS Logo Animation"
-          width="96"
-          height="96"
-          className="mx-auto mb-2"
+          width="64"
+          height="64"
+          className="mx-auto"
           unoptimized
         />
       </CardHeader>
-      <CardContent className="p-4 pt-0">
+      <CardContent className="p-4 pt-2">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="space-y-1">
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <div className="relative group">
@@ -136,7 +136,7 @@ export function LoginForm() {
                         placeholder="developer@agis.com"
                         {...field}
                         autoComplete="email"
-                        className="pl-10"
+                        className="pl-10 h-10"
                       />
                     </div>
                   </FormControl>
@@ -148,7 +148,7 @@ export function LoginForm() {
               control={form.control}
               name="password"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="space-y-1">
                   <FormLabel>Password</FormLabel>
                   <FormControl>
                     <div className="relative group">
@@ -158,7 +158,7 @@ export function LoginForm() {
                         placeholder="••••••••"
                         {...field}
                         autoComplete="current-password"
-                        className="pl-10 pr-10"
+                        className="pl-10 pr-10 h-10"
                       />
                       <Button
                         type="button"
@@ -175,13 +175,13 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full h-11 text-base transition-transform duration-300 hover:-translate-y-0.5" disabled={isLoading}>
+            <Button type="submit" className="w-full h-10 text-base transition-transform duration-300 hover:-translate-y-0.5" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>
           </form>
         </Form>
-        <div className="relative my-4">
+        <div className="relative my-3">
             <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
             </div>
@@ -191,7 +191,7 @@ export function LoginForm() {
                 </span>
             </div>
         </div>
-        <Button variant="outline" className="w-full h-11 transition-transform duration-300 hover:-translate-y-0.5" onClick={onGoogleSignIn} disabled={isLoading}>
+        <Button variant="outline" className="w-full h-10 transition-transform duration-300 hover:-translate-y-0.5" onClick={onGoogleSignIn} disabled={isLoading}>
             {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -202,7 +202,7 @@ export function LoginForm() {
             )}
         </Button>
       </CardContent>
-      <CardFooter className="flex justify-center text-sm p-4 pt-0">
+      <CardFooter className="flex justify-center text-sm p-2">
         <p className="text-muted-foreground">
           Don't have an account?{' '}
           <Link href="/signup" className="font-semibold text-primary hover:underline">
