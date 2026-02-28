@@ -4,7 +4,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, Play, Server, ShieldAlert, Plus, Minus } from 'lucide-react';
+import { Loader2, Download, Play, Server, ShieldAlert, Plus, Minus, Sparkles } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -35,6 +35,11 @@ interface GisControlBarProps {
     description: string;
     buttonText: string;
   };
+  nanoVisionTab?: {
+    title: string;
+    description: string;
+    content: React.ReactNode;
+  }
 }
 
 export function GisControlBar({
@@ -51,16 +56,23 @@ export function GisControlBar({
   onZoomOut,
   standardTab,
   realtimeTab,
+  nanoVisionTab,
 }: GisControlBarProps) {
   const [activeTab, setActiveTab] = React.useState('standard');
   
-  const runButtonTooltipContent = !hasSelection
-    ? 'Please draw a polygon on the map to enable extraction.'
-    : activeTab === 'standard'
-      ? standardTab.description
-      : !colabUrl
-        ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.'
-        : realtimeTab.description;
+  const getTooltipContent = () => {
+    if (!hasSelection) return 'Please draw a polygon on the map to enable extraction.';
+    switch(activeTab) {
+      case 'standard':
+        return standardTab.description;
+      case 'realtime':
+        return !colabUrl ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.' : realtimeTab.description;
+      case 'nano-vision':
+        return nanoVisionTab?.description || '';
+      default:
+        return '';
+    }
+  }
 
 
   return (
@@ -101,6 +113,7 @@ export function GisControlBar({
                   <TabsList>
                     <TabsTrigger value="standard">{standardTab.title}</TabsTrigger>
                     <TabsTrigger value="realtime">{realtimeTab.title}</TabsTrigger>
+                    {nanoVisionTab && <TabsTrigger value="nano-vision">{nanoVisionTab.title}</TabsTrigger>}
                   </TabsList>
                 </Tabs>
 
@@ -110,12 +123,13 @@ export function GisControlBar({
                       <TooltipTrigger asChild>
                         <span tabIndex={0}>
                           <div>
-                            {activeTab === 'standard' ? (
+                            {activeTab === 'standard' && (
                               <Button onClick={onRunStandard} disabled={!hasSelection || isProcessing} size="sm">
                                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
                                 {standardTab.buttonText}
                               </Button>
-                            ) : !colabUrl ? (
+                            )}
+                            {activeTab === 'realtime' && (!colabUrl ? (
                               <Button variant="outline" size="sm" disabled style={{pointerEvents: 'none'}}>
                                 <ShieldAlert className="mr-2 h-4 w-4 text-destructive" />
                                 Server Not Connected
@@ -125,12 +139,13 @@ export function GisControlBar({
                                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Server className="mr-2 h-4 w-4" />}
                                 {realtimeTab.buttonText}
                               </Button>
-                            )}
+                            ))}
+                            {activeTab === 'nano-vision' && nanoVisionTab?.content}
                           </div>
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side="top">
-                        <p className="text-xs max-w-xs">{runButtonTooltipContent}</p>
+                        <p className="text-xs max-w-xs">{getTooltipContent()}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
