@@ -4,7 +4,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, Play, Server, ShieldAlert, Plus, Minus, Sparkles } from 'lucide-react';
+import { Loader2, Download, Play, Server, ShieldAlert, Plus, Minus } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -35,11 +35,6 @@ interface GisControlBarProps {
     description: string;
     buttonText: string;
   };
-  nanoVisionTab?: {
-    title: string;
-    description: string;
-    content: React.ReactNode;
-  }
 }
 
 export function GisControlBar({
@@ -56,7 +51,6 @@ export function GisControlBar({
   onZoomOut,
   standardTab,
   realtimeTab,
-  nanoVisionTab,
 }: GisControlBarProps) {
   const [activeTab, setActiveTab] = React.useState('standard');
   
@@ -67,8 +61,6 @@ export function GisControlBar({
         return standardTab.description;
       case 'realtime':
         return !colabUrl ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.' : realtimeTab.description;
-      case 'nano-vision':
-        return nanoVisionTab?.description || '';
       default:
         return '';
     }
@@ -113,7 +105,6 @@ export function GisControlBar({
                   <TabsList>
                     <TabsTrigger value="standard">{standardTab.title}</TabsTrigger>
                     <TabsTrigger value="realtime">{realtimeTab.title}</TabsTrigger>
-                    {nanoVisionTab && <TabsTrigger value="nano-vision">{nanoVisionTab.title}</TabsTrigger>}
                   </TabsList>
                 </Tabs>
 
@@ -140,7 +131,6 @@ export function GisControlBar({
                                 {realtimeTab.buttonText}
                               </Button>
                             ))}
-                            {activeTab === 'nano-vision' && nanoVisionTab?.content}
                           </div>
                         </span>
                       </TooltipTrigger>

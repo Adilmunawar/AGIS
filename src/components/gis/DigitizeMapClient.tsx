@@ -6,8 +6,7 @@ import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-le
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import { useGeminiConfig } from '@/hooks/use-gemini-config';
-import { Map as MapIcon, Sparkles } from 'lucide-react';
+import { Map as MapIcon } from 'lucide-react';
 import type { LatLng, LatLngBounds } from 'leaflet';
 import { GisControlBar } from './GisControlBar';
 import { MapHeader, type BaseLayer } from './MapHeader';
@@ -15,8 +14,6 @@ import L from 'leaflet';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import html2canvas from 'html2canvas';
-
 
 function osmToGeoJSON(osmData: any): GeoJSON.FeatureCollection {
     const nodes = new Map<number, number[]>();
@@ -107,13 +104,11 @@ const baseLayers: BaseLayer[] = [
 
 function MapControlsWrapper({
     polygonCoords, isProcessing, geoData, colabUrl, statusMessage,
-    runStandardExtraction, runRealtimeExtraction, handleDownload,
-    runNanoVisionExtraction, geminiApiKey
+    runStandardExtraction, runRealtimeExtraction, handleDownload
 } : {
     polygonCoords: string | null; isProcessing: boolean; geoData: any;
     colabUrl: string; statusMessage: string | null; runStandardExtraction: () => void;
     runRealtimeExtraction: () => void; handleDownload: () => void;
-    runNanoVisionExtraction: () => void; geminiApiKey: string;
 }) {
     const map = useMap();
     const controlRef = useRef<HTMLDivElement>(null);
@@ -126,28 +121,6 @@ function MapControlsWrapper({
     }, []);
 
     const hasSelection = !!polygonCoords;
-
-    const nanoVisionContent = !geminiApiKey ? (
-        <div className="text-center p-2">
-             <Alert variant="destructive" className="text-left">
-                <AlertTitle>Nano Vision Engine Offline</AlertTitle>
-                <AlertDescription>
-                    A Gemini API Key is required. Please <Link href="/dashboard/server-config" className="font-bold underline text-destructive">add your key</Link> to enable this feature.
-                </AlertDescription>
-             </Alert>
-        </div>
-    ) : (
-         <Button onClick={runNanoVisionExtraction} disabled={!hasSelection || isProcessing} size="sm">
-             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-             Run Nano Vision
-         </Button>
-    );
-
-    const nanoVisionTab = {
-        title: "Nano Vision",
-        description: "Uses Gemini 1.5 Pro to perform zero-shot cadastral digitization from a map snapshot.",
-        content: nanoVisionContent
-    };
 
     return (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] w-auto max-w-[90vw]">
@@ -174,7 +147,6 @@ function MapControlsWrapper({
                         description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
                         buttonText: 'Run Realtime'
                     }}
-                    nanoVisionTab={nanoVisionTab}
                 />
             </div>
         </div>
@@ -190,7 +162,6 @@ export default function DigitizeMapClient() {
   const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
-  const { geminiApiKey } = useGeminiConfig();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[2]);
   
   useEffect(() => {
@@ -307,63 +278,6 @@ export default function DigitizeMapClient() {
         setIsProcessing(false);
     }
   };
-  
-  const runNanoVisionExtraction = async () => {
-    if (!selectionBounds || !geminiApiKey) return;
-    setIsProcessing(true);
-    setGeoData(null);
-    setStatusMessage("Capturing satellite data for Nano Vision...");
-    toast({ title: "Capturing Satellite Data", description: "Preparing image for Nano Vision..." });
-
-    try {
-        const mapElement = document.querySelector('.leaflet-container') as HTMLElement;
-        if (!mapElement) throw new Error("Map container element not found.");
-
-        // 1. Capture snapshot with CORS enabled
-        const canvas = await html2canvas(mapElement, { 
-            useCORS: true, 
-            allowTaint: false,
-            scale: 1 // Keep scale 1 to prevent massive payloads
-        });
-
-        // 2. Compress payload to 70% JPEG to respect Vercel's 4MB API limit
-        const imageBase64 = canvas.toDataURL('image/jpeg', 0.7);
-        
-        // 3. Get exact bounding box for the Translation API
-        const bounds = {
-            north: selectionBounds.getNorth(),
-            south: selectionBounds.getSouth(),
-            east: selectionBounds.getEast(),
-            west: selectionBounds.getWest()
-        };
-
-        setStatusMessage("Nano Vision Engine: Analyzing spatial data with Gemini 1.5 Pro...");
-        toast({ title: "Nano Vision Engine", description: "Analyzing spatial data with Gemini 1.5 Pro..." });
-
-        // 4. Send to translation layer
-        const response = await fetch('/api/gemini-digitize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64, bounds, apiKey: geminiApiKey })
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || "Vision Engine Failed");
-        }
-
-        const result = await response.json();
-        setGeoData(result);
-        setStatusMessage(`Nano Vision complete. Extracted ${result.features.length} property plots.`);
-        toast({ title: "Map Digitized via Nano Vision", description: `Extracted ${result.features.length} property plots.` });
-
-    } catch (error: any) {
-        setStatusMessage(`Error: ${error.message}`);
-        toast({ variant: "destructive", title: "Extraction Error", description: error.message });
-    } finally {
-        setIsProcessing(false);
-    }
-  };
 
   const handleDownload = () => {
     if (!geoData) return;
@@ -430,8 +344,6 @@ export default function DigitizeMapClient() {
             runStandardExtraction={runStandardExtraction}
             runRealtimeExtraction={runRealtimeExtraction}
             handleDownload={handleDownload}
-            runNanoVisionExtraction={runNanoVisionExtraction}
-            geminiApiKey={geminiApiKey}
         />
       </MapContainer>
     </div>
