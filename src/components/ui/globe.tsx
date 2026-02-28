@@ -19,7 +19,7 @@ const GlobeVisual = () => {
   const primaryColor = new Color("hsl(160, 80%, 40%)");
 
   return (
-    <Sphere ref={globeRef} args={[1, 64, 64]} scale={2.2}>
+    <Sphere ref={globeRef} args={[1, 64, 64]} scale={2.8}>
       <MeshDistortMaterial
         color={primaryColor}
         attach="material"
