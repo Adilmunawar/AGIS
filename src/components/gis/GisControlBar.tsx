@@ -109,7 +109,7 @@ export function GisControlBar({
               </div>
 
               <div className="flex items-center gap-3">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden sm:block">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList>
                     <TabsTrigger value="standard">{standardTab.title}</TabsTrigger>
                     <TabsTrigger value="realtime">{realtimeTab.title}</TabsTrigger>
