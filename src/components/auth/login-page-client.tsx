@@ -27,8 +27,11 @@ export function LoginPageClient() {
 
   return (
     <div className="relative flex min-h-screen flex-col bg-background overflow-hidden">
-      <div className="absolute inset-0 z-0 opacity-50 flex items-center justify-center">
-        <Globe />
+      <div className="absolute inset-0 z-0 opacity-50 grid grid-cols-2 items-center">
+        <div />
+        <div>
+          <Globe />
+        </div>
       </div>
       <main className="relative z-10 flex flex-grow items-center justify-center p-4">
         <LoginForm />
