@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Sphere, MeshDistortMaterial } from '@react-three/drei';
-import { Color } from 'three';
+import { Sphere, useTexture } from '@react-three/drei';
+import { Color, AdditiveBlending, BackSide } from 'three';
 
 const GlobeVisual = () => {
   const globeRef = useRef<any>();
@@ -15,30 +15,49 @@ const GlobeVisual = () => {
     }
   });
 
+  // Texture from: https://www.solarsystemscope.com/textures/
+  const [earthTexture] = useTexture(['https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg']);
+
   // Using HSL values from globals.css for primary color: 160 80% 40%
   const primaryColor = new Color("hsl(160, 80%, 40%)");
 
   return (
-    <Sphere ref={globeRef} args={[1, 64, 64]} scale={3.8}>
-      <MeshDistortMaterial
-        color={primaryColor}
-        attach="material"
-        distort={0.35}
-        speed={1.2}
-        roughness={0.9}
-        metalness={0.1}
-      />
-    </Sphere>
+    <group scale={3.8} ref={globeRef}>
+      {/* Globe with texture */}
+      <Sphere args={[1, 64, 64]}>
+        <meshStandardMaterial 
+          map={earthTexture} 
+          roughness={0.8} 
+          metalness={0.2} 
+        />
+      </Sphere>
+      
+      {/* Atmosphere effect */}
+      <Sphere args={[1.04, 64, 64]}>
+        <meshStandardMaterial
+          color={primaryColor}
+          side={BackSide}
+          blending={AdditiveBlending}
+          transparent
+          opacity={0.3}
+        />
+      </Sphere>
+    </group>
   );
 };
 
 export function Globe() {
   return (
-    <Canvas camera={{ position: [0, 0, 5] }}>
-      <ambientLight intensity={1.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1} />
-      <directionalLight position={[-10, -10, -5]} intensity={0.5} />
-      <GlobeVisual />
+    <Canvas camera={{ position: [0, 0, 5.5], fov: 45 }}>
+        <Suspense fallback={null}>
+            <ambientLight intensity={0.2} />
+            <pointLight 
+                color="hsl(160, 80%, 80%)" 
+                position={[10, 5, 10]} 
+                intensity={40.0}
+            />
+            <GlobeVisual />
+        </Suspense>
     </Canvas>
   );
 }
