@@ -10,9 +10,9 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // 🔥 THE FIX: Switched to the gemini-1.5-flash model for fast multimodal analysis.
+    // 🔥 THE FIX: Switched to the gemini-2.5-flash model as requested.
     const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         generationConfig: {
             responseMimeType: "application/json", // Forces the model to only return valid JSON
         }
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       return {
         type: "Feature",
         properties: { 
-            source: "AGIS Nano Vision (Gemini 1.5 Flash)",
+            source: "AGIS Nano Vision (Gemini 2.5 Flash)",
             type: item.entity_type 
         },
         geometry: { 
