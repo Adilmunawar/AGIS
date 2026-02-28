@@ -5,7 +5,7 @@ import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Globe } from '@/components/ui/globe';
+import { WavyBackground } from '@/components/ui/wavy-background';
 
 export function LoginPageClient() {
   const { user, isUserLoading } = useUser();
@@ -26,22 +26,20 @@ export function LoginPageClient() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background overflow-hidden">
-      <div className="absolute inset-0 z-0 opacity-50 grid grid-cols-2 items-center">
-        <div />
-        <div>
-          <Globe />
-        </div>
-      </div>
-      <main className="relative z-10 flex flex-grow items-center justify-center p-4">
-        <LoginForm />
-      </main>
-      <footer className="relative z-10 w-full flex-shrink-0 py-2 text-center text-sm text-muted-foreground">
+    <WavyBackground
+      backgroundFill="hsl(220 20% 97%)"
+      colors={['#14B884', '#4DB6AC', '#7AD9B8', '#DAE0E5']}
+      waveOpacity={0.2}
+      blur={7}
+      speed="slow"
+    >
+      <LoginForm />
+      <footer className="absolute bottom-4 text-center text-sm text-muted-foreground">
         <p>
           Proudly developed by{' '}
           <span className="font-semibold text-primary">Adil Munawar</span>
         </p>
       </footer>
-    </div>
+    </WavyBackground>
   );
 }
