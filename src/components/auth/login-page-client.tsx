@@ -26,20 +26,22 @@ export function LoginPageClient() {
   }
 
   return (
-    <WavyBackground
-      backgroundFill="hsl(220 20% 97%)"
-      colors={['#14B884', '#4DB6AC', '#7AD9B8', '#DAE0E5']}
-      waveOpacity={0.2}
-      blur={7}
-      speed="slow"
-    >
-      <LoginForm />
-      <footer className="absolute bottom-4 text-center text-sm text-muted-foreground">
+    <>
+      <WavyBackground
+        backgroundFill="hsl(220 20% 97%)"
+        colors={['#14B884', '#4DB6AC', '#7AD9B8', '#DAE0E5']}
+        waveOpacity={0.2}
+        blur={7}
+        speed="slow"
+      >
+        <LoginForm />
+      </WavyBackground>
+      <footer className="absolute bottom-4 w-full text-center text-sm text-muted-foreground">
         <p>
           Proudly developed by{' '}
           <span className="font-semibold text-primary">Adil Munawar</span>
         </p>
       </footer>
-    </WavyBackground>
+    </>
   );
 }
