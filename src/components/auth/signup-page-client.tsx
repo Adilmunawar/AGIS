@@ -26,8 +26,8 @@ export function SignUpPageClient() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background">
-      <div className="absolute inset-0 z-0 opacity-20 blur-sm">
+    <div className="relative flex min-h-screen flex-col bg-background overflow-hidden">
+       <div className="absolute inset-0 z-0 opacity-50 flex items-center justify-center">
         <Globe />
       </div>
       <main className="relative z-10 flex flex-grow items-center justify-center p-4">

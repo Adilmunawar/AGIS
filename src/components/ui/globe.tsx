@@ -1,63 +1,122 @@
-'use client';
+"use client"
 
-import React, { useRef, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Sphere, useTexture } from '@react-three/drei';
-import { Color, AdditiveBlending, BackSide } from 'three';
+import createGlobe, { COBEOptions } from "cobe"
+import { useCallback, useEffect, useRef, useState } from "react"
 
-const GlobeVisual = () => {
-  const globeRef = useRef<any>();
+import { cn } from "@/lib/utils"
 
-  useFrame(({ clock }) => {
-    if (globeRef.current) {
-      // Slow, constant rotation
-      globeRef.current.rotation.y = clock.getElapsedTime() * 0.1;
+const GLOBE_CONFIG: COBEOptions = {
+  width: 800,
+  height: 800,
+  onRender: () => {},
+  devicePixelRatio: 2,
+  phi: 0,
+  theta: 0.3,
+  dark: 0,
+  diffuse: 1.2,
+  mapSamples: 16000,
+  mapBrightness: 6,
+  baseColor: [0.3, 0.3, 0.3],
+  markerColor: [20 / 255, 184 / 255, 132 / 255],
+  glowColor: [20 / 255, 184 / 255, 132 / 255],
+  markers: [
+    { location: [14.5995, 120.9842], size: 0.03 },
+    { location: [19.076, 72.8777], size: 0.1 },
+    { location: [23.8103, 90.4125], size: 0.05 },
+    { location: [30.0444, 31.2357], size: 0.07 },
+    { location: [39.9042, 116.4074], size: 0.08 },
+    { location: [-23.5505, -46.6333], size: 0.1 },
+    { location: [19.4326, -99.1332], size: 0.1 },
+    { location: [40.7128, -74.006], size: 0.1 },
+    { location: [34.6937, 135.5022], size: 0.05 },
+    { location: [41.0082, 28.9784], size: 0.06 },
+  ],
+}
+
+export function Globe({
+  className,
+  config = GLOBE_CONFIG,
+}: {
+  className?: string
+  config?: COBEOptions
+}) {
+  let phi = 0
+  let width = 0
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const pointerInteracting = useRef(null)
+  const pointerInteractionMovement = useRef(0)
+  const [r, setR] = useState(0)
+
+  const updatePointerInteraction = (value: any) => {
+    pointerInteracting.current = value
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = value ? "grabbing" : "grab"
     }
-  });
+  }
 
-  // Texture from a reliable source with permissive CORS
-  const [earthTexture] = useTexture(['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg']);
+  const updateMovement = (clientX: any) => {
+    if (pointerInteracting.current !== null) {
+      const delta = clientX - pointerInteracting.current
+      pointerInteractionMovement.current = delta
+      setR(delta / 200)
+    }
+  }
 
-  // Using HSL values from globals.css for primary color: 160 80% 40%
-  const primaryColor = new Color("hsl(160, 80%, 40%)");
+  const onRender = useCallback(
+    (state: Record<string, any>) => {
+      if (!pointerInteracting.current) phi += 0.005
+      state.phi = phi + r
+      state.width = width * 2
+      state.height = width * 2
+    },
+    [r],
+  )
+
+  const onResize = () => {
+    if (canvasRef.current) {
+      width = canvasRef.current.offsetWidth
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener("resize", onResize)
+    onResize()
+
+    const globe = createGlobe(canvasRef.current!, {
+      ...config,
+      width: width * 2,
+      height: width * 2,
+      onRender,
+    })
+
+    setTimeout(() => (canvasRef.current!.style.opacity = "1"))
+    return () => globe.destroy()
+  }, [])
 
   return (
-    <group scale={3.8} ref={globeRef}>
-      {/* Globe with texture */}
-      <Sphere args={[1, 64, 64]}>
-        <meshStandardMaterial 
-          map={earthTexture} 
-          roughness={0.8} 
-          metalness={0.2} 
-        />
-      </Sphere>
-      
-      {/* Atmosphere effect */}
-      <Sphere args={[1.04, 64, 64]}>
-        <meshStandardMaterial
-          color={primaryColor}
-          side={BackSide}
-          blending={AdditiveBlending}
-          transparent
-          opacity={0.3}
-        />
-      </Sphere>
-    </group>
-  );
-};
-
-export function Globe() {
-  return (
-    <Canvas camera={{ position: [0, 0, 5.5], fov: 45 }}>
-        <Suspense fallback={null}>
-            <ambientLight intensity={0.2} />
-            <pointLight 
-                color="hsl(160, 80%, 80%)" 
-                position={[10, 5, 10]} 
-                intensity={40.0}
-            />
-            <GlobeVisual />
-        </Suspense>
-    </Canvas>
-  );
+    <div
+      className={cn(
+        "mx-auto aspect-[1/1] w-full max-w-[1200px]",
+        className,
+      )}
+    >
+      <canvas
+        className={cn(
+          "size-full opacity-0 transition-opacity duration-500 [contain:layout_paint_size]",
+        )}
+        ref={canvasRef}
+        onPointerDown={(e) =>
+          updatePointerInteraction(
+            e.clientX - pointerInteractionMovement.current,
+          )
+        }
+        onPointerUp={() => updatePointerInteraction(null)}
+        onPointerOut={() => updatePointerInteraction(null)}
+        onMouseMove={(e) => updateMovement(e.clientX)}
+        onTouchMove={(e) =>
+          e.touches[0] && updateMovement(e.touches[0].clientX)
+        }
+      />
+    </div>
+  )
 }
