@@ -1,7 +1,8 @@
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
-export const maxDuration = 60; // Allow Vercel more time for the Vision API to process
+export const maxDuration = 60; 
 
 export async function POST(req: Request) {
   try {
@@ -10,33 +11,35 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // 🔥 THE FIX: Switched to the gemini-2.5-flash model as requested.
+    // Using Gemini 2.5 Flash as requested
     const model = genAI.getGenerativeModel({ 
         model: "gemini-2.5-flash",
         generationConfig: {
-            responseMimeType: "application/json", // Forces the model to only return valid JSON
+            responseMimeType: "application/json", 
+            temperature: 0.1, // LOW temperature so it doesn't "hallucinate" random points
         }
     });
 
-    // THE MASTER SPATIAL PROMPT FOR BUILDINGS AND ROADS
+    // 🔥 THE MAX-PRECISION SPATIAL PROMPT
     const prompt = `
-    You are an expert Cadastral GIS AI. Extract precise property boundaries, building footprints, and roads from this satellite image.
+    You are an expert Cadastral GIS AI. Your job is to extract precise building footprints and roads from this satellite image.
     
-    INSTRUCTIONS:
-    1. Identify distinct buildings/properties AND visible roads/paths.
-    2. Trace shapes using vertices. Use 4-8 vertices for buildings. Use 2-10 vertices for roads.
-    3. Output coordinates as a normalized relative spatial grid: [0.000, 0.000] is Top-Left, [1.000, 1.000] is Bottom-Right.
+    CRITICAL RULES:
+    1. DO NOT draw generic square bounding boxes. 
+    2. You MUST trace the actual architectural outline/corners of the building's roof. If a building is L-shaped, output 6 vertices. If it is complex, output up to 12 vertices.
+    3. Roads must be traced along their centerlines with 3-15 vertices.
+    4. Output coordinates as a normalized relative spatial grid: [0.0000, 0.0000] is Top-Left, [1.0000, 1.0000] is Bottom-Right. Use 4 decimal places for precision.
     
     OUTPUT FORMAT MUST MATCH THIS EXACT JSON SCHEMA:
     {
       "features": [
         {
           "entity_type": "building",
-          "vertices": [ [0.150, 0.200], [0.150, 0.350], [0.250, 0.350], [0.250, 0.200] ]
+          "vertices": [ [0.1502, 0.2001], [0.1600, 0.2001], [0.1600, 0.2505], [0.1502, 0.2505] ]
         },
         {
           "entity_type": "road",
-          "vertices": [ [0.400, 0.100], [0.450, 0.500], [0.500, 0.900] ]
+          "vertices": [ [0.4001, 0.1005], [0.4503, 0.5002], [0.5001, 0.9008] ]
         }
       ]
     }
@@ -52,7 +55,7 @@ export async function POST(req: Request) {
     const result = await model.generateContent([prompt, imagePart]);
     const responseText = result.response.text();
     
-    // Strip markdown if the model accidentally includes it despite JSON mode
+    // Clean JSON output
     const cleanJsonStr = responseText.replace(/```json\n?|\n?```/g, '').trim();
     const detectedData = JSON.parse(cleanJsonStr);
 
@@ -61,16 +64,14 @@ export async function POST(req: Request) {
       
       const realWorldCoords = item.vertices.map((vertex: [number, number]) => {
         const [relX, relY] = vertex;
-        // relX (0 to 1) maps to West to East (Longitude)
         const lng = bounds.west + relX * (bounds.east - bounds.west);
-        // relY (0 to 1) maps to North to South (Latitude). Subtracted because North is higher.
         const lat = bounds.north - relY * (bounds.north - bounds.south);
         return [lng, lat];
       });
 
       const isBuilding = item.entity_type === "building";
 
-      // If it's a building (Polygon), we MUST close the loop for valid GeoJSON
+      // If building, close the polygon loop
       if (isBuilding && realWorldCoords.length > 2) {
         const first = realWorldCoords[0];
         const last = realWorldCoords[realWorldCoords.length - 1];
@@ -79,7 +80,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // Construct the proper GeoJSON Feature
       return {
         type: "Feature",
         properties: { 
