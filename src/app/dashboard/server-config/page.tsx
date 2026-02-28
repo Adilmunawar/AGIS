@@ -7,16 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import { useGeminiConfig } from '@/hooks/use-gemini-config';
-import { CheckCircle, ExternalLink, Loader2, Server, ShieldX, BookOpen, Sparkles, KeyRound } from 'lucide-react';
+import { CheckCircle, ExternalLink, Loader2, Server, ShieldX, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function ServerConfigPage() {
   const { colabUrl, saveUrl, isLoaded: isServerConfigLoaded } = useServerConfig();
-  const { geminiApiKey, saveKey, isLoaded: isGeminiConfigLoaded } = useGeminiConfig();
   
   const [currentUrl, setCurrentUrl] = useState(colabUrl);
-  const [currentApiKey, setCurrentApiKey] = useState(geminiApiKey);
 
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'fail' | null>(null);
@@ -28,11 +25,6 @@ export default function ServerConfigPage() {
     }
   }, [colabUrl, isServerConfigLoaded]);
   
-  useEffect(() => {
-    if (isGeminiConfigLoaded) {
-      setCurrentApiKey(geminiApiKey);
-    }
-  }, [geminiApiKey, isGeminiConfigLoaded]);
 
   const handleSaveAndTest = async () => {
     setIsTesting(true);
@@ -74,17 +66,7 @@ export default function ServerConfigPage() {
     }
   };
 
-  const handleSaveKey = () => {
-    saveKey(currentApiKey);
-    toast({
-      title: 'API Key Saved',
-      description: 'Your Gemini API key has been successfully saved locally.',
-    });
-  };
-  
-  const isLoaded = isServerConfigLoaded && isGeminiConfigLoaded;
-
-  if (!isLoaded) {
+  if (!isServerConfigLoaded) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-gray-100/50">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -142,7 +124,7 @@ export default function ServerConfigPage() {
                            <Server className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <CardTitle className="text-xl font-bold">Overture Engine Endpoint</CardTitle>
+                            <CardTitle className="text-xl font-bold">AGIS Realtime Engine Endpoint</CardTitle>
                             <CardDescription className="mt-1">Paste the tunnel URL from your Colab notebook here.</CardDescription>
                         </div>
                     </div>
@@ -173,42 +155,6 @@ export default function ServerConfigPage() {
                 <CardFooter>
                     <Button onClick={handleSaveAndTest} disabled={isTesting || !currentUrl} className="w-full h-11 text-base">
                         {isTesting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testing...</> : 'Save & Test Connection'}
-                    </Button>
-                </CardFooter>
-            </Card>
-
-            <Card className="bg-white/90 backdrop-blur-md shadow-lg border-slate-200/50">
-                <CardHeader>
-                    <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                           <Sparkles className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                            <CardTitle className="text-xl font-bold">Nano Vision Engine (BYOK)</CardTitle>
-                            <CardDescription className="mt-1">Provide your own Google Gemini API Key for advanced vision features.</CardDescription>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-2">
-                        <label htmlFor="gemini-key" className="text-sm font-medium text-foreground">Gemini API Key</label>
-                        <div className="relative">
-                            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input
-                                id="gemini-key"
-                                type="password"
-                                placeholder="Enter your Gemini API Key"
-                                value={currentApiKey}
-                                onChange={(e) => setCurrentApiKey(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
-                         <p className="text-xs text-muted-foreground pt-1">Your key is stored securely in your browser and never sent to our servers.</p>
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={handleSaveKey} disabled={!currentApiKey} className="w-full h-11 text-base">
-                        Save Key
                     </Button>
                 </CardFooter>
             </Card>

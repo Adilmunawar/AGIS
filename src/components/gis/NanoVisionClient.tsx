@@ -3,11 +3,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
-import L, { type LatLng, type LatLngBounds } from 'leaflet';
-import html2canvas from 'html2canvas';
+import L, { type LatLngBounds } from 'leaflet';
 
 import { useToast } from '@/hooks/use-toast';
-import { useGeminiConfig } from '@/hooks/use-gemini-config';
+import { useServerConfig } from '@/hooks/use-server-config';
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,7 +42,7 @@ function NanoVisionControlBar({
     hasSelection,
     isProcessing,
     geoData,
-    geminiApiKey,
+    colabUrl,
     statusMessage,
     onRunScan,
     onDownload,
@@ -53,7 +52,7 @@ function NanoVisionControlBar({
     hasSelection: boolean;
     isProcessing: boolean;
     geoData: any;
-    geminiApiKey: string;
+    colabUrl: string;
     statusMessage: string | null;
     onRunScan: () => void;
     onDownload: () => void;
@@ -63,9 +62,9 @@ function NanoVisionControlBar({
 
     const runButtonTooltipContent = !hasSelection
         ? 'Please draw a polygon on the map to define the scan area.'
-        : !geminiApiKey
-            ? 'A Gemini API Key is required. Please add your key on the Server Config page.'
-            : 'Scans the selected region using the Gemini 2.5 Flash vision model.';
+        : !colabUrl
+            ? 'The AGIS Realtime engine is not connected. Please add the URL on the Server Config page.'
+            : 'Extracts precise features using the AGIS Realtime engine.';
 
     return (
         <TooltipProvider delayDuration={300}>
@@ -109,7 +108,7 @@ function NanoVisionControlBar({
                                     </div>
                                     <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
                                         {!hasSelection && <MousePointer className="h-3 w-3" />}
-                                        {hasSelection ? 'Area selected for digitization.' : 'Draw a polygon to begin.'}
+                                        {hasSelection ? 'Area selected for extraction.' : 'Draw a polygon to begin.'}
                                     </p>
                                 </div>
                             </div>
@@ -118,15 +117,15 @@ function NanoVisionControlBar({
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <span tabIndex={0} className="w-full sm:w-auto">
-                                            {!geminiApiKey ? (
+                                            {!colabUrl ? (
                                                 <Button variant="destructive" disabled className="w-full sm:w-auto h-10 md:h-9 opacity-90">
                                                     <ShieldAlert className="mr-2 h-4 w-4" />
-                                                    API Key Missing
+                                                    Engine Not Connected
                                                 </Button>
                                             ) : (
                                                 <Button onClick={onRunScan} disabled={!hasSelection || isProcessing} className="w-full sm:w-auto h-10 md:h-9 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
                                                     {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                                                    Run Nano Vision
+                                                    Run High-Precision Scan
                                                 </Button>
                                             )}
                                         </span>
@@ -164,13 +163,13 @@ function MapContent() {
   const map = useMap();
   const controlRef = useRef<HTMLDivElement>(null);
   
-  const [polygonCoords, setPolygonCoords] = useState<string | null>(null);
+  const [hasSelection, setHasSelection] = useState(false);
   const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [geoData, setGeoData] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>('Initializing...');
   
-  const { geminiApiKey, isLoaded } = useGeminiConfig();
+  const { colabUrl, isLoaded } = useServerConfig();
   const { toast } = useToast();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
 
@@ -183,85 +182,88 @@ function MapContent() {
 
   useEffect(() => {
     if (isLoaded) {
-        if (geminiApiKey) {
-            setStatusMessage('Nano Vision ready. Draw a polygon to begin.');
+        if (colabUrl) {
+            setStatusMessage('Nano Vision Engine ready. Draw a polygon to begin.');
         } else {
-            setStatusMessage('Gemini API Key is missing. Configure it on the "Server Config" page.');
+            setStatusMessage('AGIS Engine is not connected. Configure it on the "Server Config" page.');
         }
     }
-  }, [isLoaded, geminiApiKey]);
+  }, [isLoaded, colabUrl]);
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
     setSelectionBounds(layer.getBounds());
-    // For simplicity, we just use bounds for Nano Vision, not complex polygon strings.
-    setPolygonCoords("selected"); // Use a simple truthy value to indicate a selection exists.
-    setStatusMessage('Area selected. Ready for digitization.');
+    setHasSelection(true);
+    setStatusMessage('Area selected. Ready for high-precision extraction.');
     setGeoData(null);
   };
 
   const handleDeleted = () => {
-    setPolygonCoords(null);
+    setHasSelection(false);
     setSelectionBounds(null);
     setGeoData(null);
-    if(isLoaded && geminiApiKey) {
+    if(isLoaded && colabUrl) {
         setStatusMessage('Engine ready. Draw a new polygon to begin.');
     } else if (isLoaded) {
-        setStatusMessage('Gemini API Key is missing.');
+        setStatusMessage('AGIS Engine is not connected.');
     }
   };
 
   const runNanoVisionExtraction = async () => {
-    if (!selectionBounds || !geminiApiKey) {
-      const description = !geminiApiKey 
-        ? 'Please add your Gemini API Key in the Server Config page.'
-        : 'Please draw a polygon on the map to define the scan area.';
-      toast({ variant: "destructive", title: "Cannot Start Scan", description });
+    if (!selectionBounds || !colabUrl) {
+      const description = !colabUrl 
+        ? 'Please connect the AGIS Realtime engine in the Server Config page.'
+        : 'Please draw a polygon on the map to define the extraction area.';
+      toast({ variant: "destructive", title: "Cannot Start Extraction", description });
       return;
     }
     
     setIsProcessing(true);
     setGeoData(null);
-    setStatusMessage("Capturing satellite data for Nano Vision...");
-    toast({ title: "Capturing Satellite Data", description: "Preparing image for Nano Vision..." });
-
+    
     try {
-        const mapElement = document.querySelector('.leaflet-container') as HTMLElement;
-        if (!mapElement) throw new Error("Map container element not found.");
+        const bbox = [
+            selectionBounds.getWest(),
+            selectionBounds.getSouth(),
+            selectionBounds.getEast(),
+            selectionBounds.getNorth()
+        ];
 
-        const canvas = await html2canvas(mapElement, { 
-            useCORS: true, 
-            allowTaint: false,
-            scale: 1, // Keep scale 1 to maintain 1:1 pixel/coordinate ratio
-            logging: false
-        });
-        const imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
-        
-        const bounds = {
-            north: selectionBounds.getNorth(),
-            south: selectionBounds.getSouth(),
-            east: selectionBounds.getEast(),
-            west: selectionBounds.getWest()
-        };
-
-        setStatusMessage("Nano Vision Engine: Analyzing spatial data with Gemini 2.5 Flash...");
-        toast({ title: "Nano Vision Engine", description: "Analyzing spatial data with Gemini 2.5 Flash..." });
-
-        const response = await fetch('/api/gemini-digitize', {
+        setStatusMessage("Contacting AGIS Engine: Extracting building footprints...");
+        const buildingsResponse = await fetch(`${colabUrl}/extract_overture`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64, bounds, apiKey: geminiApiKey })
+            body: JSON.stringify({ bbox, type: 'building' })
         });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || "Vision Engine Failed");
+        if (!buildingsResponse.ok) {
+            const errorData = await buildingsResponse.json().catch(() => ({details: `Server returned status ${buildingsResponse.status}`}));
+            throw new Error(`Failed to fetch building data: ${errorData.details || 'Unknown error'}`);
         }
+        const buildingsData = await buildingsResponse.json();
+        buildingsData.features.forEach((f: any) => f.properties.entity_type = 'building');
 
-        const result = await response.json();
-        setGeoData(result);
-        setStatusMessage(`Nano Vision complete. Extracted ${result.features.length} features.`);
-        toast({ title: "Map Digitized via Nano Vision", description: `Extracted ${result.features.length} features.` });
+        setStatusMessage("Contacting AGIS Engine: Extracting road networks...");
+        const roadsResponse = await fetch(`${colabUrl}/extract_overture`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bbox, type: 'segment' })
+        });
+        if (!roadsResponse.ok) {
+            const errorData = await roadsResponse.json().catch(() => ({details: `Server returned status ${roadsResponse.status}`}));
+            throw new Error(`Failed to fetch road data: ${errorData.details || 'Unknown error'}`);
+        }
+        const roadsData = await roadsResponse.json();
+        roadsData.features.forEach((f: any) => f.properties.entity_type = 'road');
+
+        const mergedFeatures = [...buildingsData.features, ...roadsData.features];
+        const mergedGeoJson = {
+            type: "FeatureCollection",
+            features: mergedFeatures
+        };
+
+        setGeoData(mergedGeoJson);
+        setStatusMessage(`Extraction complete. Found ${mergedFeatures.length} total features.`);
+        toast({ title: "High-Precision Extraction Complete", description: `Found ${buildingsData.features.length} buildings and ${roadsData.features.length} roads.` });
 
     } catch (error: any) {
         setStatusMessage(`Error: ${error.message}`);
@@ -304,13 +306,13 @@ function MapContent() {
             const layers = e.layers;
             layers.eachLayer((layer: any) => {
               setSelectionBounds(layer.getBounds());
-              setStatusMessage('Selection updated. Ready for digitization.');
+              setStatusMessage('Selection updated. Ready for high-precision extraction.');
             });
           }}
           onDeleted={handleDeleted} 
           draw={{ 
-            polygon: { shapeOptions: { color: '#8b5cf6', weight: 2, fillOpacity: 0.1 } },
-            rectangle: { shapeOptions: { color: '#8b5cf6', weight: 2, fillOpacity: 0.1 } },
+            polygon: { shapeOptions: { color: '#16a34a', weight: 2, fillOpacity: 0.1 } },
+            rectangle: { shapeOptions: { color: '#16a34a', weight: 2, fillOpacity: 0.1 } },
             circle: false, marker: false, polyline: false, circlemarker: false
           }}
           edit={{ edit: true, remove: true }}
@@ -321,22 +323,20 @@ function MapContent() {
         <GeoJSON 
           data={geoData} 
           style={(feature) => {
-            // Style differently based on what the API detected
-            if (feature?.properties?.type === 'road') {
+            if (feature?.properties?.entity_type === 'road') {
                 return {
-                    color: '#eab308', // Yellow for roads
-                    weight: 4,
-                    opacity: 1,
-                    dashArray: '5, 5'
+                    color: '#ef4444', // Red for roads
+                    weight: 3,
+                    opacity: 0.9,
                 };
             }
-            // Default styling for buildings
+            // Default for buildings
             return {
-                color: '#f43f5e', // Rose for buildings
+                color: '#3b82f6', // Blue for buildings
                 weight: 2,
                 opacity: 0.9,
-                fillColor: '#fb7185',
-                fillOpacity: 0.4
+                fillColor: '#60a5fa',
+                fillOpacity: 0.5
             };
           }} 
         />
@@ -349,10 +349,10 @@ function MapContent() {
       ) : (
         <div ref={controlRef} className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] w-full max-w-4xl">
             <NanoVisionControlBar
-                hasSelection={!!polygonCoords}
+                hasSelection={hasSelection}
                 isProcessing={isProcessing}
                 geoData={geoData}
-                geminiApiKey={geminiApiKey}
+                colabUrl={colabUrl}
                 statusMessage={statusMessage}
                 onRunScan={runNanoVisionExtraction}
                 onDownload={handleDownload}
