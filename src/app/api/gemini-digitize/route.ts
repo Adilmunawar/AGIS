@@ -1,80 +1,107 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
+export const maxDuration = 60; // Allow Vercel more time for the Vision API to process
+
 export async function POST(req: Request) {
   try {
     const { imageBase64, bounds, apiKey } = await req.json();
     if (!apiKey) return NextResponse.json({ error: "API Key missing" }, { status: 401 });
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // 🔥 THE FIX: Pointing exactly to the Gemma 3 27B model as requested
     const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-pro-latest",
+        model: "gemma-3-27b-it",
+        generationConfig: {
+            responseMimeType: "application/json", // Forces Gemma to output raw data, not conversation
+        }
     });
 
-    // THE MASTER SPATIAL PROMPT
+    // Master spatial prompt for Gemma 3
     const prompt = `
-    You are an expert Cadastral GIS AI. Extract precise property boundaries and building footprints from this satellite image.
+    You are an expert Cadastral GIS AI. Extract precise property boundaries, building footprints, and roads from this satellite image.
     
     INSTRUCTIONS:
-    1. Identify every distinct building or property boundary.
-    2. Trace the shape using a minimum of 4 and a maximum of 8 vertices to capture true geometric shape (not just square bounding boxes).
+    1. Identify distinct buildings/properties AND visible roads/paths.
+    2. Trace shapes using vertices. Use 4-8 vertices for buildings. Use 2-10 vertices for roads.
     3. Output coordinates as a normalized relative spatial grid: [0.000, 0.000] is Top-Left, [1.000, 1.000] is Bottom-Right.
     
-    OUTPUT FORMAT MUST BE STRICTLY THIS JSON SCHEMA:
+    OUTPUT FORMAT MUST MATCH THIS EXACT JSON SCHEMA:
     {
       "features": [
         {
-          "type": "polygon",
+          "entity_type": "building",
           "vertices": [ [0.150, 0.200], [0.150, 0.350], [0.250, 0.350], [0.250, 0.200] ]
+        },
+        {
+          "entity_type": "road",
+          "vertices": [ [0.400, 0.100], [0.450, 0.500], [0.500, 0.900] ]
         }
       ]
     }
     `;
 
-    const imagePart = { inlineData: { data: imageBase64.split(',')[1], mimeType: "image/jpeg" } };
+    const imagePart = { 
+        inlineData: { 
+            data: imageBase64.split(',')[1], 
+            mimeType: "image/jpeg" 
+        } 
+    };
+
     const result = await model.generateContent([prompt, imagePart]);
+    const responseText = result.response.text();
     
-    // Clean up the response text before parsing
-    const responseText = result.response.text()
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
-
-    const detectedData = JSON.parse(responseText);
-
+    // Strip markdown if Gemma accidentally includes it despite JSON mode
+    const cleanJsonStr = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    const detectedData = JSON.parse(cleanJsonStr);
 
     // TRANSLATION LAYER: Relative grid [0-1] to Real-World GPS GeoJSON
     const geoJsonFeatures = detectedData.features.map((item: any) => {
+      
       const realWorldCoords = item.vertices.map((vertex: [number, number]) => {
         const [relX, relY] = vertex;
+        // relX (0 to 1) maps to West to East (Longitude)
         const lng = bounds.west + relX * (bounds.east - bounds.west);
+        // relY (0 to 1) maps to North to South (Latitude). Subtracted because North is higher.
         const lat = bounds.north - relY * (bounds.north - bounds.south);
         return [lng, lat];
       });
 
-      // Close the GeoJSON polygon loop
-      if (realWorldCoords.length > 0 && (realWorldCoords[0][0] !== realWorldCoords[realWorldCoords.length - 1][0] || realWorldCoords[0][1] !== realWorldCoords[realWorldCoords.length - 1][1])) {
-        realWorldCoords.push(realWorldCoords[0]);
+      const isBuilding = item.entity_type === "building";
+
+      // If it's a building (Polygon), we MUST close the loop for valid GeoJSON
+      if (isBuilding && realWorldCoords.length > 2) {
+        const first = realWorldCoords[0];
+        const last = realWorldCoords[realWorldCoords.length - 1];
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+          realWorldCoords.push([...first]);
+        }
       }
 
-
+      // Construct the proper GeoJSON Feature
       return {
         type: "Feature",
-        properties: { source: "AGIS Nano Vision (Gemini 1.5 Pro)" },
-        geometry: { type: "Polygon", coordinates: [realWorldCoords] }
+        properties: { 
+            source: "Gemma 3 27B Vision",
+            type: item.entity_type 
+        },
+        geometry: { 
+            type: isBuilding ? "Polygon" : "LineString", 
+            coordinates: isBuilding ? [realWorldCoords] : realWorldCoords 
+        }
       };
     });
 
     return NextResponse.json({ type: "FeatureCollection", features: geoJsonFeatures });
+
   } catch (error: any) {
-    console.error("Gemini Digitization Error:", error);
+    console.error("Gemma Digitization Error:", error);
     let errorMessage = "An unknown error occurred during Nano Vision processing.";
-    if (error.message.includes('API key not valid')) {
+    if (error.message?.includes('API key not valid')) {
         errorMessage = "Invalid Gemini API Key. Please check the key in Server Config.";
-    } else if (error.message.includes('permission')) {
-        errorMessage = "API key does not have permission for the Gemini 1.5 Pro model.";
     } else if (error instanceof SyntaxError) {
-        errorMessage = "The AI model returned an invalid data structure. Please try again.";
+        errorMessage = "The AI model returned an invalid spatial structure.";
     }
     return NextResponse.json({ error: errorMessage, details: error.message }, { status: 500 });
   }

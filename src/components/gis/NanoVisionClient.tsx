@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import L, { type LatLng, type LatLngBounds } from 'leaflet';
@@ -10,9 +9,8 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { useGeminiConfig } from '@/hooks/use-gemini-config';
 
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Sparkles, Download, Plus, Minus, MousePointer, ShieldAlert, Terminal } from 'lucide-react';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -67,7 +65,7 @@ function NanoVisionControlBar({
         ? 'Please draw a polygon on the map to define the scan area.'
         : !geminiApiKey
             ? 'A Gemini API Key is required. Please add your key on the Server Config page.'
-            : 'Scans the selected region using the Gemini 1.5 Pro vision model.';
+            : 'Scans the selected region using the Gemma 3 27B vision model.';
 
     return (
         <TooltipProvider delayDuration={300}>
@@ -234,9 +232,10 @@ function MapContent() {
         const canvas = await html2canvas(mapElement, { 
             useCORS: true, 
             allowTaint: false,
-            scale: 1
+            scale: 1, // Keep scale 1 to maintain 1:1 pixel/coordinate ratio
+            logging: false
         });
-        const imageBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        const imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
         
         const bounds = {
             north: selectionBounds.getNorth(),
@@ -245,8 +244,8 @@ function MapContent() {
             west: selectionBounds.getWest()
         };
 
-        setStatusMessage("Nano Vision Engine: Analyzing spatial data with Gemini 1.5 Pro...");
-        toast({ title: "Nano Vision Engine", description: "Analyzing spatial data with Gemini 1.5 Pro..." });
+        setStatusMessage("Nano Vision Engine: Analyzing spatial data with Gemma 3 27B Vision...");
+        toast({ title: "Nano Vision Engine", description: "Analyzing spatial data with Gemma 3 27B Vision..." });
 
         const response = await fetch('/api/gemini-digitize', {
             method: 'POST',
@@ -261,8 +260,8 @@ function MapContent() {
 
         const result = await response.json();
         setGeoData(result);
-        setStatusMessage(`Nano Vision complete. Extracted ${result.features.length} property plots.`);
-        toast({ title: "Map Digitized via Nano Vision", description: `Extracted ${result.features.length} property plots.` });
+        setStatusMessage(`Gemma 3 Vision complete. Extracted ${result.features.length} features.`);
+        toast({ title: "Map Digitized via Nano Vision", description: `Extracted ${result.features.length} features.` });
 
     } catch (error: any) {
         setStatusMessage(`Error: ${error.message}`);
@@ -321,12 +320,24 @@ function MapContent() {
       {geoData && (
         <GeoJSON 
           data={geoData} 
-          style={{
-            color: '#f43f5e',
-            weight: 2,
-            opacity: 0.9,
-            fillColor: '#fb7185',
-            fillOpacity: 0.4
+          style={(feature) => {
+            // Style differently based on what the API detected
+            if (feature?.properties?.type === 'road') {
+                return {
+                    color: '#eab308', // Yellow for roads
+                    weight: 4,
+                    opacity: 1,
+                    dashArray: '5, 5'
+                };
+            }
+            // Default styling for buildings
+            return {
+                color: '#f43f5e', // Rose for buildings
+                weight: 2,
+                opacity: 0.9,
+                fillColor: '#fb7185',
+                fillOpacity: 0.4
+            };
           }} 
         />
       )}
