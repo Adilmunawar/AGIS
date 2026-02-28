@@ -193,9 +193,9 @@ function MapContent() {
   const [targetPrompt, setTargetPrompt] = useState('building, house');
   const [isProcessing, setIsProcessing] = useState(false);
   const [geoData, setGeoData] = useState<any>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>('Engine ready. Draw a polygon to begin.');
+  const [statusMessage, setStatusMessage] = useState<string | null>('Initializing...');
   
-  const { colabUrl: serverUrl } = useServerConfig();
+  const { colabUrl: serverUrl, isLoaded } = useServerConfig();
   const { toast } = useToast();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
 
@@ -205,6 +205,16 @@ function MapContent() {
       L.DomEvent.disableScrollPropagation(controlRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+        if (serverUrl) {
+            setStatusMessage('Engine ready. Draw a polygon to begin.');
+        } else {
+            setStatusMessage('AI Vision engine is offline. Configure server on the "Server Config" page.');
+        }
+    }
+  }, [isLoaded, serverUrl]);
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
@@ -220,7 +230,11 @@ function MapContent() {
     setPolygonCoords(null);
     setSelectionBounds(null);
     setGeoData(null);
-    setStatusMessage('Selection cleared. Draw a new polygon to begin.');
+    if(isLoaded && serverUrl) {
+        setStatusMessage('Engine ready. Draw a polygon to begin.');
+    } else if (isLoaded) {
+        setStatusMessage('AI Vision engine is offline. Configure server on the "Server Config" page.');
+    }
   };
 
   const handleScan = async () => {
