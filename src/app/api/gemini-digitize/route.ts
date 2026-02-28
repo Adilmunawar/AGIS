@@ -8,7 +8,7 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-pro-latest", // Using 1.5 Pro for better performance
+        model: "gemini-1.5-pro-latest",
     });
 
     // THE MASTER SPATIAL PROMPT

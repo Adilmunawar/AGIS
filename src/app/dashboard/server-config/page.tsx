@@ -192,14 +192,15 @@ export default function ServerConfigPage() {
                 <CardContent>
                     <div className="space-y-2">
                         <label htmlFor="gemini-key" className="text-sm font-medium text-foreground">Gemini API Key</label>
-                        <div className="flex items-center gap-2">
-                            <KeyRound className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <div className="relative">
+                            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input
                                 id="gemini-key"
                                 type="password"
                                 placeholder="Enter your Gemini API Key"
                                 value={currentApiKey}
                                 onChange={(e) => setCurrentApiKey(e.target.value)}
+                                className="pl-10"
                             />
                         </div>
                          <p className="text-xs text-muted-foreground pt-1">Your key is stored securely in your browser and never sent to our servers.</p>
