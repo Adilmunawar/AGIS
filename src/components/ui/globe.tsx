@@ -15,8 +15,8 @@ const GlobeVisual = () => {
     }
   });
 
-  // Texture from: https://www.solarsystemscope.com/textures/
-  const [earthTexture] = useTexture(['https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg']);
+  // Texture from a reliable source with permissive CORS
+  const [earthTexture] = useTexture(['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg']);
 
   // Using HSL values from globals.css for primary color: 160 80% 40%
   const primaryColor = new Color("hsl(160, 80%, 40%)");
