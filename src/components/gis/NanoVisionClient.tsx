@@ -65,7 +65,7 @@ function NanoVisionControlBar({
         ? 'Please draw a polygon on the map to define the scan area.'
         : !geminiApiKey
             ? 'A Gemini API Key is required. Please add your key on the Server Config page.'
-            : 'Scans the selected region using the Gemma 3 27B vision model.';
+            : 'Scans the selected region using the Gemini 1.5 Pro vision model.';
 
     return (
         <TooltipProvider delayDuration={300}>
@@ -244,8 +244,8 @@ function MapContent() {
             west: selectionBounds.getWest()
         };
 
-        setStatusMessage("Nano Vision Engine: Analyzing spatial data with Gemma 3 27B Vision...");
-        toast({ title: "Nano Vision Engine", description: "Analyzing spatial data with Gemma 3 27B Vision..." });
+        setStatusMessage("Nano Vision Engine: Analyzing spatial data with Gemini 1.5 Pro...");
+        toast({ title: "Nano Vision Engine", description: "Analyzing spatial data with Gemini 1.5 Pro..." });
 
         const response = await fetch('/api/gemini-digitize', {
             method: 'POST',
@@ -260,7 +260,7 @@ function MapContent() {
 
         const result = await response.json();
         setGeoData(result);
-        setStatusMessage(`Gemma 3 Vision complete. Extracted ${result.features.length} features.`);
+        setStatusMessage(`Nano Vision complete. Extracted ${result.features.length} features.`);
         toast({ title: "Map Digitized via Nano Vision", description: `Extracted ${result.features.length} features.` });
 
     } catch (error: any) {

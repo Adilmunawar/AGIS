@@ -10,15 +10,15 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // 🔥 THE FIX: Pointing exactly to the Gemma 3 27B model as requested
+    // 🔥 THE FIX: Switched to a powerful multimodal model capable of vision analysis.
     const model = genAI.getGenerativeModel({ 
-        model: "gemma-3-27b-it",
+        model: "gemini-1.5-pro-latest",
         generationConfig: {
-            responseMimeType: "application/json", // Forces Gemma to output raw data, not conversation
+            responseMimeType: "application/json", // Forces the model to only return valid JSON
         }
     });
 
-    // Master spatial prompt for Gemma 3
+    // THE MASTER SPATIAL PROMPT FOR BUILDINGS AND ROADS
     const prompt = `
     You are an expert Cadastral GIS AI. Extract precise property boundaries, building footprints, and roads from this satellite image.
     
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     const result = await model.generateContent([prompt, imagePart]);
     const responseText = result.response.text();
     
-    // Strip markdown if Gemma accidentally includes it despite JSON mode
+    // Strip markdown if the model accidentally includes it despite JSON mode
     const cleanJsonStr = responseText.replace(/```json\n?|\n?```/g, '').trim();
     const detectedData = JSON.parse(cleanJsonStr);
 
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       return {
         type: "Feature",
         properties: { 
-            source: "Gemma 3 27B Vision",
+            source: "AGIS Nano Vision (Gemini 1.5 Pro)",
             type: item.entity_type 
         },
         geometry: { 
@@ -96,10 +96,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ type: "FeatureCollection", features: geoJsonFeatures });
 
   } catch (error: any) {
-    console.error("Gemma Digitization Error:", error);
+    console.error("Gemini Digitization Error:", error);
     let errorMessage = "An unknown error occurred during Nano Vision processing.";
     if (error.message?.includes('API key not valid')) {
         errorMessage = "Invalid Gemini API Key. Please check the key in Server Config.";
+    } else if (error.message?.includes('400 Bad Request')) {
+        errorMessage = "The model could not process the image. Try a different area or zoom level.";
     } else if (error instanceof SyntaxError) {
         errorMessage = "The AI model returned an invalid spatial structure.";
     }
