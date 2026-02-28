@@ -109,7 +109,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-lg transition-all duration-300 sm:hover:shadow-2xl sm:hover:-translate-y-1 sm:hover:shadow-primary/10">
+    <Card className="w-full max-w-sm rounded-2xl border border-slate-200/50 bg-card/80 backdrop-blur-sm shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-primary/20">
       <CardHeader className="text-center p-2">
         <Image 
           src="/AGIS animation/AGIS (1).gif"
@@ -186,7 +186,7 @@ export function LoginForm() {
                 <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
+                <span className="bg-card/0 px-2 text-muted-foreground">
                     Or continue with
                 </span>
             </div>

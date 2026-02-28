@@ -5,6 +5,7 @@ import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Globe } from '@/components/ui/globe';
 
 export function LoginPageClient() {
   const { user, isUserLoading } = useUser();
@@ -25,11 +26,14 @@ export function LoginPageClient() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <main className="flex flex-grow items-center justify-center p-4">
+    <div className="relative flex min-h-screen flex-col bg-background">
+      <div className="absolute inset-0 z-0 opacity-20 blur-sm">
+        <Globe />
+      </div>
+      <main className="relative z-10 flex flex-grow items-center justify-center p-4">
         <LoginForm />
       </main>
-      <footer className="w-full flex-shrink-0 py-4 text-center text-sm text-muted-foreground">
+      <footer className="relative z-10 w-full flex-shrink-0 py-2 text-center text-sm text-muted-foreground">
         <p>
           Proudly developed by{' '}
           <span className="font-semibold text-primary">Adil Munawar</span>
