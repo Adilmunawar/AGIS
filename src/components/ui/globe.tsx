@@ -89,14 +89,18 @@ export function Globe({
       onRender,
     })
 
-    setTimeout(() => (canvasRef.current!.style.opacity = "1"))
+    setTimeout(() => {
+      if(canvasRef.current) {
+        canvasRef.current.style.opacity = "1"
+      }
+    }, 500)
     return () => globe.destroy()
   }, [])
 
   return (
     <div
       className={cn(
-        "mx-auto aspect-[1/1] w-full max-w-[1200px]",
+        "mx-auto aspect-[1/1] w-full max-w-[800px]",
         className,
       )}
     >
