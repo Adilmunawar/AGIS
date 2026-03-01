@@ -9,6 +9,7 @@ import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { GisDataProvider } from '@/context/GisDataContext';
 
 // Import Leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -48,73 +49,75 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen w-full bg-background">
-      <aside className="w-64 flex-shrink-0 border-r bg-gray-50 flex flex-col">
-        <div className="p-4 border-b">
-          <h1 className="text-xl font-bold tracking-tight text-primary">AGIS</h1>
-          <p className="text-xs text-muted-foreground">Advanced Geo-Processing</p>
-        </div>
-        <nav className="flex-1 space-y-1 p-2">
-          {sidebarNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                pathname.startsWith(item.href)
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-black/5"
-              )}
-            >
-              <item.icon className="mr-3 h-5 w-5" />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="p-2 border-t">
-          <nav className="space-y-1">
-             {secondaryNavItems.map((item) => (
-                <Link
+    <GisDataProvider>
+      <div className="flex h-screen w-full bg-background">
+        <aside className="w-64 flex-shrink-0 border-r bg-gray-50 flex flex-col">
+          <div className="p-4 border-b">
+            <h1 className="text-xl font-bold tracking-tight text-primary">AGIS</h1>
+            <p className="text-xs text-muted-foreground">Advanced Geo-Processing</p>
+          </div>
+          <nav className="flex-1 space-y-1 p-2">
+            {sidebarNavItems.map((item) => (
+              <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                    "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                    pathname.startsWith(item.href)
+                  "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname.startsWith(item.href)
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-black/5"
                 )}
-                >
+              >
                 <item.icon className="mr-3 h-5 w-5" />
                 {item.label}
-                </Link>
+              </Link>
             ))}
           </nav>
-        </div>
-        <div className="mt-auto border-t p-2">
-          <div className="p-2 rounded-lg hover:bg-black/5">
-              <div className="flex items-center">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user?.photoURL || ''} />
-                  <AvatarFallback><UserIcon size={20}/></AvatarFallback>
-                </Avatar>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-foreground truncate">{user?.displayName || user?.email}</p>
-                  <p className="text-xs text-muted-foreground truncate">AGIS User</p>
-                </div>
-              </div>
+          <div className="p-2 border-t">
+            <nav className="space-y-1">
+               {secondaryNavItems.map((item) => (
+                  <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                      "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      pathname.startsWith(item.href)
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-black/5"
+                  )}
+                  >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.label}
+                  </Link>
+              ))}
+            </nav>
           </div>
-           <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground mt-1"
-            onClick={() => initiateSignOut(auth)}
-          >
-            <LogOut className="mr-3 h-5 w-5" />
-            Sign Out
-          </Button>
-        </div>
-      </aside>
-      <main className="flex-1 relative">{children}</main>
-    </div>
+          <div className="mt-auto border-t p-2">
+            <div className="p-2 rounded-lg hover:bg-black/5">
+                <div className="flex items-center">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user?.photoURL || ''} />
+                    <AvatarFallback><UserIcon size={20}/></AvatarFallback>
+                  </Avatar>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-foreground truncate">{user?.displayName || user?.email}</p>
+                    <p className="text-xs text-muted-foreground truncate">AGIS User</p>
+                  </div>
+                </div>
+            </div>
+             <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-muted-foreground mt-1"
+              onClick={() => initiateSignOut(auth)}
+            >
+              <LogOut className="mr-3 h-5 w-5" />
+              Sign Out
+            </Button>
+          </div>
+        </aside>
+        <main className="flex-1 relative">{children}</main>
+      </div>
+    </GisDataProvider>
   );
 }

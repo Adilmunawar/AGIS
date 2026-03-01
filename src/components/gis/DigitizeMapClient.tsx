@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
@@ -10,6 +10,7 @@ import type { LatLng, LatLngBounds } from 'leaflet';
 import { GisControlBar } from './GisControlBar';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import L from 'leaflet';
+import { useGisData } from '@/context/GisDataContext';
 
 function osmToGeoJSON(osmData: any): GeoJSON.FeatureCollection {
     const nodes = new Map<number, number[]>();
@@ -149,10 +150,42 @@ function MapControlsWrapper({
     );
 }
 
+const DrawnShapes = () => {
+  const { digitize: { polygonCoords } } = useGisData();
+  const map = useMap();
+  const featureGroupRef = useRef<L.FeatureGroup>(null);
+
+  useMapEvents({
+      'draw:created': (e: any) => {
+        // We let the client component handle state updates.
+      },
+  });
+
+  useEffect(() => {
+      // Clear existing layers to prevent duplicates when state changes
+      featureGroupRef.current?.clearLayers();
+
+      if (polygonCoords) {
+        try {
+          const latlngs = polygonCoords.split(' ').map(coord => {
+              const [lat, lng] = coord.split(',').map(Number);
+              return L.latLng(lat, lng);
+          });
+          const polygon = L.polygon(latlngs, {
+              color: '#16a34a', weight: 2, fillOpacity: 0.1
+          });
+          featureGroupRef.current?.addLayer(polygon);
+        } catch (error) {
+            console.error("Error creating polygon from stored coords:", error);
+        }
+      }
+  }, [polygonCoords, map]);
+
+  return <FeatureGroup ref={featureGroupRef} />;
+}
+
 export default function DigitizeMapClient() {
-  const [polygonCoords, setPolygonCoords] = useState<string | null>(null);
-  const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
-  const [geoData, setGeoData] = useState<any>(null);
+  const { digitize: { polygonCoords, selectionBounds, geoData }, updateToolState } = useGisData();
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>('Engine ready. Draw a polygon to begin.');
   const workerRef = useRef<Worker | null>(null);
@@ -168,7 +201,7 @@ export default function DigitizeMapClient() {
       if (status === 'info') {
         setStatusMessage(message);
       } else if (status === 'success' && action === 'DIGITIZE_MAP') {
-        setGeoData(data);
+        updateToolState('digitize', { geoData: data });
         setIsProcessing(false);
         setStatusMessage(`Vectorization complete. ${data?.features?.length || 0} building footprints delineated.`);
       } else if (status === 'error') {
@@ -178,33 +211,38 @@ export default function DigitizeMapClient() {
       }
     };
     return () => workerRef.current?.terminate();
-  }, [toast]);
+  }, [toast, updateToolState]);
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
     const latlngs: LatLng[] = layer.getLatLngs()[0];
-    const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
-    setPolygonCoords(polyString);
-    setSelectionBounds(layer.getBounds());
+    const polyString = latlngs.map((ll) => `${ll.lat},${ll.lng}`).join(' ');
+    updateToolState('digitize', {
+        polygonCoords: polyString,
+        selectionBounds: layer.getBounds(),
+        geoData: null,
+    });
     setStatusMessage('Area selected. Ready for extraction.');
-    setGeoData(null);
   };
   
   const handleDeleted = () => {
-    setPolygonCoords(null);
-    setSelectionBounds(null);
-    setGeoData(null);
+    updateToolState('digitize', {
+        polygonCoords: null,
+        selectionBounds: null,
+        geoData: null,
+    });
     setStatusMessage('Selection cleared. Draw a new polygon to begin.');
   };
 
   const runStandardExtraction = async () => {
     if (!polygonCoords) return;
     setIsProcessing(true);
-    setGeoData(null);
+    updateToolState('digitize', { geoData: null });
     setStatusMessage("Querying data source for building footprints...");
 
     try {
-      const query = `[out:json][timeout:25];(way["building"](poly:"${polygonCoords}");relation["building"](poly:"${polygonCoords}"););out body;>;out skel qt;`;
+      const overpassPoly = polygonCoords.split(' ').map(c => c.replace(',', ' ')).join(' ');
+      const query = `[out:json][timeout:25];(way["building"](poly:"${overpassPoly}");relation["building"](poly:"${overpassPoly}"););out body;>;out skel qt;`;
       const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
       
       if (!response.ok) throw new Error(`Data fetching failed: ${response.status}`);
@@ -233,7 +271,7 @@ export default function DigitizeMapClient() {
   const runRealtimeExtraction = async () => {
     if (!selectionBounds || !colabUrl) return;
     setIsProcessing(true);
-    setGeoData(null);
+    updateToolState('digitize', { geoData: null });
     setStatusMessage("Interfacing with AGIS Realtime service for Overture data...");
 
     try {
@@ -256,7 +294,7 @@ export default function DigitizeMapClient() {
         }
 
         const result = await response.json();
-        setGeoData(result);
+        updateToolState('digitize', { geoData: result });
         setStatusMessage(`Vectorization complete. ${result?.features?.length || 0} features delineated.`);
         toast({
             title: "AGIS Realtime Extraction Complete",
@@ -309,9 +347,11 @@ export default function DigitizeMapClient() {
               const layers = e.layers;
               layers.eachLayer((layer: any) => {
                 const latlngs: LatLng[] = layer.getLatLngs()[0];
-                const polyString = latlngs.map((ll) => `${ll.lat} ${ll.lng}`).join(' ');
-                setPolygonCoords(polyString);
-                setSelectionBounds(layer.getBounds());
+                const polyString = latlngs.map((ll) => `${ll.lat},${ll.lng}`).join(' ');
+                updateToolState('digitize', {
+                    polygonCoords: polyString,
+                    selectionBounds: layer.getBounds(),
+                });
               });
             }}
             onDeleted={handleDeleted} 
@@ -327,6 +367,7 @@ export default function DigitizeMapClient() {
             }}
             edit={{ edit: true, remove: true }}
             />
+            <DrawnShapes />
         </FeatureGroup>
         
         {geoData && <GeoJSON data={geoData} style={{ color: '#2563eb', weight: 2, fillColor: '#60a5fa', fillOpacity: 0.4 }} />}

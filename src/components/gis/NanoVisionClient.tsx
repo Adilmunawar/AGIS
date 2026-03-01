@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
-import L, { type LatLngBounds } from 'leaflet';
+import L, { type LatLng, type LatLngBounds } from 'leaflet';
 
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, Download, Plus, Minus, MousePointer, ShieldAlert, Terminal } from 'lucide-react';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { useGisData } from '@/context/GisDataContext';
 
 const baseLayers: BaseLayer[] = [
     {
@@ -159,19 +160,52 @@ function NanoVisionControlBar({
     );
 }
 
+const DrawnShapes = () => {
+    const { nanoVision: { polygonCoords } } = useGisData();
+    const map = useMap();
+    const featureGroupRef = useRef<L.FeatureGroup>(null);
+  
+    useMapEvents({
+        'draw:created': (e: any) => {
+          // We let the client component handle state updates.
+        },
+    });
+  
+    useEffect(() => {
+        // Clear existing layers to prevent duplicates when state changes
+        featureGroupRef.current?.clearLayers();
+  
+        if (polygonCoords) {
+          try {
+            const latlngs = polygonCoords.split(' ').map(coord => {
+                const [lat, lng] = coord.split(',').map(Number);
+                return L.latLng(lat, lng);
+            });
+            const polygon = L.polygon(latlngs, {
+                color: '#16a34a', weight: 2, fillOpacity: 0.1
+            });
+            featureGroupRef.current?.addLayer(polygon);
+          } catch (error) {
+              console.error("Error creating polygon from stored coords:", error);
+          }
+        }
+    }, [polygonCoords, map]);
+  
+    return <FeatureGroup ref={featureGroupRef} />;
+}
+
 function MapContent() {
   const map = useMap();
   const controlRef = useRef<HTMLDivElement>(null);
   
-  const [hasSelection, setHasSelection] = useState(false);
-  const [selectionBounds, setSelectionBounds] = useState<LatLngBounds | null>(null);
+  const { nanoVision: { geoData, selectionBounds, polygonCoords }, updateToolState } = useGisData();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [geoData, setGeoData] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>('Initializing...');
   
   const { colabUrl, isLoaded } = useServerConfig();
   const { toast } = useToast();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
+  const hasSelection = !!polygonCoords;
 
   useEffect(() => {
     if (controlRef.current) {
@@ -192,16 +226,23 @@ function MapContent() {
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
-    setSelectionBounds(layer.getBounds());
-    setHasSelection(true);
+    const latlngs: LatLng[] = layer.getLatLngs()[0];
+    const polyString = latlngs.map((ll) => `${ll.lat},${ll.lng}`).join(' ');
+
+    updateToolState('nanoVision', {
+        polygonCoords: polyString,
+        selectionBounds: layer.getBounds(),
+        geoData: null
+    });
     setStatusMessage('Area selected. Ready for high-precision extraction.');
-    setGeoData(null);
   };
 
   const handleDeleted = () => {
-    setHasSelection(false);
-    setSelectionBounds(null);
-    setGeoData(null);
+    updateToolState('nanoVision', {
+        polygonCoords: null,
+        selectionBounds: null,
+        geoData: null,
+    });
     if(isLoaded && colabUrl) {
         setStatusMessage('Engine ready. Draw a new polygon to begin.');
     } else if (isLoaded) {
@@ -219,7 +260,7 @@ function MapContent() {
     }
     
     setIsProcessing(true);
-    setGeoData(null);
+    updateToolState('nanoVision', { geoData: null });
     
     try {
         const bbox = [
@@ -261,7 +302,7 @@ function MapContent() {
             features: mergedFeatures
         };
 
-        setGeoData(mergedGeoJson);
+        updateToolState('nanoVision', { geoData: mergedGeoJson });
         setStatusMessage(`Extraction complete. Found ${mergedFeatures.length} total features.`);
         toast({ title: "High-Precision Extraction Complete", description: `Found ${buildingsData.features.length} buildings and ${roadsData.features.length} roads.` });
 
@@ -305,7 +346,12 @@ function MapContent() {
           onEdited={(e) => {
             const layers = e.layers;
             layers.eachLayer((layer: any) => {
-              setSelectionBounds(layer.getBounds());
+                const latlngs: LatLng[] = layer.getLatLngs()[0];
+                const polyString = latlngs.map((ll) => `${ll.lat},${ll.lng}`).join(' ');
+              updateToolState('nanoVision', {
+                  polygonCoords: polyString,
+                  selectionBounds: layer.getBounds(),
+              });
               setStatusMessage('Selection updated. Ready for high-precision extraction.');
             });
           }}
@@ -317,6 +363,7 @@ function MapContent() {
           }}
           edit={{ edit: true, remove: true }}
         />
+        <DrawnShapes />
       </FeatureGroup>
 
       {geoData && (

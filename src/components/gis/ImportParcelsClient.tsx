@@ -1,16 +1,17 @@
 'use client';
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import * as shapefile from 'shapefile';
 
 import { useToast } from '@/hooks/use-toast';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { ParcelEditorDocker } from './ParcelEditorDocker';
-import { UploadCloud, Layers, ArrowLeft, Check, LandPlot, Loader2, Package, Search, Shield, FileCheck2 } from 'lucide-react';
+import { Layers, ArrowLeft, LandPlot, Loader2, Shield, FileCheck2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
+import { useGisData } from '@/context/GisDataContext';
 
 // --- TYPES & CONFIGS ---
 type Step = 'boundary' | 'parcels' | 'preview';
@@ -174,11 +175,17 @@ const ParcelsUploadStep = ({ onParcelsUploaded, isProcessing, boundaryName, onBa
     );
 };
 
-const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any, parcelsData: any, onBack: () => void }) => {
-    const [selectedFeature, setSelectedFeature] = useState<any>(null);
+const PreviewStep = ({ onBack }: { onBack: () => void }) => {
+    const { importParcels, updateToolState } = useGisData();
+    const { boundaryData, parcelsData, selectedFeatureId } = importParcels;
+
     const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
     const parcelsLayerRef = useRef<L.GeoJSON>(null);
     const { toast } = useToast();
+
+    const handleSetSelectedFeature = (feature: any) => {
+        updateToolState('importParcels', { selectedFeatureId: feature?.id ?? null });
+    };
 
     const enrichedParcels = useMemo(() => {
         if (!parcelsData?.features || parcelsData.features.length === 0) return null;
@@ -200,13 +207,18 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
         }
     }, [boundaryData]);
 
+    const selectedFeature = useMemo(() => {
+        if (!selectedFeatureId || !enrichedParcels?.features) return null;
+        return enrichedParcels.features.find((f: any) => f.id === selectedFeatureId) || null;
+    }, [selectedFeatureId, enrichedParcels]);
+
 
     useEffect(() => {
         const layer = parcelsLayerRef.current;
         if (!layer) return;
 
         layer.eachLayer((l: any) => {
-            const isSelected = selectedFeature && l.feature.id === selectedFeature.id;
+            const isSelected = selectedFeatureId !== null && l.feature.id === selectedFeatureId;
             if (isSelected) {
                 l.setStyle(highlightStyle);
                 if (l.bringToFront) l.bringToFront();
@@ -215,13 +227,13 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
             }
         });
 
-    }, [selectedFeature, parcelsLayerRef]);
+    }, [selectedFeatureId, parcelsLayerRef]);
 
     const onEachFeature = (feature: any, layer: L.Layer) => {
         layer.on({
             click: (e) => {
                 L.DomEvent.stopPropagation(e);
-                setSelectedFeature(feature);
+                handleSetSelectedFeature(feature);
             }
         });
     };
@@ -260,7 +272,7 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
                 onDeleteSelected={handleDeleteSelected}
                 onClearData={onBack}
                 hasData={!!enrichedParcels}
-                onFeatureSelect={setSelectedFeature}
+                onFeatureSelect={handleSetSelectedFeature}
              />
         </div>
     );
@@ -269,29 +281,29 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
 
 // --- MAIN COMPONENT ---
 export default function ImportParcelsClient() {
-    const [step, setStep] = useState<Step>('boundary');
+    const { importParcels, updateToolState, resetToolState } = useGisData();
+    const { step, boundaryName } = importParcels;
+    
     const [isProcessing, setIsProcessing] = useState(false);
     
-    const [boundaryData, setBoundaryData] = useState<any>(null);
-    const [boundaryName, setBoundaryName] = useState('');
-    const [parcelsData, setParcelsData] = useState<any>(null);
-    
     const handleBoundaryUpload = (name: string, data: any) => {
-        setBoundaryName(name);
-        setBoundaryData(data);
-        setStep('parcels');
+        updateToolState('importParcels', {
+            boundaryName: name,
+            boundaryData: data,
+            step: 'parcels'
+        });
     };
 
     const handleParcelsUpload = (name: string, data: any) => {
-        setParcelsData(data);
-        setStep('preview');
+        updateToolState('importParcels', {
+            parcelsName: name,
+            parcelsData: data,
+            step: 'preview'
+        });
     };
 
     const handleReset = () => {
-        setStep('boundary');
-        setBoundaryData(null);
-        setBoundaryName('');
-        setParcelsData(null);
+        resetToolState('importParcels');
     };
 
     switch (step) {
@@ -300,7 +312,7 @@ export default function ImportParcelsClient() {
         case 'parcels':
             return <ParcelsUploadStep onParcelsUploaded={handleParcelsUpload} isProcessing={isProcessing} boundaryName={boundaryName} onBack={handleReset} />;
         case 'preview':
-            return <PreviewStep boundaryData={boundaryData} parcelsData={parcelsData} onBack={handleReset} />;
+            return <PreviewStep onBack={handleReset} />;
         default:
             return <BoundaryUploadStep onBoundaryUploaded={handleBoundaryUpload} isProcessing={isProcessing} />;
     }
