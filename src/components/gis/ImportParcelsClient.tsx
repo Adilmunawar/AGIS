@@ -83,18 +83,23 @@ export default function ImportParcelsClient() {
             source.features.forEach((f, i) => f.id = i);
             setGeoData(source);
             
-            if (mapRef.current && source.bbox) {
-                const [minLng, minLat, maxLng, maxLat] = source.bbox;
-                const bounds = new LatLngBounds([minLat, minLng], [maxLat, maxLng]);
-                mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-            }
-             toast({ title: "Import Successful", description: `${source.features.length} parcels loaded from ${shpFile.name}.` });
+            toast({ title: "Import Successful", description: `${source.features.length} parcels loaded from ${shpFile.name}.` });
 
         } catch (err: any) {
             setError(`Parsing Error: ${err.message}. Ensure all required shapefile components are included.`);
             console.error(err);
         }
     }, [toast]);
+
+    useEffect(() => {
+        // This effect handles zooming to the data's bounds when it's loaded
+        if (geoData && geoJsonLayerRef.current && mapRef.current) {
+            const bounds = geoJsonLayerRef.current.getBounds();
+            if (bounds.isValid()) {
+                 mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+    }, [geoData]);
 
     useEffect(() => {
         // This effect handles re-styling when a feature is selected
@@ -146,7 +151,7 @@ export default function ImportParcelsClient() {
                     <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
                     <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} />
                     
-                    {geoData && <GeoJSON ref={geoJsonLayerRef} data={geoData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
+                    {geoData && <GeoJSON ref={geoJsonLayerRef} key={JSON.stringify(geoData)} data={geoData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
                 </MapContainer>
 
                 {!geoData && (
