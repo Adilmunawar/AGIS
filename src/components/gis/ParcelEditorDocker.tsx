@@ -52,12 +52,24 @@ const ToolButton = ({ tool, activeTool, onToolChange }: any) => (
     </TooltipProvider>
 )
 
-const PropertiesPanel = ({ feature }: { feature: any }) => (
+const PropertiesPanel = ({ feature, parcelsCount }: { feature: any, parcelsCount: number }) => (
     <ScrollArea className="h-full">
         <div className="p-4 text-sm">
+             {parcelsCount > 0 && (
+                <div className="mb-4">
+                    <h4 className="font-semibold mb-2">Mauza Summary</h4>
+                    <div className="grid grid-cols-2 gap-2 items-center bg-muted/50 p-3 rounded-md">
+                        <span className="font-medium text-muted-foreground">Total Parcels</span>
+                        <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
+                    </div>
+                </div>
+            )}
+            
+            <Separator className={cn(parcelsCount === 0 && 'hidden', 'mb-4')}/>
+
             {!feature ? (
-                <div className="text-center text-muted-foreground h-full flex items-center justify-center">
-                    <p>Select a parcel to view its properties.</p>
+                <div className="text-center text-muted-foreground h-full flex items-center justify-center p-8">
+                    <p>Select a parcel on the map or from the table to view its properties.</p>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -81,39 +93,53 @@ const PropertiesPanel = ({ feature }: { feature: any }) => (
 );
 
 const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[], selectedId: string | number | null, onRowClick: (feature: any) => void }) => {
+    const tableContainerRef = React.useRef<HTMLDivElement>(null);
+    const selectedRowRef = React.useRef<HTMLTableRowElement>(null);
+    
+    // Scroll to selected row
+    React.useEffect(() => {
+        if (selectedRowRef.current) {
+            selectedRowRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+            });
+        }
+    }, [selectedId]);
+    
     if (!features || features.length === 0) {
-        return <div className="p-4 text-center text-muted-foreground">No data to display. Import a shapefile to begin.</div>
+        return <div className="p-4 text-center text-muted-foreground">No parcel data loaded.</div>
     }
 
     const headers = Object.keys(features[0].properties);
 
     return (
-        <ScrollArea className="h-full w-full">
-            <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-secondary z-10">
+        <div ref={tableContainerRef} className="relative h-full w-full overflow-y-auto">
+            <table className="w-full text-sm border-collapse">
+                <thead className="sticky top-0 bg-secondary z-10 shadow-sm">
                     <tr>
-                        <th className="p-2 font-semibold text-left">ID</th>
-                        {headers.map(h => <th key={h} className="p-2 font-semibold text-left truncate" title={h}>{h}</th>)}
+                        <th className="p-2 font-semibold text-left border-b">ID</th>
+                        {headers.map(h => <th key={h} className="p-2 font-semibold text-left border-b truncate" title={h}>{h}</th>)}
                     </tr>
                 </thead>
                 <tbody>
                     {features.map(f => (
                         <tr
                             key={f.id}
+                            ref={f.id === selectedId ? selectedRowRef : null}
                             onClick={() => onRowClick(f)}
-                            className={cn("cursor-pointer border-b border-border hover:bg-muted/50", f.id === selectedId && "bg-green-100 hover:bg-green-200 dark:bg-green-900/50")}
+                            className={cn("cursor-pointer border-b border-border hover:bg-muted/50", f.id === selectedId && "bg-primary/10 hover:bg-primary/20")}
                         >
-                            <td className="p-2">{f.id}</td>
+                            <td className="p-2 font-medium">{f.id}</td>
                             {headers.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h])}>{String(f.properties[h])}</td>)}
                         </tr>
                     ))}
                 </tbody>
             </table>
-        </ScrollArea>
+        </div>
     )
 }
 
-const ExportPanel = () => (
+const ExportPanel = ({ hasData }: { hasData: boolean }) => (
      <div className="p-4 space-y-4">
         <h4 className="font-semibold">Export Data</h4>
         <p className="text-sm text-muted-foreground">
@@ -122,9 +148,11 @@ const ExportPanel = () => (
          <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button disabled className="w-full">
-                        <Download className="mr-2 h-4 w-4" /> Export to GeoJSON
-                    </Button>
+                    <span tabIndex={0} className="w-full inline-block">
+                        <Button disabled={!hasData} className="w-full">
+                            <Download className="mr-2 h-4 w-4" /> Export to GeoJSON
+                        </Button>
+                    </span>
                 </TooltipTrigger>
                 <TooltipContent><p>Future Enhancement</p></TooltipContent>
             </Tooltip>
@@ -132,9 +160,11 @@ const ExportPanel = () => (
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button disabled className="w-full">
-                        <Download className="mr-2 h-4 w-4" /> Export to Shapefile
-                    </Button>
+                     <span tabIndex={0} className="w-full inline-block">
+                        <Button disabled={!hasData} className="w-full">
+                            <Download className="mr-2 h-4 w-4" /> Export to Shapefile
+                        </Button>
+                    </span>
                 </TooltipTrigger>
                 <TooltipContent><p>Future Enhancement</p></TooltipContent>
             </Tooltip>
@@ -153,7 +183,7 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
     }, [activeTool, selectedFeature, onDeleteSelected, onToolChange]);
 
     return (
-        <div className="w-80 bg-background border-l flex flex-col h-full shadow-2xl">
+        <div className="w-96 bg-background border-l flex flex-col h-full shadow-2xl">
             <div className="p-3 border-b flex items-center justify-between shrink-0">
                 <h3 className="font-bold text-lg text-foreground">Parcel Editor</h3>
                 {hasData && (
@@ -164,7 +194,7 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
                                     <X className="h-4 w-4 text-destructive" />
                                 </Button>
                             </TooltipTrigger>
-                             <TooltipContent side="bottom"><p>Clear All Data</p></TooltipContent>
+                             <TooltipContent side="bottom"><p>Clear All Data & Start Over</p></TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 )}
@@ -190,23 +220,23 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
 
                 {/* Main Content Area */}
                 <div className="flex-1 flex flex-col min-w-0">
-                    <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
+                     <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
                         <div className="border-b p-2">
-                             <TabsList className="grid w-full grid-cols-3 h-9">
-                                <TabsTrigger value="properties">Properties</TabsTrigger>
-                                <TabsTrigger value="table">Table</TabsTrigger>
-                                <TabsTrigger value="export">Export</TabsTrigger>
+                            <TabsList className="grid w-full grid-cols-3 h-9">
+                                <TabsTrigger value="properties" disabled={!hasData}>Properties</TabsTrigger>
+                                <TabsTrigger value="table" disabled={!hasData}>Table</TabsTrigger>
+                                <TabsTrigger value="export" disabled={!hasData}>Export</TabsTrigger>
                             </TabsList>
                         </div>
 
-                        <TabsContent value="properties" className="flex-1 min-h-0 -mt-0">
-                             <PropertiesPanel feature={selectedFeature} />
+                        <TabsContent value="properties" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
+                             <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} />
                         </TabsContent>
-                        <TabsContent value="table" className="flex-1 min-h-0 -mt-0">
+                        <TabsContent value="table" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
                              <AttributeTable features={allFeatures} selectedId={selectedFeature?.id} onRowClick={onFeatureSelect} />
                         </TabsContent>
-                        <TabsContent value="export" className="flex-1 min-h-0 -mt-0">
-                             <ExportPanel />
+                        <TabsContent value="export" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
+                             <ExportPanel hasData={hasData} />
                         </TabsContent>
                     </Tabs>
                 </div>

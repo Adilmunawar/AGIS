@@ -7,15 +7,13 @@ import * as shapefile from 'shapefile';
 import { useToast } from '@/hooks/use-toast';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { ParcelEditorDocker } from './ParcelEditorDocker';
-import { Layers, ArrowLeft, Loader2, Shield, FileCheck2 } from 'lucide-react';
+import { Layers, ArrowLeft, Loader2, Shield, FileCheck2, UploadCloud, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
 import { useGisData } from '@/context/GisDataContext';
 
 // --- TYPES & CONFIGS ---
-type Step = 'boundary' | 'parcels' | 'preview';
-
 const baseLayers: BaseLayer[] = [
     { name: 'Google Hybrid', url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlehybrid/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
     { name: 'Google Satellite', url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlesatellite/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
@@ -55,125 +53,113 @@ const processShapefile = async (files: File[]): Promise<{ name: string; data: an
 };
 
 
-// --- STEP COMPONENTS ---
-
-const UploadZone = ({ onFilesUploaded, isProcessing, title, description, icon }: { onFilesUploaded: (files: File[]) => void, isProcessing: boolean, title: string, description: string, icon: React.ReactNode }) => {
+// --- SUB-COMPONENTS ---
+const UploadZone = ({ onFilesUploaded, isProcessing, disabled }: { onFilesUploaded: (files: File[]) => void, isProcessing: boolean, disabled?: boolean }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const onDrag = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
+    const onDrag = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if(!disabled) setIsDragging(true); }, [disabled]);
     const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
     const onDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
-        if (e.dataTransfer.files) {
+        if (e.dataTransfer.files && !disabled) {
             onFilesUploaded(Array.from(e.dataTransfer.files));
         }
-    }, [onFilesUploaded]);
+    }, [onFilesUploaded, disabled]);
 
     return (
         <div onDragEnter={onDrag} onDragLeave={onDragLeave} onDragOver={onDrag} onDrop={onDrop}
-            className={cn("w-full h-64 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-colors relative",
-                isDragging ? 'border-primary bg-primary/10' : 'border-border bg-gray-50/50'
+            className={cn("w-full h-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center transition-colors relative p-4",
+                disabled ? 'bg-gray-200/50 border-gray-300 cursor-not-allowed' :
+                isDragging ? 'border-primary bg-primary/10' : 'border-border bg-gray-50/50 hover:border-primary/50'
             )}>
-            <input id="file-upload" type="file" multiple
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            <input id="file-upload" type="file" multiple disabled={disabled}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                 onChange={(e) => onFilesUploaded(Array.from(e.target.files || []))}
                 accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg"
             />
-            <div className="text-center p-6 pointer-events-none">
-                {isProcessing ? (
-                    <>
-                        <Loader2 className="mx-auto h-16 w-16 mb-4 text-primary animate-spin" />
-                        <h2 className="text-2xl font-semibold">Processing Files...</h2>
-                        <p className="text-muted-foreground mt-2 max-w-md mx-auto">Parsing shapefile and preparing data layers.</p>
-                    </>
-                ) : (
-                    <>
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">{icon}</div>
-                        <h2 className="text-2xl font-semibold">{title}</h2>
-                        <p className="text-muted-foreground mt-2 max-w-md mx-auto">{description}</p>
-                    </>
-                )}
+             {isProcessing ? (
+                <>
+                    <Loader2 className="h-8 w-8 mb-2 text-primary animate-spin" />
+                    <p className="text-sm font-semibold">Processing...</p>
+                </>
+             ) : (
+                <>
+                    <UploadCloud className={cn("h-8 w-8 mb-2", disabled ? 'text-gray-400' : 'text-primary/70')} />
+                    <p className={cn("text-sm font-semibold", disabled ? 'text-muted-foreground' : 'text-foreground')}>Drop files or click to upload</p>
+                    <p className="text-xs text-muted-foreground">{disabled ? 'Please upload boundary first.' : 'All related files (.shp, .dbf, etc.)'}</p>
+                </>
+            )}
+        </div>
+    );
+};
+
+const FileStatusCard = ({ name, onClear }: { name: string; onClear: () => void; }) => (
+    <div className="w-full h-full flex flex-col items-center justify-center bg-green-50 border-2 border-dashed border-green-200 rounded-xl p-4">
+        <FileCheck2 className="h-8 w-8 text-green-600 mb-2" />
+        <p className="text-sm font-semibold text-green-800 text-center break-all">{name}</p>
+        <Button variant="link" size="sm" className="text-red-500 h-auto p-0 mt-2" onClick={onClear}>
+            <Trash2 className="mr-1 h-3 w-3" /> Remove
+        </Button>
+    </div>
+);
+
+const UploadCard = ({ title, description, icon, fileName, onFilesUploaded, onClear, isProcessing, disabled }: { title: string, description: string, icon: React.ReactNode, fileName: string, onFilesUploaded: (f: File[]) => void, onClear: () => void, isProcessing: boolean, disabled?: boolean }) => (
+    <Card className={cn("flex flex-col", disabled && 'bg-gray-100')}>
+        <CardHeader>
+            <div className="flex items-center gap-3">
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", disabled ? 'bg-gray-200' : 'bg-primary/10')}>
+                    {React.cloneElement(icon as React.ReactElement, { className: cn("h-5 w-5", disabled ? 'text-gray-400' : 'text-primary') })}
+                </div>
+                <div>
+                    <CardTitle className="text-lg">{title}</CardTitle>
+                    <CardDescription className="text-xs">{description}</CardDescription>
+                </div>
+            </div>
+        </CardHeader>
+        <CardContent className="flex-1">
+            {fileName ? (
+                <FileStatusCard name={fileName} onClear={onClear} />
+            ) : (
+                <UploadZone onFilesUploaded={onFilesUploaded} isProcessing={isProcessing} disabled={disabled} />
+            )}
+        </CardContent>
+    </Card>
+);
+
+const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parcelsName, onClearBoundary, onClearParcels, processingState }: {
+    onBoundaryUpload: (f: File[]) => void, onParcelsUpload: (f: File[]) => void, boundaryName: string, parcelsName: string, onClearBoundary: () => void, onClearParcels: () => void, processingState: 'boundary' | 'parcels' | null
+}) => (
+    <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 bg-gray-100/50">
+        <div className="w-full max-w-4xl space-y-4">
+            <header className="text-center">
+                <h1 className="text-3xl font-bold tracking-tight">Import Parcels for Analysis</h1>
+                <p className="text-muted-foreground mt-2">Upload your boundary and parcel shapefiles to begin editing.</p>
+            </header>
+            <div className="grid md:grid-cols-2 gap-6 items-stretch">
+                <UploadCard
+                    title="Boundary Layer"
+                    description="The main area of interest (e.g., Tehsil)."
+                    icon={<Shield />}
+                    fileName={boundaryName}
+                    onFilesUploaded={onBoundaryUpload}
+                    onClear={onClearBoundary}
+                    isProcessing={processingState === 'boundary'}
+                />
+                <UploadCard
+                    title="Parcels Layer"
+                    description="The individual parcels or lots (e.g., Mouzas)."
+                    icon={<Layers />}
+                    fileName={parcelsName}
+                    onFilesUploaded={onParcelsUpload}
+                    onClear={onClearParcels}
+                    isProcessing={processingState === 'parcels'}
+                    disabled={!boundaryName}
+                />
             </div>
         </div>
-    );
-};
-
-const BoundaryUploadStep = ({ onBoundaryUploaded, isProcessing }: { onBoundaryUploaded: (name: string, data: any) => void, isProcessing: boolean }) => {
-    const { toast } = useToast();
-    const handleFiles = async (files: File[]) => {
-        if (files.length === 0) return;
-        try {
-            const { name, data } = await processShapefile(files);
-            toast({ title: "Boundary Loaded", description: `Successfully loaded ${name}.` });
-            onBoundaryUploaded(name, data);
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: "Import Error", description: error.message });
-        }
-    };
-    return (
-        <div className="flex flex-col items-center justify-center h-full bg-gray-100/50 p-8">
-            <Card className="w-full max-w-3xl shadow-xl">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-bold">Step 1: Import Boundary Data</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <UploadZone 
-                        onFilesUploaded={handleFiles} 
-                        isProcessing={isProcessing}
-                        title="Drop Boundary Shapefile Here"
-                        description="Drag & drop all related boundary files (.shp, .dbf, etc)."
-                        icon={<Shield className="h-8 w-8 text-primary" />}
-                    />
-                </CardContent>
-            </Card>
-        </div>
-    );
-};
-
-const ParcelsUploadStep = ({ onParcelsUploaded, isProcessing, boundaryName, onBack }: { onParcelsUploaded: (name: string, data: any) => void, isProcessing: boolean, boundaryName: string, onBack: () => void }) => {
-    const { toast } = useToast();
-    const handleFiles = async (files: File[]) => {
-        if (files.length === 0) return;
-        try {
-            const { name, data } = await processShapefile(files);
-            toast({ title: "Parcels Loaded", description: `Successfully loaded ${name}.` });
-            onParcelsUploaded(name, data);
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: "Import Error", description: error.message });
-        }
-    };
-    return (
-        <div className="flex flex-col items-center justify-center h-full bg-gray-100/50 p-8">
-            <Card className="w-full max-w-3xl shadow-xl">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-bold">Step 2: Import Parcel Data</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Card className="bg-green-50 border-green-200">
-                        <CardHeader className="flex flex-row items-center gap-4 p-4">
-                           <FileCheck2 className="h-6 w-6 text-green-600" />
-                           <div>
-                             <CardTitle className="text-base text-green-800">Boundary Loaded</CardTitle>
-                             <CardDescription className="text-green-700">{boundaryName}</CardDescription>
-                           </div>
-                        </CardHeader>
-                    </Card>
-                    <UploadZone 
-                        onFilesUploaded={handleFiles} 
-                        isProcessing={isProcessing}
-                        title="Drop Parcels Shapefile Here"
-                        description="Drag & drop all related parcel files (.shp, .dbf, etc)."
-                        icon={<Layers className="h-8 w-8 text-primary" />}
-                    />
-                </CardContent>
-                <CardFooter>
-                     <Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4"/>Back</Button>
-                </CardFooter>
-            </Card>
-        </div>
-    );
-};
+    </div>
+);
 
 // MapUpdater component to handle imperative map actions
 const MapUpdater = ({ parcelsLayerRef, selectedFeatureId, mapBounds }: { parcelsLayerRef: React.RefObject<L.GeoJSON>, selectedFeatureId: string | number | null, mapBounds?: L.LatLngBounds }) => {
@@ -216,7 +202,7 @@ const MapUpdater = ({ parcelsLayerRef, selectedFeatureId, mapBounds }: { parcels
 }
 
 
-const PreviewStep = ({ onBack }: { onBack: () => void }) => {
+const MapComponent = () => {
     const { importParcels, updateToolState } = useGisData();
     const { boundaryData, parcelsData, selectedFeatureId } = importParcels;
 
@@ -240,17 +226,12 @@ const PreviewStep = ({ onBack }: { onBack: () => void }) => {
         if (!boundaryData) return undefined;
         try {
             const bounds = L.geoJSON(boundaryData).getBounds();
-            if (bounds.isValid()) return bounds;
+            return bounds.isValid() ? bounds : undefined;
         } catch (e) {
             console.error("Could not calculate bounds from boundary data:", e);
         }
         return undefined;
     }, [boundaryData]);
-
-    const selectedFeature = useMemo(() => {
-        if (selectedFeatureId === null || !enrichedParcels?.features) return null;
-        return enrichedParcels.features.find((f: any) => f.id === selectedFeatureId) || null;
-    }, [selectedFeatureId, enrichedParcels]);
 
     const onEachFeature = (feature: any, layer: L.Layer) => {
         layer.on({
@@ -261,45 +242,31 @@ const PreviewStep = ({ onBack }: { onBack: () => void }) => {
         });
     };
 
-    const handleDeleteSelected = () => {
-        toast({ variant: 'destructive', title: "Not Implemented", description: "Deletion is a future enhancement." });
-    };
+    if (!mapBounds) {
+        return (
+            <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <h3 className="text-lg font-semibold text-destructive">Could Not Determine Map Bounds</h3>
+                    <p className="text-muted-foreground">The boundary data might be invalid or missing coordinates.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="w-full h-full flex">
-            <div className="flex-1 relative h-full">
-                <MapContainer 
-                    center={[31.46, 74.38]} // Default center, will be overridden by MapUpdater
-                    zoom={13}
-                    zoomControl={false}
-                    style={{ height: '100%', width: '100%' }}
-                    >
-                    <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
-                    <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
-                    
-                    {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
-                    {enrichedParcels && <GeoJSON ref={parcelsLayerRef} key={JSON.stringify(enrichedParcels)} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
-                    
-                    <MapUpdater parcelsLayerRef={parcelsLayerRef} selectedFeatureId={selectedFeatureId} mapBounds={mapBounds} />
-
-                    <div className="absolute top-24 left-4 z-[1001]">
-                         <Button variant="outline" onClick={onBack} className="bg-background/80 backdrop-blur-md shadow-lg hover:bg-background">
-                            <ArrowLeft className="mr-2 h-4 w-4"/>Start Over
-                        </Button>
-                    </div>
-                </MapContainer>
-            </div>
-             <ParcelEditorDocker
-                activeTool={'select'}
-                onToolChange={() => {}}
-                selectedFeature={selectedFeature}
-                allFeatures={enrichedParcels?.features || []}
-                onDeleteSelected={handleDeleteSelected}
-                onClearData={onBack}
-                hasData={!!enrichedParcels}
-                onFeatureSelect={handleSetSelectedFeature}
-             />
-        </div>
+        <MapContainer 
+            bounds={mapBounds}
+            zoomControl={false}
+            style={{ height: '100%', width: '100%' }}
+            >
+            <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
+            <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
+            
+            {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
+            {enrichedParcels && <GeoJSON ref={parcelsLayerRef} key={JSON.stringify(enrichedParcels)} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
+            
+            <MapUpdater parcelsLayerRef={parcelsLayerRef} selectedFeatureId={selectedFeatureId} />
+        </MapContainer>
     );
 };
 
@@ -307,38 +274,84 @@ const PreviewStep = ({ onBack }: { onBack: () => void }) => {
 // --- MAIN COMPONENT ---
 export default function ImportParcelsClient() {
     const { importParcels, updateToolState, resetToolState } = useGisData();
-    const { step, boundaryName } = importParcels;
+    const { boundaryData, parcelsData, boundaryName, parcelsName, selectedFeatureId } = importParcels;
     
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [processingState, setProcessingState] = useState<'boundary' | 'parcels' | null>(null);
+    const { toast } = useToast();
+
+    const handleFileUpload = async (files: File[], type: 'boundary' | 'parcels') => {
+        if (files.length === 0) return;
+        setProcessingState(type);
+        try {
+            const { name, data } = await processShapefile(files);
+            toast({ title: `${type === 'boundary' ? 'Boundary' : 'Parcels'} Loaded`, description: `Successfully loaded ${name}.` });
+            if (type === 'boundary') {
+                updateToolState('importParcels', { boundaryName: name, boundaryData: data });
+            } else {
+                updateToolState('importParcels', { parcelsName: name, parcelsData: data });
+            }
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: "Import Error", description: error.message });
+        } finally {
+            setProcessingState(null);
+        }
+    };
     
-    const handleBoundaryUpload = (name: string, data: any) => {
-        updateToolState('importParcels', {
-            boundaryName: name,
-            boundaryData: data,
-            step: 'parcels'
-        });
-    };
-
-    const handleParcelsUpload = (name: string, data: any) => {
-        updateToolState('importParcels', {
-            parcelsName: name,
-            parcelsData: data,
-            step: 'preview'
-        });
-    };
-
-    const handleReset = () => {
+    const handleClearBoundary = () => {
         resetToolState('importParcels');
     };
 
-    switch (step) {
-        case 'boundary':
-            return <BoundaryUploadStep onBoundaryUploaded={handleBoundaryUpload} isProcessing={isProcessing} />;
-        case 'parcels':
-            return <ParcelsUploadStep onParcelsUploaded={handleParcelsUpload} isProcessing={isProcessing} boundaryName={boundaryName} onBack={handleReset} />;
-        case 'preview':
-            return <PreviewStep onBack={handleReset} />;
-        default:
-            return <BoundaryUploadStep onBoundaryUploaded={handleBoundaryUpload} isProcessing={isProcessing} />;
-    }
+    const handleClearParcels = () => {
+        updateToolState('importParcels', { parcelsData: null, parcelsName: '', selectedFeatureId: null });
+    };
+
+    const handleSetSelectedFeature = (feature: any) => {
+        updateToolState('importParcels', { selectedFeatureId: feature?.id ?? null });
+    };
+
+    const handleDeleteSelected = () => {
+        toast({ variant: 'destructive', title: "Not Implemented", description: "Deletion is a future enhancement." });
+    };
+
+    const selectedFeature = useMemo(() => {
+        if (selectedFeatureId === null || !parcelsData?.features) return null;
+        return parcelsData.features.find((f: any, i: number) => i === selectedFeatureId) || null;
+    }, [selectedFeatureId, parcelsData]);
+
+    const enrichedParcels = useMemo(() => {
+        if (!parcelsData?.features) return [];
+        return parcelsData.features.map((f: any, i: number) => ({ ...f, id: i }));
+    }, [parcelsData]);
+
+    const showMap = boundaryData && parcelsData;
+
+    return (
+        <div className="w-full h-full flex bg-background">
+            <main className="flex-1 relative h-full">
+                {showMap ? (
+                    <MapComponent />
+                ) : (
+                    <PreAnalysisView
+                        onBoundaryUpload={(files) => handleFileUpload(files, 'boundary')}
+                        onParcelsUpload={(files) => handleFileUpload(files, 'parcels')}
+                        boundaryName={boundaryName}
+                        parcelsName={parcelsName}
+                        onClearBoundary={handleClearBoundary}
+                        onClearParcels={handleClearParcels}
+                        processingState={processingState}
+                    />
+                )}
+            </main>
+             <ParcelEditorDocker
+                activeTool={'select'}
+                onToolChange={() => {}}
+                selectedFeature={selectedFeature}
+                allFeatures={enrichedParcels}
+                onDeleteSelected={handleDeleteSelected}
+                onClearData={handleClearBoundary}
+                hasData={!!parcelsData}
+                onFeatureSelect={handleSetSelectedFeature}
+             />
+        </div>
+    );
 }

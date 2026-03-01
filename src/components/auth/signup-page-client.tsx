@@ -13,7 +13,7 @@ export function SignUpPageClient() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.replace('/dashboard');
+      router.replace('/dashboard/digitize');
     }
   }, [user, isUserLoading, router]);
 
