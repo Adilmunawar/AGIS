@@ -301,7 +301,7 @@ export default function ExtractRoadsClient() {
         
         <FeatureGroup ref={featureGroupRef}>
           <EditControl 
-            position="bottomright" 
+            position="topleft" 
             onCreated={handleCreated}
             onEdited={(e) => {
               const layers = e.layers;

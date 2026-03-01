@@ -160,8 +160,14 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
         const processedNewState = { ...newState };
         if ('selectionBounds' in processedNewState && processedNewState.selectionBounds) {
             const bounds = processedNewState.selectionBounds as any;
-            if (typeof bounds.toBBoxString === 'function') {
-                (processedNewState as any).selectionBounds = bounds.toJSON();
+            // Check if it's a leaflet LatLngBounds object that needs to be serialized
+            if (bounds && typeof bounds.getSouthWest === 'function' && typeof bounds.getNorthEast === 'function') { 
+                const sw = bounds.getSouthWest();
+                const ne = bounds.getNorthEast();
+                (processedNewState as Partial<MapToolState>).selectionBounds = {
+                    _southWest: { lat: sw.lat, lng: sw.lng },
+                    _northEast: { lat: ne.lat, lng: ne.lng }
+                };
             }
         }
         
