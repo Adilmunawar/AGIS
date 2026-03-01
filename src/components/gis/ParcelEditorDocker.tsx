@@ -109,7 +109,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
     const sortedParcels = useMemo(() => {
         if (!parcelsData?.features) return [];
-        const features = [...parcelsData.features];
+        let features = [...parcelsData.features];
         if (sortConfig !== null) {
             features.sort((a, b) => {
                 const aVal = a.properties[sortConfig.key];
@@ -117,9 +117,14 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                 if (!isNaN(Number(aVal)) && !isNaN(Number(bVal))) {
                     return sortConfig.direction === 'asc' ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
                 }
-                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                if (String(aVal) < String(bVal)) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (String(aVal) > String(bVal)) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
+            });
+        }
+        else if (parcelsData?.features?.length > 0 && 'area_sqm' in parcelsData.features[0].properties) {
+             features.sort((a, b) => {
+                return (b.properties.area_sqm || 0) - (a.properties.area_sqm || 0);
             });
         }
         return features;
