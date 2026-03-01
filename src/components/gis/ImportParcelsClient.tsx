@@ -1,13 +1,13 @@
 'use client';
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import * as shapefile from 'shapefile';
 
 import { useToast } from '@/hooks/use-toast';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { ParcelEditorDocker } from './ParcelEditorDocker';
-import { Layers, ArrowLeft, LandPlot, Loader2, Shield, FileCheck2 } from 'lucide-react';
+import { Layers, ArrowLeft, Loader2, Shield, FileCheck2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
@@ -22,7 +22,7 @@ const baseLayers: BaseLayer[] = [
     { name: 'ESRI Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri', previewUrl: 'https://picsum.photos/seed/esrisat/400/300', subdomains: []},
 ];
 
-const boundaryStyle = { color: '#e11d48', weight: 3, fillOpacity: 0 };
+const boundaryStyle = { color: '#e11d48', weight: 3, fillOpacity: 0.1, fillColor: '#e11d48' };
 const parcelsStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
 const highlightStyle = { color: '#16a34a', weight: 3, fillColor: '#86efac', fillOpacity: 0.7 };
 
@@ -175,6 +175,47 @@ const ParcelsUploadStep = ({ onParcelsUploaded, isProcessing, boundaryName, onBa
     );
 };
 
+// MapUpdater component to handle imperative map actions
+const MapUpdater = ({ parcelsLayerRef, selectedFeatureId, mapBounds }: { parcelsLayerRef: React.RefObject<L.GeoJSON>, selectedFeatureId: string | number | null, mapBounds?: L.LatLngBounds }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (mapBounds && mapBounds.isValid()) {
+            map.fitBounds(mapBounds, { padding: [50, 50] });
+        }
+    }, [map, mapBounds]);
+
+    useEffect(() => {
+        const parcelsLayer = parcelsLayerRef.current;
+        if (!parcelsLayer) return;
+
+        let selectedLayer: L.Layer | null = null;
+
+        parcelsLayer.eachLayer((layer: any) => {
+            if (layer.feature && layer.feature.id === selectedFeatureId) {
+                selectedLayer = layer;
+                layer.setStyle(highlightStyle);
+                if (layer.bringToFront) {
+                    layer.bringToFront();
+                }
+            } else {
+                layer.setStyle(parcelsStyle);
+            }
+        });
+        
+        if (selectedLayer) {
+            const bounds = (selectedLayer as L.GeoJSON).getBounds();
+            if (bounds.isValid()) {
+                map.flyToBounds(bounds, { maxZoom: 18, padding: [50, 50] });
+            }
+        }
+
+    }, [selectedFeatureId, map, parcelsLayerRef]);
+
+    return null;
+}
+
+
 const PreviewStep = ({ onBack }: { onBack: () => void }) => {
     const { importParcels, updateToolState } = useGisData();
     const { boundaryData, parcelsData, selectedFeatureId } = importParcels;
@@ -189,45 +230,27 @@ const PreviewStep = ({ onBack }: { onBack: () => void }) => {
 
     const enrichedParcels = useMemo(() => {
         if (!parcelsData?.features || parcelsData.features.length === 0) return null;
-        const featuresWithId = parcelsData.features.map((f: any, i: number) => ({ ...f, id: i }));
-        return { ...parcelsData, features: featuresWithId };
+        return { 
+            ...parcelsData, 
+            features: parcelsData.features.map((f: any, i: number) => ({ ...f, id: i })) 
+        };
     }, [parcelsData]);
 
     const mapBounds = useMemo(() => {
         if (!boundaryData) return undefined;
         try {
             const bounds = L.geoJSON(boundaryData).getBounds();
-            if (bounds.isValid()) {
-                return bounds;
-            }
-            return undefined;
+            if (bounds.isValid()) return bounds;
         } catch (e) {
             console.error("Could not calculate bounds from boundary data:", e);
-            return undefined;
         }
+        return undefined;
     }, [boundaryData]);
 
     const selectedFeature = useMemo(() => {
-        if (!selectedFeatureId || !enrichedParcels?.features) return null;
+        if (selectedFeatureId === null || !enrichedParcels?.features) return null;
         return enrichedParcels.features.find((f: any) => f.id === selectedFeatureId) || null;
     }, [selectedFeatureId, enrichedParcels]);
-
-
-    useEffect(() => {
-        const layer = parcelsLayerRef.current;
-        if (!layer) return;
-
-        layer.eachLayer((l: any) => {
-            const isSelected = selectedFeatureId !== null && l.feature.id === selectedFeatureId;
-            if (isSelected) {
-                l.setStyle(highlightStyle);
-                if (l.bringToFront) l.bringToFront();
-            } else {
-                l.setStyle(parcelsStyle);
-            }
-        });
-
-    }, [selectedFeatureId, parcelsLayerRef]);
 
     const onEachFeature = (feature: any, layer: L.Layer) => {
         layer.on({
@@ -246,8 +269,8 @@ const PreviewStep = ({ onBack }: { onBack: () => void }) => {
         <div className="w-full h-full flex">
             <div className="flex-1 relative h-full">
                 <MapContainer 
-                    bounds={mapBounds}
-                    boundsOptions={{ padding: [50, 50] }}
+                    center={[31.46, 74.38]} // Default center, will be overridden by MapUpdater
+                    zoom={13}
                     zoomControl={false}
                     style={{ height: '100%', width: '100%' }}
                     >
@@ -255,8 +278,10 @@ const PreviewStep = ({ onBack }: { onBack: () => void }) => {
                     <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
                     
                     {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
-                    {enrichedParcels && <GeoJSON ref={parcelsLayerRef} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
-                
+                    {enrichedParcels && <GeoJSON ref={parcelsLayerRef} key={JSON.stringify(enrichedParcels)} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
+                    
+                    <MapUpdater parcelsLayerRef={parcelsLayerRef} selectedFeatureId={selectedFeatureId} mapBounds={mapBounds} />
+
                     <div className="absolute top-24 left-4 z-[1001]">
                          <Button variant="outline" onClick={onBack} className="bg-background/80 backdrop-blur-md shadow-lg hover:bg-background">
                             <ArrowLeft className="mr-2 h-4 w-4"/>Start Over
