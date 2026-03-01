@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import type { FeatureCollection } from 'geojson';
+import * as turf from '@turf/turf';
 
 // --- TYPE DEFINITIONS ---
 
@@ -40,7 +41,7 @@ interface ImportParcelsState {
   parcelsName: string;
   homesData: any | null;
   homesName: string;
-  selectedFeatureId: number | string | null;
+  selectedFeatureIds: string[];
   history: HistoryEntry[];
   historyIndex: number;
 }
@@ -59,8 +60,10 @@ interface GisDataContextValue extends GisDataContextState {
   resetToolState: (tool: keyof GisDataContextState) => void;
   undo: () => void;
   redo: () => void;
-  deleteFeature: (featureId: string) => void;
+  deleteSelectedFeatures: () => void;
   clearAllLayers: () => void;
+  toggleFeatureSelection: (featureId: string, isMultiSelect: boolean) => void;
+  mergeSelectedFeatures: () => void;
 }
 
 // --- INITIAL STATES ---
@@ -79,7 +82,7 @@ const initialImportParcelsState: ImportParcelsState = {
   parcelsName: '',
   homesData: null,
   homesName: '',
-  selectedFeatureId: null,
+  selectedFeatureIds: [],
   history: [],
   historyIndex: -1,
 };
@@ -213,37 +216,24 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
         }));
     }, []);
 
-    const deleteFeature = useCallback((featureId: string) => {
+    const deleteSelectedFeatures = useCallback(() => {
         const { importParcels } = state;
-        let changed = false;
+        const { selectedFeatureIds, parcelsData, boundaryData, homesData } = importParcels;
+
+        if (selectedFeatureIds.length === 0) return;
 
         const createFilteredCollection = (data: FeatureCollection | null) => {
-            if (!data || !data.features) return null;
-            const newFeatures = data.features.filter((f: any) => {
-                if (f.id === featureId) {
-                    changed = true;
-                    return false;
-                }
-                return true;
-            });
-            
-            if (newFeatures.length === data.features.length) return data;
-            
+            if (!data) return null;
+            const newFeatures = data.features.filter((f: any) => !selectedFeatureIds.includes(f.id));
             return { ...data, features: newFeatures };
         };
 
-        const newParcelsData = createFilteredCollection(importParcels.parcelsData);
-        const newBoundaryData = createFilteredCollection(importParcels.boundaryData);
-        const newHomesData = createFilteredCollection(importParcels.homesData);
-
-        if (changed) {
-            updateToolState('importParcels', {
-                parcelsData: newParcelsData,
-                boundaryData: newBoundaryData,
-                homesData: newHomesData,
-                selectedFeatureId: importParcels.selectedFeatureId === featureId ? null : importParcels.selectedFeatureId,
-            });
-        }
+        updateToolState('importParcels', {
+            parcelsData: createFilteredCollection(parcelsData),
+            boundaryData: createFilteredCollection(boundaryData),
+            homesData: createFilteredCollection(homesData),
+            selectedFeatureIds: [],
+        });
     }, [state, updateToolState]);
 
     const clearAllLayers = useCallback(() => {
@@ -254,9 +244,61 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
             parcelsName: '',
             homesData: null,
             homesName: '',
-            selectedFeatureId: null,
+            selectedFeatureIds: [],
         });
     }, [updateToolState]);
+
+    const toggleFeatureSelection = useCallback((featureId: string, isMultiSelect: boolean) => {
+        const currentSelection = state.importParcels.selectedFeatureIds;
+        let newSelection: string[];
+
+        if (!isMultiSelect) {
+            newSelection = [featureId];
+        } else {
+            if (currentSelection.includes(featureId)) {
+                newSelection = currentSelection.filter(id => id !== featureId);
+            } else {
+                newSelection = [...currentSelection, featureId];
+            }
+        }
+        updateToolState('importParcels', { selectedFeatureIds: newSelection }, { manageHistory: false });
+    }, [state.importParcels.selectedFeatureIds, updateToolState]);
+    
+    const mergeSelectedFeatures = useCallback(() => {
+        const { parcelsData, selectedFeatureIds } = state.importParcels;
+        if (!parcelsData || selectedFeatureIds.length < 2) return;
+
+        const featuresToMerge = parcelsData.features.filter((f: any) => selectedFeatureIds.includes(f.id));
+        if (featuresToMerge.length < 2) return;
+        
+        try {
+            // @ts-ignore
+            const mergedGeometry = turf.union(...featuresToMerge);
+            
+            const newFeature = {
+                type: 'Feature',
+                properties: featuresToMerge[0].properties, // Keep properties of the first selected
+                geometry: mergedGeometry.geometry,
+                id: `merged-${Date.now()}` // Create a new unique ID
+            };
+
+            const remainingFeatures = parcelsData.features.filter((f: any) => !selectedFeatureIds.includes(f.id));
+            
+            const newParcelsData = {
+                ...parcelsData,
+                features: [...remainingFeatures, newFeature]
+            };
+
+            updateToolState('importParcels', {
+                parcelsData: newParcelsData,
+                selectedFeatureIds: [] // Clear selection after merge
+            });
+
+        } catch (error) {
+            console.error("Error merging features:", error);
+            // Optionally, show a toast to the user
+        }
+    }, [state.importParcels, updateToolState]);
 
     const undo = useCallback(() => {
         const { history, historyIndex } = state.importParcels;
@@ -286,8 +328,10 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
         resetToolState,
         undo,
         redo,
-        deleteFeature,
+        deleteSelectedFeatures,
         clearAllLayers,
+        toggleFeatureSelection,
+        mergeSelectedFeatures,
     };
 
     return (

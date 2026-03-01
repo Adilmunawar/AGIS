@@ -149,10 +149,13 @@ body {
   right: 10px !important;
 }
 
-/* Move draw controls (already in bottom-right) up to stack above zoom */
-.leaflet-bottom.leaflet-right {
-  bottom: 112px !important; /* height of zoom (88) + spacing (10) + border (2*2) = 100 */
-  right: 0px !important;
+/* Move draw controls to top-left */
+.leaflet-top.leaflet-left .leaflet-control-draw {
+    margin-top: 100px;
+}
+
+.leaflet-control-draw {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
 }
 
 
@@ -194,7 +197,6 @@ body {
   backdrop-filter: blur(12px);
   border: 1px solid hsl(var(--border) / 0.5) !important;
   color: hsl(var(--foreground)) !important;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
 }
 
 .leaflet-draw-toolbar a:first-child {

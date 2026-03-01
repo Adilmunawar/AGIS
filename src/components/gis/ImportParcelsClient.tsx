@@ -22,12 +22,14 @@ if (typeof window !== 'undefined') {
 export default function ImportParcelsClient() {
   const { toast } = useToast();
   const { 
-    importParcels: { boundaryData, parcelsData, homesData, selectedFeatureId, history, historyIndex }, 
+    importParcels: { boundaryData, parcelsData, homesData, selectedFeatureIds, history, historyIndex }, 
     updateToolState,
     undo,
     redo,
-    deleteFeature,
-    clearAllLayers
+    deleteSelectedFeatures,
+    clearAllLayers,
+    toggleFeatureSelection,
+    mergeSelectedFeatures
   } = useGisData();
   
   const [isProcessing, setIsProcessing] = useState({ boundary: false, parcels: false, homes: false });
@@ -38,8 +40,10 @@ export default function ImportParcelsClient() {
   const mapRef = useRef<L.Map>(null);
 
   const selectedFeature = useMemo(() => {
-    return parcelsData?.features.find((f: any) => f.id === selectedFeatureId) || null;
-  }, [parcelsData, selectedFeatureId]);
+    if (selectedFeatureIds.length !== 1) return null;
+    const selectedId = selectedFeatureIds[0];
+    return parcelsData?.features.find((f: any) => f.id === selectedId) || null;
+  }, [parcelsData, selectedFeatureIds]);
 
 
   const handleUpload = (files: File[], layer: 'boundary' | 'parcels' | 'homes') => {
@@ -115,12 +119,8 @@ export default function ImportParcelsClient() {
   }, [boundsToFly]);
 
   const handleFeatureClick = useCallback((feature: any) => {
-      updateToolState('importParcels', { selectedFeatureId: feature.id }, { manageHistory: false });
-      if (mapRef.current && feature.geometry) {
-        const featureLayer = L.geoJSON(feature);
-        mapRef.current.flyToBounds(featureLayer.getBounds(), { maxZoom: 18 });
-      }
-  }, [updateToolState]);
+      toggleFeatureSelection(feature.id, activeTool === 'multi-select');
+  }, [toggleFeatureSelection, activeTool]);
 
   const handleExportGeoJSON = () => {
     if (!parcelsData) return;
@@ -136,10 +136,17 @@ export default function ImportParcelsClient() {
     toast({ title: 'Export Successful', description: 'Parcels exported to edited_parcels.geojson' });
   };
   
+  const getFeatureStyle = (feature: any) => {
+    const isSelected = selectedFeatureIds.includes(feature.id);
+    if (isSelected) {
+      return { color: '#fbbf24', weight: 3, fillOpacity: 0.7, fillColor: '#f59e0b' };
+    }
+    // Differentiate styles for different layers if needed, e.g., based on properties
+    return { color: "#2563eb", weight: 2, fillOpacity: 0.1 };
+  }
+
   const boundaryStyle = { color: "#dc2626", weight: 3, fill: false };
-  const parcelStyle = { color: "#2563eb", weight: 2, fillOpacity: 0.1 };
   const homeStyle = { color: "#16a34a", weight: 1.5, fillOpacity: 0.6 };
-  const selectedStyle = { fillColor: '#fbbf24', color: '#b45309', weight: 4, fillOpacity: 0.8 };
   
   return (
     <div className="flex h-full w-full">
@@ -158,7 +165,7 @@ export default function ImportParcelsClient() {
           />
           <FeatureGroup ref={featureGroupRef}>
             <EditControl
-              position="topright"
+              position="topleft"
               draw={{
                 polygon: true,
                 polyline: false,
@@ -177,7 +184,7 @@ export default function ImportParcelsClient() {
           {parcelsData && <GeoJSON 
             key={`parcels-${historyIndex}-${parcelsData.features.length}`}
             data={parcelsData} 
-            style={parcelStyle} 
+            style={getFeatureStyle}
             onEachFeature={(feature, layer) => {
                 layer.on({
                     click: () => handleFeatureClick(feature)
@@ -185,8 +192,6 @@ export default function ImportParcelsClient() {
             }}
           />}
           {homesData && <GeoJSON key={`homes-${historyIndex}-${homesData.features.length}`} data={homesData} style={homeStyle} />}
-          {selectedFeature && <GeoJSON key={selectedFeature.id} data={selectedFeature} style={selectedStyle} />}
-
         </MapContainer>
       </div>
       <ParcelEditorDocker 
@@ -195,16 +200,18 @@ export default function ImportParcelsClient() {
         boundaryData={boundaryData}
         parcelsData={parcelsData}
         homesData={homesData}
-        selectedFeature={selectedFeature}
-        onDeleteSelected={() => selectedFeatureId && deleteFeature(selectedFeatureId)}
+        selectedFeatureIds={selectedFeatureIds}
+        onDeleteSelected={deleteSelectedFeatures}
         onClearData={clearAllLayers}
         onFeatureSelect={handleFeatureClick}
         onExportGeoJSON={handleExportGeoJSON}
+        activeTool={activeTool}
         onToolSelect={setActiveTool}
         onUndo={undo}
         onRedo={redo}
         canUndo={historyIndex > 0}
         canRedo={historyIndex < history.length - 1}
+        onMerge={mergeSelectedFeatures}
       />
     </div>
   );
