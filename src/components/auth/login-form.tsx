@@ -175,23 +175,23 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full h-10 text-base transition-transform duration-300 hover:-translate-y-0.5" disabled={isLoading}>
+            <Button type="submit" className="w-full h-10 text-base transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>
           </form>
         </Form>
-        <div className="relative my-3">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card/0 px-2 text-muted-foreground">
-                    Or continue with
-                </span>
-            </div>
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-border/80" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                  Or continue with
+              </span>
+          </div>
         </div>
-        <Button variant="outline" className="w-full h-10 transition-transform duration-300 hover:-translate-y-0.5" onClick={onGoogleSignIn} disabled={isLoading}>
+        <Button variant="outline" className="w-full h-10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md" onClick={onGoogleSignIn} disabled={isLoading}>
             {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
