@@ -175,7 +175,7 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
     const { toast } = useToast();
 
     const enrichedParcels = useMemo(() => {
-        if (!parcelsData?.features) return null;
+        if (!parcelsData?.features || parcelsData.features.length === 0) return null;
         const featuresWithId = parcelsData.features.map((f: any, i: number) => ({ ...f, id: i }));
         return { ...parcelsData, features: featuresWithId };
     }, [parcelsData]);
