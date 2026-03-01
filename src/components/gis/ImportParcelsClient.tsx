@@ -24,9 +24,10 @@ export default function ImportParcelsClient() {
   const { 
     importParcels: { boundaryData, parcelsData, homesData, selectedFeatureId, history, historyIndex }, 
     updateToolState,
-    resetToolState,
     undo,
-    redo
+    redo,
+    deleteFeature,
+    clearAllLayers
   } = useGisData();
   
   const [isProcessing, setIsProcessing] = useState({ boundary: false, parcels: false, homes: false });
@@ -73,7 +74,6 @@ export default function ImportParcelsClient() {
       
       if (status === 'success' && geojson) {
         const dataKey = `${processedLayer}Data` as 'boundaryData' | 'parcelsData' | 'homesData';
-        const nameKey = `${processedLayer}Name` as 'boundaryName' | 'parcelsName' | 'homesName';
         
         let featureIdCounter = 0;
         geojson.features.forEach((feature: any) => {
@@ -82,13 +82,7 @@ export default function ImportParcelsClient() {
           }
         });
 
-        const name = (geojson.features[0]?.properties?.name as string) || (geojson.features[0]?.properties?.Mauza as string) || `${processedLayer}-layer.shp`
-
-        updateToolState('importParcels', {
-          [dataKey]: geojson,
-          [nameKey]: name,
-        }, {manageHistory: processedLayer === 'parcels'});
-
+        updateToolState('importParcels', { [dataKey]: geojson }, { manageHistory: true });
 
         toast({ title: `${processedLayer.charAt(0).toUpperCase() + processedLayer.slice(1)} Layer Processed`, description: `Found ${geojson.features.length} features.` });
       } else {
@@ -121,20 +115,12 @@ export default function ImportParcelsClient() {
   }, [boundsToFly]);
 
   const handleFeatureClick = useCallback((feature: any) => {
-      updateToolState('importParcels', { selectedFeatureId: feature.id });
+      updateToolState('importParcels', { selectedFeatureId: feature.id }, { manageHistory: false });
       if (mapRef.current && feature.geometry) {
         const featureLayer = L.geoJSON(feature);
         mapRef.current.flyToBounds(featureLayer.getBounds(), { maxZoom: 18 });
       }
   }, [updateToolState]);
-
-  const handleDeleteSelected = useCallback(() => {
-    if (!selectedFeatureId || !parcelsData) return;
-    const newFeatures = parcelsData.features.filter((f: any) => f.id !== selectedFeatureId);
-    const newParcelsData = { ...parcelsData, features: newFeatures };
-    updateToolState('importParcels', { parcelsData: newParcelsData, selectedFeatureId: null });
-    toast({ title: 'Feature Deleted', description: `Feature ID ${selectedFeatureId} removed.` });
-  }, [selectedFeatureId, parcelsData, updateToolState, toast]);
 
   const handleExportGeoJSON = () => {
     if (!parcelsData) return;
@@ -150,14 +136,6 @@ export default function ImportParcelsClient() {
     toast({ title: 'Export Successful', description: 'Parcels exported to edited_parcels.geojson' });
   };
   
-  const handleClearData = () => {
-    resetToolState('importParcels');
-    if (mapRef.current) {
-        mapRef.current.flyTo([30.3753, 69.3451], 6); // Fly back to Pakistan overview
-    }
-    toast({ title: 'Data Cleared', description: 'All imported data has been removed.' });
-  }
-
   const boundaryStyle = { color: "#dc2626", weight: 3, fill: false };
   const parcelStyle = { color: "#2563eb", weight: 2, fillOpacity: 0.1 };
   const homeStyle = { color: "#16a34a", weight: 1.5, fillOpacity: 0.6 };
@@ -214,18 +192,14 @@ export default function ImportParcelsClient() {
       <ParcelEditorDocker 
         onUpload={handleUpload}
         isProcessing={isProcessing}
-        boundaryName={useGisData().importParcels.boundaryName}
-        parcelsName={useGisData().importParcels.parcelsName}
-        homesName={useGisData().importParcels.homesName}
+        boundaryData={boundaryData}
+        parcelsData={parcelsData}
+        homesData={homesData}
         selectedFeature={selectedFeature}
-        allFeatures={parcelsData?.features || []}
-        homesCount={homesData?.features?.length || 0}
-        onDeleteSelected={handleDeleteSelected}
-        hasData={!!boundaryData || !!parcelsData || !!homesData}
-        onClearData={handleClearData}
+        onDeleteSelected={() => selectedFeatureId && deleteFeature(selectedFeatureId)}
+        onClearData={clearAllLayers}
         onFeatureSelect={handleFeatureClick}
         onExportGeoJSON={handleExportGeoJSON}
-        activeTool={activeTool}
         onToolSelect={setActiveTool}
         onUndo={undo}
         onRedo={redo}
