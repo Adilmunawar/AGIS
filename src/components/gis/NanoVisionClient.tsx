@@ -149,9 +149,9 @@ function NanoVisionControlBar({
                 </div>
                 
                  {statusMessage && (
-                    <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-slate-700 bg-slate-800/95 px-5 py-2.5 text-sm shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 fade-in duration-300">
-                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin text-teal-400" /> : <Terminal className="h-4 w-4 text-teal-400" />}
-                        <p className="text-slate-100 font-medium tracking-wide">{statusMessage}</p>
+                    <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-slate-200/50 bg-white/95 px-5 py-2.5 text-sm shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-4 fade-in duration-300">
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <Terminal className="h-4 w-4 text-primary" />}
+                        <p className="text-slate-600 font-medium tracking-wide">{statusMessage}</p>
                     </div>
                 )}
             </div>
@@ -296,6 +296,7 @@ function MapContent() {
         attribution={activeLayer.attribution}
         subdomains={activeLayer.subdomains || ''}
         crossOrigin="anonymous"
+        noWrap={true}
       />
       
       <FeatureGroup>

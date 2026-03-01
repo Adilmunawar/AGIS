@@ -268,6 +268,7 @@ export default function ExtractRoadsClient() {
           url={activeLayer.url}
           attribution={activeLayer.attribution}
           subdomains={activeLayer.subdomains || ''}
+          noWrap={true}
         />
         
         <FeatureGroup>

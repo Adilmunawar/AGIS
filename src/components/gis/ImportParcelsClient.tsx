@@ -149,7 +149,7 @@ export default function ImportParcelsClient() {
             <div className="flex-1 relative h-full">
                 <MapContainer ref={mapRef} center={[31.46, 74.38]} zoom={13} zoomControl={false} style={{ height: '100%', width: '100%' }}>
                     <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
-                    <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} />
+                    <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
                     
                     {geoData && <GeoJSON ref={geoJsonLayerRef} key={JSON.stringify(geoData)} data={geoData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
                 </MapContainer>

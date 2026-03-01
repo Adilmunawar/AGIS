@@ -303,6 +303,7 @@ export default function DigitizeMapClient() {
           attribution={activeLayer.attribution}
           subdomains={activeLayer.subdomains || ''}
           crossOrigin="anonymous"
+          noWrap={true}
         />
         
         <FeatureGroup>
