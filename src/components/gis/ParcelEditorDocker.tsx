@@ -7,7 +7,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 
@@ -222,7 +222,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                            <Button variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1}><Ruler className="mr-2"/> Measure Area</Button>
                            <Button variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData}><Download className="mr-2"/> Export GeoJSON</Button>
                            <Button variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0}><Trash2 className="mr-2"/> Delete Selected</Button>
-                           <Button variant="destructive" outline onClick={onClearData}><X className="mr-2"/> Clear All Data</Button>
+                           <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={onClearData}><X className="mr-2"/> Clear All Data</Button>
                            <Button variant="outline" onClick={onUndo} disabled={!canUndo}><Undo className="mr-2"/> Undo</Button>
                            <Button variant="outline" onClick={onRedo} disabled={!canRedo}><Redo className="mr-2"/> Redo</Button>
                        </div>
