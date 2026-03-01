@@ -19,40 +19,6 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-
-// Helper to calculate bounding box from a GeoJSON FeatureCollection
-const calculateBoundingBox = (geojson: FeatureCollection): [number, number, number, number] => {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-    geojson.features.forEach(feature => {
-        if (feature.geometry.type === 'Polygon') {
-            feature.geometry.coordinates[0].forEach(coord => {
-                const [x, y] = coord;
-                if (x < minX) minX = x;
-                if (y < minY) minY = y;
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-            });
-        } else if (feature.geometry.type === 'MultiPolygon') {
-             feature.geometry.coordinates.forEach(polygon => {
-                polygon[0].forEach(coord => {
-                    const [x, y] = coord;
-                    if (x < minX) minX = x;
-                    if (y < minY) minY = y;
-                    if (x > maxX) maxX = x;
-                    if (y > maxY) maxY = y;
-                });
-            });
-        }
-    });
-    
-    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
-        throw new Error("Could not calculate a valid bounding box. The GeoJSON may be empty or invalid.");
-    }
-    
-    return [minX, minY, maxX, maxY];
-};
-
 /**
  * Handles the full ETL process for a single Mauza shapefile.
  * 1. Extracts geometry and attributes.
@@ -63,9 +29,15 @@ const calculateBoundingBox = (geojson: FeatureCollection): [number, number, numb
  * @param mauzaName The designated name for the Mauza, used for ID and path generation.
  * @param geoJsonFeatureCollection The full GeoJSON FeatureCollection representing the Mauza boundary.
  * @param dbfAttributes An object containing attributes from the shapefile's .dbf file.
+ * @param boundingBox The calculated bounding box of the entire GeoJSON collection.
  * @returns A promise that resolves with the new document ID and storage path.
  */
-export async function uploadMauzaData(mauzaName: string, geoJsonFeatureCollection: any, dbfAttributes: any) {
+export async function uploadMauzaData(
+    mauzaName: string, 
+    geoJsonFeatureCollection: any, 
+    dbfAttributes: any,
+    boundingBox: [number, number, number, number]
+) {
     const mauzaId = mauzaName.replace(/[^a-zA-Z0-9-_\.]/g, '_');
     const storagePath = `gis_data/mauzas/${mauzaId}/boundary.json`;
     const storageRef = ref(storage, storagePath);
@@ -79,7 +51,6 @@ export async function uploadMauzaData(mauzaName: string, geoJsonFeatureCollectio
         const geometryUrl = await getDownloadURL(storageRef);
 
         // --- 2. TRANSFORM (for Firestore) ---
-        const boundingBox = calculateBoundingBox(geoJsonFeatureCollection);
         const centerLat = (boundingBox[1] + boundingBox[3]) / 2;
         const centerLng = (boundingBox[0] + boundingBox[2]) / 2;
         const geohash = geohashForLocation([centerLat, centerLng]);
