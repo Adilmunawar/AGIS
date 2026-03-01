@@ -54,13 +54,37 @@ export default function ImportParcelsClient() {
         setIsDragging(false);
         setError(null);
         setGeoData(null);
-        setFileNames(files.map(f => f.name));
+        setSelectedFeature(null);
+        
+        if (files.length === 0) {
+            setFileNames([]);
+            return;
+        }
 
-        const shpFile = files.find(f => f.name.endsWith('.shp'));
-        const dbfFile = files.find(f => f.name.endsWith('.dbf'));
+        const fileGroups = new Map<string, File[]>();
+        for (const file of files) {
+            const basename = file.name.substring(0, file.name.lastIndexOf('.'));
+            if (!fileGroups.has(basename)) {
+                fileGroups.set(basename, []);
+            }
+            fileGroups.get(basename)!.push(file);
+        }
+
+        if (fileGroups.size > 1) {
+             setError("Please drop files for only one shapefile at a time.");
+             setFileNames(Array.from(fileGroups.keys()));
+             return;
+        }
+        
+        const mainGroupName = fileGroups.keys().next().value;
+        const mainGroup = fileGroups.get(mainGroupName)!;
+        setFileNames(mainGroup.map(f => f.name));
+
+        const shpFile = mainGroup.find(f => f.name.endsWith('.shp'));
+        const dbfFile = mainGroup.find(f => f.name.endsWith('.dbf'));
 
         if (!shpFile || !dbfFile) {
-            setError("Import failed. A shapefile requires at least a .shp and a .dbf file. Please drop all associated files together.");
+            setError("Import failed. A shapefile requires at least a .shp and a .dbf file with the same name. Please drop all associated files together.");
             return;
         }
 
@@ -71,17 +95,15 @@ export default function ImportParcelsClient() {
             ]);
 
             const source = await shapefile.read(shpBuffer, dbfBuffer);
-            // Assign a unique ID to each feature for selection management
             source.features.forEach((f, i) => f.id = i);
             setGeoData(source);
             
-            // Fit map to the bounds of the new data
             if (mapRef.current && source.bbox) {
                 const [minLng, minLat, maxLng, maxLat] = source.bbox;
                 const bounds = new LatLngBounds([minLat, minLng], [maxLat, maxLng]);
                 mapRef.current.fitBounds(bounds);
             }
-             toast({ title: "Import Successful", description: `${source.features.length} parcels loaded.` });
+             toast({ title: "Import Successful", description: `${source.features.length} parcels loaded from ${shpFile.name}.` });
 
         } catch (err: any) {
             setError(`Parsing Error: ${err.message}. Ensure all required shapefile components are included.`);
