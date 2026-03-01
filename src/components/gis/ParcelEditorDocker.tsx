@@ -1,5 +1,5 @@
 'use client'
-import React, { useMemo, useState, useRef, useEffect } from 'react'
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import * as turf from '@turf/turf'
 import {
   MousePointerSquare, Trash2, X, Undo, Redo, UploadCloud, File as FileIcon, Loader2, Layers, Table as TableIcon, Wrench, Combine, Ruler, Download
@@ -110,17 +110,20 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
             features.sort((a, b) => {
                 const aVal = a.properties[sortConfig.key];
                 const bVal = b.properties[sortConfig.key];
-                if (!isNaN(Number(aVal)) && !isNaN(Number(bVal))) {
-                    return sortConfig.direction === 'asc' ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
+
+                const aNum = Number(aVal);
+                const bNum = Number(bVal);
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
                 }
-                if (String(aVal) < String(bVal)) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (String(aVal) > String(bVal)) return sortConfig.direction === 'asc' ? 1 : -1;
+                
+                const aStr = String(aVal).toLowerCase();
+                const bStr = String(bVal).toLowerCase();
+
+                if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
-            });
-        }
-        else if (parcelsData?.features?.length > 0 && 'area_sqm' in parcelsData.features[0].properties) {
-             features.sort((a, b) => {
-                return (b.properties.area_sqm || 0) - (a.properties.area_sqm || 0);
             });
         }
         return features;
@@ -164,12 +167,12 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
     }, [parcelsData, selectedFeatureIds]);
 
     return (
-        <div className="w-96 flex-shrink-0 h-full flex flex-col border-l bg-background overflow-hidden">
+        <div className="flex flex-col h-full w-full overflow-hidden">
             <div className="p-3 border-b flex items-center justify-between shrink-0">
                 <h3 className="font-bold text-lg text-foreground">Parcel Editor</h3>
             </div>
             
-            <Tabs defaultValue="layers" className="flex flex-col h-full w-full">
+            <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
                 <div className="border-b px-2.5">
                     <TabsList className="grid w-full grid-cols-3 h-10">
                         <TabsTrigger value="layers"><Layers className="w-4 h-4 mr-1.5"/>Layers</TabsTrigger>
@@ -178,14 +181,14 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     </TabsList>
                 </div>
 
-                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 data-[state=inactive]:hidden">
+                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden space-y-4">
                     <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} />
                     <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} />
                     <FileUploader layer="homes" title="Homes Layer" data={homesData} onUpload={onUpload} isProcessing={isProcessing['homes']} />
                 </TabsContent>
 
-                <TabsContent value="table" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
-                    <div className="overflow-auto p-2">
+                <TabsContent value="table" className="flex-1 min-h-0 overflow-auto data-[state=inactive]:hidden">
+                    <div className="p-2 h-full">
                         <table className="w-max min-w-full text-xs border-collapse">
                             <thead className="sticky top-0 bg-background z-10 shadow-sm">
                                 <tr>
@@ -258,3 +261,4 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
         </div>
     )
 }
+    
