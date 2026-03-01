@@ -82,7 +82,7 @@ const PropertiesPanel = ({ feature }: { feature: any }) => (
 
 const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[], selectedId: string | number | null, onRowClick: (feature: any) => void }) => {
     if (!features || features.length === 0) {
-        return <div className="p-4 text-center text-muted-foreground">No data to display.</div>
+        return <div className="p-4 text-center text-muted-foreground">No data to display. Import a shapefile to begin.</div>
     }
 
     const headers = Object.keys(features[0].properties);

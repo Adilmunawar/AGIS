@@ -13,9 +13,9 @@ import { Button } from '../ui/button';
 
 // --- TYPES & CONFIGS ---
 const baseLayers: BaseLayer[] = [
-    { name: 'Google Hybrid', url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: '/previews/google-hybrid.png', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
-    { name: 'Google Satellite', url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: '/previews/google-satellite.png', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
-    { name: 'ESRI Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri', previewUrl: '/previews/esri-satellite.png', subdomains: []},
+    { name: 'Google Hybrid', url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlehybrid/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
+    { name: 'Google Satellite', url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlesatellite/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
+    { name: 'ESRI Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri', previewUrl: 'https://picsum.photos/seed/esrisat/400/300', subdomains: []},
 ];
 const geoJsonStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
 const geoJsonHighlightStyle = { color: '#ef4444', weight: 3, fillColor: '#fecaca', fillOpacity: 0.7 };
@@ -80,7 +80,7 @@ export default function ImportParcelsClient() {
             ]);
 
             const source = await shapefile.read(shpBuffer, dbfBuffer);
-            source.features.forEach((f, i) => f.id = i);
+            source.features.forEach((f: any, i: number) => f.id = i);
             setGeoData(source);
             
             toast({ title: "Import Successful", description: `${source.features.length} parcels loaded from ${shpFile.name}.` });
