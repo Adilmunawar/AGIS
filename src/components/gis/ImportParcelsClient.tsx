@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ParcelEditorDocker, EditorTool } from './ParcelEditorDocker';
 import { useGisData } from '@/context/GisDataContext';
 import { EditControl } from 'react-leaflet-draw';
-import { feature } from '@turf/turf';
+import * as turf from '@turf/turf';
 
 // Set up default Leaflet icon path
 if (typeof window !== 'undefined') {
@@ -118,9 +118,30 @@ export default function ImportParcelsClient() {
     }
   }, [boundsToFly]);
 
+  // Handler for clicking a feature on the map
   const handleFeatureClick = useCallback((feature: any) => {
       toggleFeatureSelection(feature.id, activeTool === 'multi-select');
   }, [toggleFeatureSelection, activeTool]);
+
+  // Handler for clicking a row in the attribute table
+  const handleTableRowClick = useCallback((feature: any) => {
+    // When a table row is clicked, we always want to do a single-selection
+    toggleFeatureSelection(feature.id, false);
+
+    // And fly to that feature on the map
+    if (mapRef.current && feature && feature.geometry) {
+        try {
+            const boundingBox = turf.bbox(feature);
+            const leafletBounds = L.latLngBounds(
+                [boundingBox[1], boundingBox[0]], // SW corner
+                [boundingBox[3], boundingBox[2]]  // NE corner
+            );
+            mapRef.current.flyToBounds(leafletBounds, { padding: [50, 50], maxZoom: 18 });
+        } catch(e) {
+            console.error("Could not fly to feature:", e);
+        }
+    }
+  }, [toggleFeatureSelection, mapRef]);
 
   const handleExportGeoJSON = () => {
     if (!parcelsData) return;
@@ -203,7 +224,7 @@ export default function ImportParcelsClient() {
         selectedFeatureIds={selectedFeatureIds}
         onDeleteSelected={deleteSelectedFeatures}
         onClearData={clearAllLayers}
-        onFeatureSelect={handleFeatureClick}
+        onFeatureSelect={handleTableRowClick}
         onExportGeoJSON={handleExportGeoJSON}
         activeTool={activeTool}
         onToolSelect={setActiveTool}
