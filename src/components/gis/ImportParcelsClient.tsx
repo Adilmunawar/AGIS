@@ -1,538 +1,308 @@
 'use client';
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMap, FeatureGroup } from 'react-leaflet';
-import L from 'leaflet';
-import * as shapefile from 'shapefile';
 
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { MapHeader, type BaseLayer } from './MapHeader';
-import { ParcelEditorDocker, type EditorTool } from './ParcelEditorDocker';
-import { Layers, FileCheck2, UploadCloud, Trash2, Shield, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '../ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
-import { useGisData } from '@/context/GisDataContext';
-import { Loader2 } from 'lucide-react';
+import type { FeatureCollection } from 'geojson';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Loader2, Files, FileCheck2, ArrowRight, CheckCircle, UploadCloud } from 'lucide-react';
 
-// --- TYPES & CONFIGS ---
-const baseLayers: BaseLayer[] = [
-    { name: 'Google Hybrid', url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlehybrid/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
-    { name: 'Google Satellite', url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlesatellite/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
-    { name: 'ESRI Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri', previewUrl: 'https://picsum.photos/seed/esrisat/400/300', subdomains: []},
-];
-
-const boundaryStyle = { color: '#e11d48', weight: 3, fillOpacity: 0.1, fillColor: '#e11d48' };
-const parcelsStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
-const homesStyle = { color: '#22c55e', weight: 1, fillColor: '#86efac', fillOpacity: 0.6 };
-const highlightStyle = { color: '#16a34a', weight: 3, fillColor: '#86efac', fillOpacity: 0.7 };
-
-
-// --- FILE PROCESSING ---
-const processShapefile = async (files: File[]): Promise<{ name: string; data: any }> => {
-  const fileGroups = new Map<string, { [key: string]: File }>();
-  for (const file of files) {
-    const basename = file.name.substring(0, file.name.lastIndexOf('.'));
-    const ext = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase();
-    if (!fileGroups.has(basename)) fileGroups.set(basename, {});
-    fileGroups.get(basename)![ext] = file;
-  }
-
-  if (fileGroups.size > 1) {
-    throw new Error(`Multiple shapefiles detected: ${Array.from(fileGroups.keys()).join(', ')}. Please upload files for one shapefile at a time.`);
-  }
-  if (fileGroups.size === 0) {
-    throw new Error('No files found to process.');
-  }
-
-  const [name, group] = fileGroups.entries().next().value;
-  if (!group.shp || !group.dbf) {
-    throw new Error(`Shapefile "${name}" is missing required .shp or .dbf file.`);
-  }
-  
-  const [shpBuffer, dbfBuffer] = await Promise.all([group.shp.arrayBuffer(), group.dbf.arrayBuffer()]);
-  const data = await shapefile.read(shpBuffer, dbfBuffer);
-  
-  if (data && data.features) {
-    const basename = name.replace(/\.[^/.]+$/, "");
-    data.features = data.features.map((feature: any, index: number) => ({
-      ...feature,
-      id: feature.id || `${basename}-${index}-${Date.now()}`
-    }));
-  }
-
-  return { name: `${name}.shp`, data };
-};
-
-
-// --- SUB-COMPONENTS ---
-const UploadZone = ({ onFilesUploaded, isProcessing, disabled }: { onFilesUploaded: (files: File[]) => void, isProcessing: boolean, disabled?: boolean }) => {
-    const [isDragging, setIsDragging] = useState(false);
-    const onDrag = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if(!disabled) setIsDragging(true); }, [disabled]);
-    const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
-    const onDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-        if (e.dataTransfer.files && !disabled) {
-            onFilesUploaded(Array.from(e.dataTransfer.files));
-        }
-    }, [onFilesUploaded, disabled]);
-
-    return (
-        <div onDragEnter={onDrag} onDragLeave={onDragLeave} onDragOver={onDrag} onDrop={onDrop}
-            className={cn("w-full h-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-center transition-colors relative p-4",
-                disabled ? 'bg-gray-200/50 border-gray-300 cursor-not-allowed' :
-                isDragging ? 'border-primary bg-primary/10' : 'border-border bg-gray-50/50 hover:border-primary/50'
-            )}>
-            <input id="file-upload" type="file" multiple disabled={disabled}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                onChange={(e) => onFilesUploaded(Array.from(e.target.files || []))}
-                accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg"
-            />
-             {isProcessing ? (
-                <>
-                    <Loader2 className="h-8 w-8 mb-2 text-primary animate-spin" />
-                    <p className="text-sm font-semibold">Processing...</p>
-                </>
-             ) : (
-                <>
-                    <UploadCloud className={cn("h-8 w-8 mb-2", disabled ? 'text-gray-400' : 'text-primary/70')} />
-                    <p className={cn("text-sm font-semibold", disabled ? 'text-muted-foreground' : 'text-foreground')}>Drop files or click to upload</p>
-                    <p className="text-xs text-muted-foreground">{disabled ? 'Please upload boundary first.' : 'All related files (.shp, .dbf, etc.)'}</p>
-                </>
-            )}
-        </div>
-    );
-};
-
-const FileStatusCard = ({ name, onClear }: { name: string; onClear: () => void; }) => (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-green-50 border-2 border-dashed border-green-200 rounded-xl p-4">
-        <FileCheck2 className="h-8 w-8 text-green-600 mb-2" />
-        <p className="text-sm font-semibold text-green-800 text-center break-all">{name}</p>
-        <Button variant="link" size="sm" className="text-red-500 h-auto p-0 mt-2" onClick={onClear}>
-            <Trash2 className="mr-1 h-3 w-3" /> Remove
-        </Button>
-    </div>
-);
-
-const UploadCard = ({ title, description, icon, fileName, onFilesUploaded, onClear, isProcessing, disabled }: { title: string, description: string, icon: React.ReactNode, fileName: string, onFilesUploaded: (f: File[]) => void, onClear: () => void, isProcessing: boolean, disabled?: boolean }) => (
-    <Card className={cn("flex flex-col", disabled && 'bg-gray-100')}>
-        <CardHeader>
-            <div className="flex items-center gap-3">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", disabled ? 'bg-gray-200' : 'bg-primary/10')}>
-                    {React.cloneElement(icon as React.ReactElement, { className: cn("h-5 w-5", disabled ? 'text-gray-400' : 'text-primary') })}
-                </div>
-                <div>
-                    <CardTitle className="text-lg">{title}</CardTitle>
-                    <CardDescription className="text-xs">{description}</CardDescription>
-                </div>
-            </div>
-        </CardHeader>
-        <CardContent className="flex-1">
-            {fileName ? (
-                <FileStatusCard name={fileName} onClear={onClear} />
-            ) : (
-                <UploadZone onFilesUploaded={onFilesUploaded} isProcessing={isProcessing} disabled={disabled} />
-            )}
-        </CardContent>
-    </Card>
-);
-
-const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, onHomesUpload, boundaryName, parcelsName, homesName, onClearBoundary, onClearParcels, onClearHomes, processingState }: {
-    onBoundaryUpload: (f: File[]) => void,
-    onParcelsUpload: (f: File[]) => void,
-    onHomesUpload: (f: File[]) => void,
-    boundaryName: string,
-    parcelsName: string,
-    homesName: string,
-    onClearBoundary: () => void,
-    onClearParcels: () => void,
-    onClearHomes: () => void,
-    processingState: 'boundary' | 'parcels' | 'homes' | null
-}) => (
-    <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 bg-gray-100/50">
-        <div className="w-full max-w-6xl space-y-4">
-            <header className="text-center">
-                <h1 className="text-3xl font-bold tracking-tight">Import Parcels for Analysis</h1>
-                <p className="text-muted-foreground mt-2">Upload your boundary, parcel, and housing shapefiles to begin editing.</p>
-            </header>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-                <UploadCard
-                    title="1. Boundary Layer"
-                    description="Shapefile defining the area of interest (e.g., Tehsil boundary)."
-                    icon={<Shield />}
-                    fileName={boundaryName}
-                    onFilesUploaded={onBoundaryUpload}
-                    onClear={onClearBoundary}
-                    isProcessing={processingState === 'boundary'}
-                />
-                <UploadCard
-                    title="2. Parcels Layer"
-                    description="Shapefile with individual properties (e.g., Mouzas) within the boundary."
-                    icon={<Layers />}
-                    fileName={parcelsName}
-                    onFilesUploaded={onParcelsUpload}
-                    onClear={onClearParcels}
-                    isProcessing={processingState === 'parcels'}
-                    disabled={!boundaryName}
-                />
-                <UploadCard
-                    title="3. Homes Layer"
-                    description="Optional shapefile containing individual housing structures."
-                    icon={<Home />}
-                    fileName={homesName}
-                    onFilesUploaded={onHomesUpload}
-                    onClear={onClearHomes}
-                    isProcessing={processingState === 'homes'}
-                    disabled={!boundaryName}
-                />
-            </div>
-        </div>
-    </div>
-);
-
-const MapUpdater = ({ parcelsLayer, selectedFeatureId, mapBounds }: { parcelsLayer: L.GeoJSON | null, selectedFeatureId: string | number | null, mapBounds?: L.LatLngBounds }) => {
-    const map = useMap();
-
-    useEffect(() => {
-        if (mapBounds && mapBounds.isValid()) {
-            map.fitBounds(mapBounds, { padding: [50, 50] });
-        }
-    }, [map, mapBounds]);
-
-    useEffect(() => {
-        if (!parcelsLayer) return;
-        let selectedLayer: L.Layer | null = null;
-
-        parcelsLayer.eachLayer((layer: any) => {
-            if (layer.feature && layer.feature.id === selectedFeatureId) {
-                selectedLayer = layer;
-                layer.setStyle(highlightStyle);
-                if (layer.bringToFront) layer.bringToFront();
-            } else {
-                layer.setStyle(parcelsStyle);
-            }
-        });
-
-        if (selectedLayer) {
-            const bounds = (selectedLayer as L.GeoJSON).getBounds();
-            if (bounds.isValid()) {
-                map.flyToBounds(bounds, { maxZoom: 18, padding: [50, 50] });
-            }
-        }
-    }, [selectedFeatureId, map, parcelsLayer]);
-
-    return null;
+// Define the structure for a schema field
+interface SchemaField {
+  id: 'mauzaName' | 'plotNumber' | 'landUse' | 'areaSqm';
+  label: string;
+  description: string;
 }
 
-// --- MAIN COMPONENT ---
+// Configuration for the fields required for schema mapping
+const SCHEMA_FIELDS: SchemaField[] = [
+  { id: 'mauzaName', label: 'Mauza Name', description: 'The column identifying the administrative area name (e.g., "Chak 185/7-R").' },
+  { id: 'plotNumber', label: 'Plot Number', description: 'The unique identifier for each individual parcel within the Mauza.' },
+  { id: 'landUse', label: 'Land Use', description: 'The designated purpose of the parcel (e.g., "Residential", "Agricultural").' },
+  { id: 'areaSqm', label: 'Area (Sqm)', description: 'The column containing the calculated area of the parcel in square meters.' },
+];
+
 export default function ImportParcelsClient() {
-    const { importParcels, updateToolState, resetToolState, undo, redo } = useGisData();
-    const { boundaryData, parcelsData, homesData, boundaryName, parcelsName, homesName, selectedFeatureId, history, historyIndex } = importParcels;
-    
-    const [processingState, setProcessingState] = useState<'boundary' | 'parcels' | 'homes' | null>(null);
-    const { toast } = useToast();
-    const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
-    const [activeTool, setActiveTool] = useState<EditorTool>('select');
+  const [step, setStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  
+  const [geoJson, setGeoJson] = useState<FeatureCollection | null>(null);
+  const [dbfColumns, setDbfColumns] = useState<string[]>([]);
+  const [mappedSchema, setMappedSchema] = useState<Record<SchemaField['id'], string>>({
+    mauzaName: '',
+    plotNumber: '',
+    landUse: '',
+    areaSqm: '',
+  });
 
-    // --- Map and Layer Refs ---
-    const mapRef = useRef<L.Map>(null);
-    const featureGroupRef = useRef<L.FeatureGroup>(null);
-    const drawHandlerRef = useRef<any>(null);
-    const measureLayerRef = useRef<L.FeatureGroup>(null);
-    const [measureState, setMeasureState] = useState<{ points: L.LatLng[], totalDistance: number }>({ points: [], totalDistance: 0 });
+  const workerRef = useRef<Worker | null>(null);
+  const { toast } = useToast();
 
-    const handleFileUpload = async (files: File[], type: 'boundary' | 'parcels' | 'homes') => {
-        if (files.length === 0) return;
-        setProcessingState(type);
-        try {
-            const { name, data } = await processShapefile(files);
-            toast({ title: `${type.charAt(0).toUpperCase() + type.slice(1)} Layer Loaded`, description: `Successfully loaded ${name}.` });
-            if (type === 'boundary') {
-                updateToolState('importParcels', { boundaryName: name, boundaryData: data });
-            } else if (type === 'parcels') {
-                updateToolState('importParcels', { parcelsName: name, parcelsData: data });
-            } else {
-                updateToolState('importParcels', { homesName: name, homesData: data });
-            }
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: "Import Error", description: error.message });
-        } finally {
-            setProcessingState(null);
-        }
-    };
-    
-    const handleClearBoundary = () => resetToolState('importParcels');
-    const handleClearParcels = () => updateToolState('importParcels', { parcelsData: null, parcelsName: '', selectedFeatureId: null, history: [], historyIndex: -1 });
-    const handleClearHomes = () => updateToolState('importParcels', { homesData: null, homesName: '' });
-    const handleSetSelectedFeature = (feature: any) => updateToolState('importParcels', { selectedFeatureId: feature?.id ?? null });
+  useEffect(() => {
+    // Initialize the web worker
+    workerRef.current = new Worker('/workers/shapefileWorker.js');
 
-    const handleDeleteSelected = () => {
-        if (selectedFeatureId === null) {
-            toast({ variant: 'destructive', title: 'No Parcel Selected', description: 'Please select a parcel from the map or table to delete.' });
-            return;
-        }
-        if (parcelsData && parcelsData.features) {
-            const newFeatures = parcelsData.features.filter((f: any) => f.id !== selectedFeatureId);
-            updateToolState('importParcels', {
-                parcelsData: { ...parcelsData, features: newFeatures },
-                selectedFeatureId: null,
-            });
-            toast({ title: 'Parcel Deleted', description: `Parcel ID ${selectedFeatureId} has been removed.` });
-        }
-    };
-    
-    const handleExportGeoJSON = () => {
-        if (!parcelsData) {
-            toast({ variant: 'destructive', title: 'No Data to Export', description: 'There is no parcel data to export.' });
-            return;
-        }
-        const blob = new Blob([JSON.stringify(parcelsData)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'edited_parcels.geojson';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        toast({ title: 'Export Successful', description: 'edited_parcels.geojson has been downloaded.' });
-    };
+    // Handle messages from the worker
+    workerRef.current.onmessage = (event: MessageEvent) => {
+      const { geojson, columns, error } = event.data;
+      setIsProcessing(false);
 
-    const selectedFeature = useMemo(() => {
-        if (selectedFeatureId === null || !parcelsData?.features) return null;
-        return parcelsData.features.find((f: any) => f.id === selectedFeatureId) || null;
-    }, [selectedFeatureId, parcelsData]);
-
-    const mapBounds = useMemo(() => {
-        if (!boundaryData) return undefined;
-        try {
-            const bounds = L.geoJSON(boundaryData).getBounds();
-            return bounds.isValid() ? bounds : undefined;
-        } catch (e) { console.error("Could not calculate bounds from boundary data:", e); }
-        return undefined;
-    }, [boundaryData]);
-
-    const onEachFeature = (feature: any, layer: L.Layer) => {
-        layer.on({
-            click: (e) => {
-                L.DomEvent.stopPropagation(e);
-                if (activeTool === 'select' || activeTool === 'edit-vertices') {
-                    handleSetSelectedFeature(feature);
-                }
-            },
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'File Parsing Error',
+          description: error,
         });
+        setFiles([]); // Clear invalid files
+        return;
+      }
+      
+      setGeoJson(geojson);
+      setDbfColumns(columns);
+      toast({
+        title: 'Files Processed Successfully',
+        description: 'Shapefile was parsed into GeoJSON. Please map the schema below.',
+      });
+      setStep(2);
     };
 
-    // --- EFFECT FOR DYNAMIC EDITING & MEASUREMENT TOOLS ---
-    useEffect(() => {
-        const map = mapRef.current;
-        if (!map) return;
+    // Handle errors from the worker
+    workerRef.current.onerror = (error: ErrorEvent) => {
+      setIsProcessing(false);
+      toast({
+        variant: 'destructive',
+        title: 'Worker Error',
+        description: error.message,
+      });
+       setFiles([]);
+    };
 
-        // ---- General Cleanup: Disable any active draw/measure handlers before switching ----
-        if (drawHandlerRef.current) {
-            drawHandlerRef.current.disable();
-            drawHandlerRef.current = null;
-        }
-        map.off(L.Draw.Event.CREATED);
-        map.off(L.Draw.Event.EDITED);
-        map.off(L.Draw.Event.DELETED);
-        map.off('click');
-        map.off('dblclick');
-        if (measureLayerRef.current) {
-            measureLayerRef.current.clearLayers();
-        }
-        setMeasureState({ points: [], totalDistance: 0 });
-        // --- End General Cleanup ---
+    // Terminate the worker on component unmount
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, [toast]);
 
+  const handleFileSelection = useCallback((selectedFiles: File[]) => {
+    if (selectedFiles.length === 0) return;
 
-        // ---- Tool-Specific Logic ----
-        if (activeTool === 'measure') {
-            map.getContainer().style.cursor = 'crosshair';
+    // Validate that both .shp and .dbf files are present
+    const hasShp = selectedFiles.some(f => f.name.toLowerCase().endsWith('.shp'));
+    const hasDbf = selectedFiles.some(f => f.name.toLowerCase().endsWith('.dbf'));
 
-            const onMapClick = (e: L.LeafletMouseEvent) => {
-                setMeasureState(prev => {
-                    const newPoints = [...prev.points, e.latlng];
-                    let newDistance = 0;
-                    if (newPoints.length > 1) {
-                        for (let i = 1; i < newPoints.length; i++) {
-                            newDistance += map.distance(newPoints[i - 1], newPoints[i]);
-                        }
-                    }
+    if (!hasShp || !hasDbf) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Required Files',
+        description: 'Your selection must include both a .shp and a .dbf file.',
+      });
+      return;
+    }
 
-                    const measureLayer = measureLayerRef.current;
-                    if (measureLayer) {
-                        measureLayer.clearLayers();
-                        if (newPoints.length > 1) {
-                            measureLayer.addLayer(L.polyline(newPoints, { color: 'cyan', weight: 3, dashArray: '5, 10' }));
-                        }
-                        newPoints.forEach(p => measureLayer.addLayer(L.circleMarker(p, { radius: 4, color: 'cyan', fillColor: 'white', fillOpacity: 1, weight: 2 })));
+    setFiles(selectedFiles);
+    setIsProcessing(true);
+    toast({
+      title: 'Processing Files',
+      description: 'Zipping and parsing shapefile components in memory...',
+    });
+    // Post the files to the worker for processing
+    workerRef.current?.postMessage(selectedFiles);
+  }, [toast]);
 
-                        if (newPoints.length > 0) {
-                            const lastPoint = newPoints[newPoints.length - 1];
-                            const tooltipText = newDistance > 0
-                                ? `Total: <b>${(newDistance / 1000).toFixed(2)} km</b><br/><i class='text-xs'>Double-click to finish</i>`
-                                : 'Click to start measuring';
+  const handleDrag = useCallback((event: React.DragEvent, type: 'enter' | 'leave' | 'over') => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (type === 'enter' || type === 'over') setIsDragging(true);
+    else setIsDragging(false);
+  }, []);
 
-                            L.tooltip({ permanent: true, direction: 'right', offset: [10, 0] })
-                                .setLatLng(lastPoint)
-                                .setContent(tooltipText)
-                                .addTo(measureLayer);
-                        }
-                    }
-                    return { points: newPoints, totalDistance: newDistance };
-                });
-            };
+  const handleDrop = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+    if (event.dataTransfer.files) {
+      handleFileSelection(Array.from(event.dataTransfer.files));
+    }
+  }, [handleFileSelection]);
 
-            const onDoubleClick = () => setActiveTool('select');
+  const handleSchemaChange = (fieldId: SchemaField['id'], value: string) => {
+    setMappedSchema(prev => ({ ...prev, [fieldId]: value }));
+  };
 
-            map.on('click', onMapClick);
-            map.on('dblclick', onDoubleClick);
-        
-        } else if (['draw-polygon', 'draw-rectangle', 'edit-vertices', 'delete'].includes(activeTool)) {
-            map.getContainer().style.cursor = '';
-            const featureGroup = featureGroupRef.current;
-            if (!featureGroup) return;
+  const handleConfirmSchema = () => {
+    // Check if all schema fields have been mapped
+    const allMapped = Object.values(mappedSchema).every(value => value !== '');
+    if (!allMapped) {
+      toast({
+        variant: 'destructive',
+        title: 'Incomplete Schema',
+        description: 'Please map all required fields before continuing.',
+      });
+      return;
+    }
+    setStep(3);
+  };
 
-            const onCreated = (e: any) => {
-                const newFeature = e.layer.toGeoJSON();
-                newFeature.id = `drawn-${Date.now()}`;
-                newFeature.properties = {};
-                const newParcelsData = {
-                    ...(parcelsData || { type: "FeatureCollection", features: [] }),
-                    features: [...(parcelsData?.features || []), newFeature]
-                };
-                updateToolState('importParcels', { parcelsData: newParcelsData });
-                toast({ title: 'Parcel Created', description: `New parcel (ID: ${newFeature.id}) added.` });
-                setActiveTool('select');
-            };
+  const handleCommitToFirebase = async () => {
+    console.log("--- Ready for Firebase Commit ---");
+    console.log("Parsed GeoJSON:", geoJson);
+    console.log("Mapped Schema:", mappedSchema);
+    toast({
+      title: 'Ready for Firebase',
+      description: 'Data has been logged to the console. Next step is wiring the upload service.',
+    });
+  };
+  
+  const resetWizard = () => {
+      setStep(1);
+      setFiles([]);
+      setGeoJson(null);
+      setDbfColumns([]);
+      setMappedSchema({ mauzaName: '', plotNumber: '', landUse: '', areaSqm: '' });
+  }
 
-            const onEdited = (e: any) => {
-                if (!parcelsData) return;
-                let updatedFeatures = [...parcelsData.features];
-                e.layers.eachLayer((layer: any) => {
-                    const featureIndex = updatedFeatures.findIndex(f => f.id === layer.feature.id);
-                    if (featureIndex > -1) {
-                        const newGeometry = layer.toGeoJSON().geometry;
-                        updatedFeatures[featureIndex] = { ...updatedFeatures[featureIndex], geometry: newGeometry };
-                    }
-                });
-                updateToolState('importParcels', { parcelsData: { ...parcelsData, features: updatedFeatures } });
-                toast({ title: 'Parcels Updated', description: `${Object.keys(e.layers.getLayers()).length} parcel(s) have been modified.` });
-                setActiveTool('select');
-            };
+  // --- Render Functions for Each Step ---
 
-            const onDeleted = (e: any) => {
-                if (!parcelsData) return;
-                const deletedIds = new Set<string | number>();
-                e.layers.eachLayer((layer: any) => deletedIds.add(layer.feature.id));
-                const newFeatures = parcelsData.features.filter((f: any) => !deletedIds.has(f.id));
-                updateToolState('importParcels', {
-                    parcelsData: { ...parcelsData, features: newFeatures },
-                    selectedFeatureId: selectedFeatureId && deletedIds.has(selectedFeatureId) ? null : selectedFeatureId,
-                });
-                toast({ title: 'Parcels Deleted', description: `${deletedIds.size} parcel(s) have been removed.` });
-                setActiveTool('select');
-            };
-            
-            map.on(L.Draw.Event.CREATED, onCreated);
-            map.on(L.Draw.Event.EDITED, onEdited);
-            map.on(L.Draw.Event.DELETED, onDeleted);
-
-            switch (activeTool) {
-                case 'draw-polygon':
-                    drawHandlerRef.current = new L.Draw.Polygon(map, { shapeOptions: highlightStyle });
-                    break;
-                case 'draw-rectangle':
-                    drawHandlerRef.current = new L.Draw.Rectangle(map, { shapeOptions: highlightStyle });
-                    break;
-                case 'edit-vertices':
-                    drawHandlerRef.current = new L.EditToolbar.Edit(map, { featureGroup });
-                    break;
-                case 'delete':
-                    drawHandlerRef.current = new L.EditToolbar.Delete(map, { featureGroup });
-                    break;
-            }
-            if (drawHandlerRef.current) {
-                drawHandlerRef.current.enable();
-            }
-        } else {
-             map.getContainer().style.cursor = '';
-        }
-
-        // Cleanup function for the entire effect
-        return () => {
-            map.getContainer().style.cursor = '';
-            if (drawHandlerRef.current) {
-                drawHandlerRef.current.disable();
-            }
-            map.off(L.Draw.Event.CREATED);
-            map.off(L.Draw.Event.EDITED);
-            map.off(L.Draw.Event.DELETED);
-            map.off('click');
-            map.off('dblclick');
-        };
-
-    }, [activeTool, mapRef, featureGroupRef, parcelsData, updateToolState, toast, selectedFeatureId]);
-
-
-    const showMap = boundaryData && parcelsData;
-
-    return (
-        <div className="w-full h-full flex bg-background">
-            <main className="flex-1 relative h-full">
-                {showMap ? (
-                    <MapContainer
-                        whenCreated={(mapInstance) => { mapRef.current = mapInstance; }}
-                        bounds={mapBounds}
-                        zoomControl={false}
-                        style={{ height: '100%', width: '100%' }}
-                    >
-                        <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
-                        <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
-                        
-                        {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
-                        {homesData && <GeoJSON data={homesData} style={homesStyle} />}
-                        
-                        <FeatureGroup ref={featureGroupRef}>
-                           {parcelsData && <GeoJSON key={JSON.stringify(parcelsData)} data={parcelsData} style={parcelsStyle} onEachFeature={onEachFeature} />}
-                        </FeatureGroup>
-
-                        <FeatureGroup ref={measureLayerRef} />
-                        
-                        <MapUpdater parcelsLayer={featureGroupRef.current?.getLayers()[0] as L.GeoJSON} selectedFeatureId={selectedFeatureId} />
-                    </MapContainer>
-                ) : (
-                    <PreAnalysisView
-                        onBoundaryUpload={(files) => handleFileUpload(files, 'boundary')}
-                        onParcelsUpload={(files) => handleFileUpload(files, 'parcels')}
-                        onHomesUpload={(files) => handleFileUpload(files, 'homes')}
-                        boundaryName={boundaryName}
-                        parcelsName={parcelsName}
-                        homesName={homesName}
-                        onClearBoundary={handleClearBoundary}
-                        onClearParcels={handleClearParcels}
-                        onClearHomes={handleClearHomes}
-                        processingState={processingState}
-                    />
-                )}
-            </main>
-             <ParcelEditorDocker
-                selectedFeature={selectedFeature}
-                allFeatures={parcelsData?.features || []}
-                homesCount={homesData?.features?.length || 0}
-                onDeleteSelected={handleDeleteSelected}
-                hasData={!!parcelsData}
-                onClearData={handleClearBoundary}
-                onFeatureSelect={handleSetSelectedFeature}
-                onExportGeoJSON={handleExportGeoJSON}
-                activeTool={activeTool}
-                onToolSelect={setActiveTool}
-                onUndo={undo}
-                onRedo={redo}
-                canUndo={historyIndex > 0}
-                canRedo={historyIndex < history.length - 1}
-             />
+  const renderStep1_Upload = () => (
+    <Card className="w-full max-w-3xl">
+      <CardHeader className="text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">
+            <Files className="h-8 w-8 text-primary" />
         </div>
-    );
+        <CardTitle>Step 1: Upload Shapefile Components</CardTitle>
+        <CardDescription>Drag and drop all parts of your shapefile (.shp, .dbf, .shx, etc.) below.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isProcessing ? (
+            <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg bg-gray-50">
+                <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                <p className="mt-4 font-semibold">Processing files in memory...</p>
+                <p className="text-sm text-muted-foreground">This may take a moment for large files.</p>
+            </div>
+        ) : files.length > 0 ? (
+            <div className="flex flex-col items-center justify-center p-6 border rounded-lg bg-green-50 border-green-200">
+                <FileCheck2 className="h-12 w-12 text-green-600" />
+                <p className="mt-4 text-lg font-medium">{files.length} files selected</p>
+                <ul className="text-sm text-green-800/80 list-disc list-inside mt-2">
+                    {files.map(f => <li key={f.name}>{f.name}</li>)}
+                </ul>
+                <Button variant="link" className="mt-4 text-red-500" onClick={resetWizard}>
+                    Clear and start over
+                </Button>
+            </div>
+        ) : (
+             <div
+                onDragEnter={(e) => handleDrag(e, 'enter')}
+                onDragLeave={(e) => handleDrag(e, 'leave')}
+                onDragOver={(e) => handleDrag(e, 'over')}
+                onDrop={handleDrop}
+                className={cn(
+                'relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg transition-colors duration-200',
+                isDragging ? 'border-primary bg-primary/10' : 'border-gray-300 bg-gray-50'
+                )}
+            >
+                <input
+                type="file"
+                id="file-upload"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                multiple
+                accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg,.xml"
+                onChange={(e) => handleFileSelection(Array.from(e.target.files || []))}
+                />
+                <UploadCloud className={cn("h-12 w-12", isDragging ? 'text-primary' : 'text-gray-400')} />
+                <p className="mt-4 text-center text-muted-foreground">
+                {isDragging ? "Drop files here" : "Drag & drop your files, or click to browse"}
+                </p>
+            </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const renderStep2_MapSchema = () => (
+    <Card className="w-full max-w-3xl">
+      <CardHeader>
+        <CardTitle>Step 2: Map Schema</CardTitle>
+        <CardDescription>
+          Match the columns from your shapefile's attribute table (.dbf) to the required fields for the AGIS database.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {SCHEMA_FIELDS.map((field) => (
+          <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
+            <div>
+                <Label htmlFor={field.id} className="font-semibold">{field.label}</Label>
+                <p className="text-xs text-muted-foreground mt-1">{field.description}</p>
+            </div>
+            <Select onValueChange={(value) => handleSchemaChange(field.id, value)} value={mappedSchema[field.id]}>
+              <SelectTrigger id={field.id}>
+                <SelectValue placeholder="Select a column..." />
+              </SelectTrigger>
+              <SelectContent>
+                {dbfColumns.map((col) => (
+                  <SelectItem key={col} value={col}>{col}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </CardContent>
+      <CardFooter className="justify-between">
+         <Button variant="outline" onClick={resetWizard}>Back to Upload</Button>
+        <Button onClick={handleConfirmSchema}>
+          Confirm Mapping <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+
+  const renderStep3_Done = () => (
+    <Card className="w-full max-w-3xl">
+      <CardHeader className="text-center">
+         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-100 to-green-200 mb-4">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+        </div>
+        <CardTitle>Step 3: Ready for Integration</CardTitle>
+        <CardDescription>
+          Your data has been processed and your schema is mapped. You are now ready to commit the data to Firebase.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+          <div className="rounded-lg bg-gray-50 p-4 border space-y-2">
+              <h4 className="font-semibold">Summary:</h4>
+              <p className="text-sm">
+                  <span className="font-medium text-muted-foreground">Source File:</span> {files[0]?.name.replace(/\.[^/.]+$/, "")}
+              </p>
+              <p className="text-sm">
+                  <span className="font-medium text-muted-foreground">Parcels Found:</span> {geoJson?.features.length}
+              </p>
+               <h4 className="font-semibold pt-2">Schema Mapping:</h4>
+                {SCHEMA_FIELDS.map(field => (
+                    <p key={field.id} className="text-sm">
+                        <span className="font-medium text-muted-foreground">{field.label}:</span> {mappedSchema[field.id]}
+                    </p>
+                ))}
+          </div>
+      </CardContent>
+      <CardFooter className="justify-between">
+        <Button variant="outline" onClick={() => setStep(2)}>Back to Schema</Button>
+        <Button onClick={handleCommitToFirebase}>
+          Commit to Firebase <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+
+  return (
+    <div className="flex items-center justify-center h-full bg-gray-100/50 p-4 sm:p-8">
+      {step === 1 && renderStep1_Upload()}
+      {step === 2 && renderStep2_MapSchema()}
+      {step === 3 && renderStep3_Done()}
+    </div>
+  );
 }
