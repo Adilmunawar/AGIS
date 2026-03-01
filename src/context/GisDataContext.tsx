@@ -2,14 +2,25 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import type { FeatureCollection } from 'geojson';
-import L, { type LatLngBounds } from 'leaflet';
 
 // --- TYPE DEFINITIONS ---
+
+// A serializable representation of Leaflet's LatLng
+interface SerializableLatLng {
+  lat: number;
+  lng: number;
+}
+
+// A serializable representation of Leaflet's LatLngBounds
+interface SerializableLatLngBounds {
+  _southWest: SerializableLatLng;
+  _northEast: SerializableLatLng;
+}
 
 // Shape of state for a standard map tool
 interface MapToolState {
   geoData: FeatureCollection | null;
-  selectionBounds: LatLngBounds | null;
+  selectionBounds: SerializableLatLngBounds | null; // This is the change
   polygonCoords: string | null;
 }
 
@@ -70,7 +81,6 @@ const LOCAL_STORAGE_KEY = 'agis_gis_data_state';
 const GisDataContext = createContext<GisDataContextValue | undefined>(undefined);
 
 export function GisDataProvider({ children }: { children: ReactNode }) {
-    // Lazy initialization of state from localStorage on the client side
     const [state, setState] = useState<GisDataContextState>(() => {
         if (typeof window === 'undefined') {
             return initialState;
@@ -78,15 +88,10 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
         try {
             const item = window.localStorage.getItem(LOCAL_STORAGE_KEY);
             if (item) {
-                // Use a reviver to reconstruct Leaflet LatLngBounds objects from JSON
-                const parsedState = JSON.parse(item, (key, value) => {
-                    if (value && value._southWest && value._northEast && value._southWest.lat !== undefined) {
-                        return L.latLngBounds(value._southWest, value._northEast);
-                    }
-                    return value;
-                });
+                // Parse the raw JSON without trying to revive Leaflet objects
+                const parsedState = JSON.parse(item);
                 
-                // Deep merge with initial state to prevent errors if the stored data structure is outdated
+                // Deep merge with initial state to prevent errors if stored data is outdated
                 const mergedState = {
                     ...initialState,
                     ...parsedState,
@@ -104,7 +109,6 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
         return initialState;
     });
 
-    // Effect to persist state to localStorage whenever it changes
     useEffect(() => {
         try {
             const serializedState = JSON.stringify(state);
@@ -115,12 +119,25 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
     }, [state]);
 
     const updateToolState = useCallback(<T extends keyof GisDataContextState>(tool: T, newState: Partial<GisDataContextState[T]>) => {
+        // Create a copy to avoid mutating the original `newState` object
+        const processedNewState = { ...newState };
+
+        // Check if `selectionBounds` exists and if it's a Leaflet LatLngBounds object
+        if ('selectionBounds' in processedNewState && processedNewState.selectionBounds) {
+            const bounds = processedNewState.selectionBounds as any;
+            // Duck-type check for a Leaflet LatLngBounds instance
+            if (typeof bounds.toBBoxString === 'function') {
+                // Serialize it to a plain JSON object before storing in state
+                (processedNewState as any).selectionBounds = bounds.toJSON();
+            }
+        }
+        
         setState(prevState => ({
-        ...prevState,
-        [tool]: {
-            ...prevState[tool],
-            ...newState,
-        },
+            ...prevState,
+            [tool]: {
+                ...prevState[tool],
+                ...processedNewState,
+            },
         }));
     }, []);
     

@@ -2,7 +2,7 @@
 import React from 'react'
 import {
   MousePointer, Edit3, PenSquare, Scissors, Combine, Trash2, Undo, Redo,
-  Ruler, CircleDot, Magnet, Table, FileJson, Settings, Download, X
+  Ruler, CircleDot, Magnet, Download, X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,7 @@ const PropertiesPanel = ({ feature, parcelsCount, onDeleteClick }: { feature: an
         <div className="p-4 text-sm">
              {parcelsCount > 0 && (
                 <div className="mb-4">
-                    <h4 className="font-semibold mb-2">Layer Summary</h4>
+                    <h4 className="font-semibold mb-2">Boundary Summary</h4>
                     <div className="grid grid-cols-2 gap-2 items-center bg-muted/50 p-3 rounded-md">
                         <span className="font-medium text-muted-foreground">Total Parcels</span>
                         <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
@@ -35,7 +35,7 @@ const PropertiesPanel = ({ feature, parcelsCount, onDeleteClick }: { feature: an
             ) : (
                 <div className="space-y-4">
                      <div>
-                        <h4 className="font-semibold mb-2 text-primary break-all">Feature ID: {feature.id}</h4>
+                        <h4 className="font-semibold mb-2 text-primary break-all">Parcel ID: {feature.id}</h4>
                     </div>
                     <Separator/>
                     <h4 className="font-semibold mb-2">Attributes</h4>
@@ -129,6 +129,28 @@ const ExportPanel = ({ hasData, onExportGeoJSON }: { hasData: boolean, onExportG
     </div>
 )
 
+const toolGroups = [
+    { name: 'Selection & Navigation', tools: [
+        { id: 'select', name: 'Select', icon: MousePointer, implemented: true },
+    ]},
+    { name: 'Drawing & Editing', tools: [
+        { id: 'edit', name: 'Edit Vertices', icon: Edit3, implemented: true },
+        { id: 'draw-polygon', name: 'Draw Polygon', icon: PenSquare, implemented: true },
+    ]},
+    { name: 'Geoprocessing', tools: [
+        { id: 'split', name: 'Split Parcel', icon: Scissors, implemented: false },
+        { id: 'merge', name: 'Merge Parcels', icon: Combine, implemented: false },
+    ]},
+    { name: 'History', tools: [
+        { id: 'undo', name: 'Undo', icon: Undo, implemented: false },
+        { id: 'redo', name: 'Redo', icon: Redo, implemented: false },
+    ]},
+    { name: 'Measurement & Snapping', tools: [
+        { id: 'measure', name: 'Measure', icon: Ruler, implemented: false },
+        { id: 'snap-to-vertex', name: 'Snap to Vertex', icon: CircleDot, implemented: false },
+        { id: 'snap-to-edge', name: 'Snap to Edge', icon: Magnet, implemented: false },
+    ]},
+];
 
 export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelected, hasData, onClearData, onFeatureSelect, onExportGeoJSON }: {
     selectedFeature: any | null;
@@ -139,6 +161,8 @@ export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelec
     onFeatureSelect: (feature: any) => void;
     onExportGeoJSON: () => void;
 }) {
+    const [activeTool, setActiveTool] = React.useState('select');
+
     return (
         <div className="w-96 bg-background border-l flex flex-col h-full shadow-2xl">
             <div className="p-3 border-b flex items-center justify-between shrink-0">
@@ -158,6 +182,42 @@ export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelec
             </div>
 
             <div className="flex flex-1 min-h-0">
+                <div className="w-16 bg-muted/30 border-r p-2 flex flex-col items-center gap-2 overflow-y-auto">
+                    <TooltipProvider>
+                        {toolGroups.map((group, index) => (
+                            <React.Fragment key={group.name}>
+                                <div className="space-y-2">
+                                    {group.tools.map(tool => (
+                                         <Tooltip key={tool.id}>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant={activeTool === tool.id ? 'default' : 'ghost'}
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        if (tool.implemented) {
+                                                            setActiveTool(tool.id)
+                                                            // Note: Activating leaflet-draw controls is handled on the map.
+                                                            // The Draw/Edit/Delete tools are on the map's toolbar.
+                                                        }
+                                                    }}
+                                                    className="h-10 w-10"
+                                                    disabled={!hasData || !tool.implemented}
+                                                >
+                                                    <tool.icon className="h-5 w-5" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right">
+                                                <p>{tool.name}</p>
+                                                {!tool.implemented && <p className="text-xs text-muted-foreground">(Future Enhancement)</p>}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ))}
+                                </div>
+                                {index < toolGroups.length - 1 && <Separator className="my-2" />}
+                            </React.Fragment>
+                        ))}
+                    </TooltipProvider>
+                </div>
                 <div className="flex-1 flex flex-col min-w-0">
                      <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
                         <div className="border-b p-2">

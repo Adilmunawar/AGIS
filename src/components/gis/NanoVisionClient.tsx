@@ -252,11 +252,12 @@ function MapContent() {
     updateToolState('nanoVision', { geoData: null });
     
     try {
+        const leafletBounds = L.latLngBounds(selectionBounds._southWest, selectionBounds._northEast);
         const bbox = [
-            selectionBounds.getWest(),
-            selectionBounds.getSouth(),
-            selectionBounds.getEast(),
-            selectionBounds.getNorth()
+            leafletBounds.getWest(),
+            leafletBounds.getSouth(),
+            leafletBounds.getEast(),
+            leafletBounds.getNorth()
         ];
 
         setStatusMessage("Contacting AGIS Engine: Extracting building footprints...");

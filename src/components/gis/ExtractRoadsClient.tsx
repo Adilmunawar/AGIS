@@ -233,11 +233,12 @@ export default function ExtractRoadsClient() {
     setStatusMessage("Contacting AGIS Realtime service for transport segments...");
 
     try {
+        const leafletBounds = L.latLngBounds(selectionBounds._southWest, selectionBounds._northEast);
         const bbox = [
-            selectionBounds.getWest(),
-            selectionBounds.getSouth(),
-            selectionBounds.getEast(),
-            selectionBounds.getNorth()
+            leafletBounds.getWest(),
+            leafletBounds.getSouth(),
+            leafletBounds.getEast(),
+            leafletBounds.getNorth()
         ];
         
         const response = await fetch(`${colabUrl}/extract_overture`, {

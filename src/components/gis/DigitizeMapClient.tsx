@@ -270,11 +270,12 @@ export default function DigitizeMapClient() {
     setStatusMessage("Interfacing with AGIS Realtime service for Overture data...");
 
     try {
+        const leafletBounds = L.latLngBounds(selectionBounds._southWest, selectionBounds._northEast);
         const bbox = [
-            selectionBounds.getWest(),
-            selectionBounds.getSouth(),
-            selectionBounds.getEast(),
-            selectionBounds.getNorth()
+            leafletBounds.getWest(),
+            leafletBounds.getSouth(),
+            leafletBounds.getEast(),
+            leafletBounds.getNorth()
         ];
 
         const response = await fetch(`${colabUrl}/extract_overture`, {
