@@ -1,5 +1,5 @@
 'use client'
-import React, { useMemo, useState, useCallback, useRef } from 'react'
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react'
 import {
   MousePointer2, Trash2, X, Undo, Redo, UploadCloud, File, Loader2
 } from 'lucide-react'

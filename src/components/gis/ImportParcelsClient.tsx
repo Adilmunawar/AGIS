@@ -72,7 +72,7 @@ export default function ImportParcelsClient() {
         return;
       }
       
-      if (status === 'success' && geojson) {
+      if (status === 'success' && geojson && geojson.features) {
         const dataKey = `${processedLayer}Data` as 'boundaryData' | 'parcelsData' | 'homesData';
         
         let featureIdCounter = 0;
@@ -139,7 +139,7 @@ export default function ImportParcelsClient() {
   const boundaryStyle = { color: "#dc2626", weight: 3, fill: false };
   const parcelStyle = { color: "#2563eb", weight: 2, fillOpacity: 0.1 };
   const homeStyle = { color: "#16a34a", weight: 1.5, fillOpacity: 0.6 };
-  const selectedStyle = { color: "#e11d48", weight: 4, fillOpacity: 0.3 };
+  const selectedStyle = { fillColor: '#fbbf24', color: '#b45309', weight: 4, fillOpacity: 0.8 };
   
   return (
     <div className="flex h-full w-full">
@@ -173,9 +173,9 @@ export default function ImportParcelsClient() {
               }}
             />
           </FeatureGroup>
-          {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
+          {boundaryData && <GeoJSON key={`boundary-${historyIndex}-${boundaryData.features.length}`} data={boundaryData} style={boundaryStyle} />}
           {parcelsData && <GeoJSON 
-            key={JSON.stringify(parcelsData)} // Force re-render on data change
+            key={`parcels-${historyIndex}-${parcelsData.features.length}`}
             data={parcelsData} 
             style={parcelStyle} 
             onEachFeature={(feature, layer) => {
@@ -184,7 +184,7 @@ export default function ImportParcelsClient() {
                 });
             }}
           />}
-          {homesData && <GeoJSON data={homesData} style={homeStyle} />}
+          {homesData && <GeoJSON key={`homes-${historyIndex}-${homesData.features.length}`} data={homesData} style={homeStyle} />}
           {selectedFeature && <GeoJSON key={selectedFeature.id} data={selectedFeature} style={selectedStyle} />}
 
         </MapContainer>
