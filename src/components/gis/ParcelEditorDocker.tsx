@@ -149,7 +149,7 @@ const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: R
     ]},
     { name: 'History', tools: [
         { id: 'undo', name: 'Undo', icon: Undo, implemented: false },
-        { id: 'redo', name: 'Redo', implemented: false },
+        { id: 'redo', name: 'Redo', icon: Redo, implemented: false },
     ]},
     { name: 'Measurement & Snapping', tools: [
         { id: 'measure', name: 'Measure', icon: Ruler, implemented: false },
@@ -207,7 +207,7 @@ export function ParcelEditorDocker({
                                                         if (tool.implemented) onToolSelect(tool.id)
                                                     }}
                                                     className="h-10 w-10"
-                                                    disabled={!hasData || !tool.implemented}
+                                                    disabled={!hasData}
                                                 >
                                                     <tool.icon className="h-5 w-5" />
                                                 </Button>
