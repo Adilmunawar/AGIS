@@ -168,72 +168,70 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
     }, [parcelsData, selectedFeatureIds]);
 
     return (
-        <div className="w-[450px] bg-background border-l flex flex-col h-full shadow-2xl">
+        <div className="w-96 flex-shrink-0 h-full flex flex-col border-l bg-background overflow-hidden">
             <div className="p-3 border-b flex items-center justify-between shrink-0">
                 <h3 className="font-bold text-lg text-foreground">Parcel Editor</h3>
             </div>
             
-            <div className="flex-1 flex flex-col min-h-0">
-                <Tabs defaultValue="layers" className="flex-1 flex flex-col min-h-0">
-                    <div className="border-b px-2.5">
-                        <TabsList className="grid w-full grid-cols-3 h-10">
-                            <TabsTrigger value="layers"><Layers className="w-4 h-4 mr-1.5"/>Layers</TabsTrigger>
-                            <TabsTrigger value="table" disabled={!parcelsData}><TableIcon className="w-4 h-4 mr-1.5"/>Table</TabsTrigger>
-                            <TabsTrigger value="tools" disabled={!parcelsData}><Wrench className="w-4 h-4 mr-1.5"/>Tools</TabsTrigger>
-                        </TabsList>
+            <Tabs defaultValue="layers" className="flex flex-col h-full w-full">
+                <div className="border-b px-2.5">
+                    <TabsList className="grid w-full grid-cols-3 h-10">
+                        <TabsTrigger value="layers"><Layers className="w-4 h-4 mr-1.5"/>Layers</TabsTrigger>
+                        <TabsTrigger value="table" disabled={!parcelsData}><TableIcon className="w-4 h-4 mr-1.5"/>Table</TabsTrigger>
+                        <TabsTrigger value="tools" disabled={!parcelsData}><Wrench className="w-4 h-4 mr-1.5"/>Tools</TabsTrigger>
+                    </TabsList>
+                </div>
+
+                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 data-[state=inactive]:hidden">
+                    <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} />
+                    <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} />
+                    <FileUploader layer="homes" title="Homes Layer" data={homesData} onUpload={onUpload} isProcessing={isProcessing['homes']} />
+                </TabsContent>
+
+                <TabsContent value="table" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                    <div className="overflow-auto p-2">
+                        <table className="w-max min-w-full text-sm border-collapse">
+                            <thead className="sticky top-0 bg-background z-10 shadow-sm">
+                                <tr>
+                                    {visibleColumns.map(h => 
+                                        <th key={h} className="p-2 font-semibold text-left border-b truncate min-w-[120px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
+                                            <div className="flex items-center gap-1">
+                                                {h}
+                                                {sortConfig?.key === h && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                            </div>
+                                        </th>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedParcels.map((f: any) => (
+                                    <tr
+                                        key={f.id}
+                                        ref={selectedFeatureIds.includes(f.id) && selectedFeatureIds.length === 1 && f.id === selectedFeatureIds[0] ? selectedRowRef : null}
+                                        onClick={() => onFeatureSelect(f)}
+                                        className={cn("cursor-pointer border-b border-border hover:bg-muted/50", selectedFeatureIds.includes(f.id) && "bg-primary/10 hover:bg-primary/20")}
+                                    >
+                                        {visibleColumns.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
+                </TabsContent>
 
-                    <TabsContent value="layers" className="flex-1 overflow-y-auto p-4 space-y-4 data-[state=inactive]:hidden">
-                       <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} />
-                       <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} />
-                       <FileUploader layer="homes" title="Homes Layer" data={homesData} onUpload={onUpload} isProcessing={isProcessing['homes']} />
-                    </TabsContent>
-
-                    <TabsContent value="table" className="flex-1 flex flex-col min-h-0 -mt-0 data-[state=inactive]:hidden">
-                       <div className="relative overflow-auto max-h-[calc(100vh-300px)]">
-                           <table className="w-max min-w-full text-sm border-collapse">
-                               <thead className="sticky top-0 bg-background z-10 shadow-sm">
-                                   <tr>
-                                       {visibleColumns.map(h => 
-                                           <th key={h} className="p-2 font-semibold text-left border-b truncate min-w-[120px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
-                                               <div className="flex items-center gap-1">
-                                                    {h}
-                                                    {sortConfig?.key === h && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                               </div>
-                                           </th>
-                                       )}
-                                   </tr>
-                               </thead>
-                               <tbody>
-                                   {sortedParcels.map((f: any) => (
-                                       <tr
-                                           key={f.id}
-                                           ref={selectedFeatureIds.includes(f.id) && selectedFeatureIds.length === 1 && f.id === selectedFeatureIds[0] ? selectedRowRef : null}
-                                           onClick={() => onFeatureSelect(f)}
-                                           className={cn("cursor-pointer border-b border-border hover:bg-muted/50", selectedFeatureIds.includes(f.id) && "bg-primary/10 hover:bg-primary/20")}
-                                       >
-                                           {visibleColumns.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
-                                       </tr>
-                                   ))}
-                               </tbody>
-                           </table>
-                       </div>
-                    </TabsContent>
-
-                    <TabsContent value="tools" className="flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden">
-                       <div className="grid grid-cols-2 gap-3">
-                           <Button variant={activeTool === 'multi-select' ? 'default' : 'outline'} onClick={() => onToolSelect(activeTool === 'select' ? 'multi-select' : 'select')}><MousePointerSquare className="mr-2"/> Multi-Select</Button>
-                           <Button variant="outline" onClick={onMerge} disabled={selectedFeatureIds.length < 2}><Combine className="mr-2"/> Merge Parcels</Button>
-                           <Button variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1}><Ruler className="mr-2"/> Measure Area</Button>
-                           <Button variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData}><Download className="mr-2"/> Export GeoJSON</Button>
-                           <Button variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0}><Trash2 className="mr-2"/> Delete Selected</Button>
-                           <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={onClearData}><X className="mr-2"/> Clear All Data</Button>
-                           <Button variant="outline" onClick={onUndo} disabled={!canUndo}><Undo className="mr-2"/> Undo</Button>
-                           <Button variant="outline" onClick={onRedo} disabled={!canRedo}><Redo className="mr-2"/> Redo</Button>
-                       </div>
-                    </TabsContent>
-                </Tabs>
-            </div>
+                <TabsContent value="tools" className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden">
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button variant={activeTool === 'multi-select' ? 'default' : 'outline'} onClick={() => onToolSelect(activeTool === 'select' ? 'multi-select' : 'select')}><MousePointerSquare className="mr-2"/> Multi-Select</Button>
+                        <Button variant="outline" onClick={onMerge} disabled={selectedFeatureIds.length < 2}><Combine className="mr-2"/> Merge Parcels</Button>
+                        <Button variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1}><Ruler className="mr-2"/> Measure Area</Button>
+                        <Button variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData}><Download className="mr-2"/> Export GeoJSON</Button>
+                        <Button variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0}><Trash2 className="mr-2"/> Delete Selected</Button>
+                        <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={onClearData}><X className="mr-2"/> Clear All Data</Button>
+                        <Button variant="outline" onClick={onUndo} disabled={!canUndo}><Undo className="mr-2"/> Undo</Button>
+                        <Button variant="outline" onClick={onRedo} disabled={!canRedo}><Redo className="mr-2"/> Redo</Button>
+                    </div>
+                </TabsContent>
+            </Tabs>
 
             <Card className="shrink-0 border-t rounded-t-none border-x-0 border-b-0 max-h-52">
                 <CardHeader className="p-3 border-b">

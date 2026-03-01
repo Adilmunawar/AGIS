@@ -65,7 +65,7 @@ export default function ImportParcelsClient() {
   useEffect(() => {
     workerRef.current = new Worker('/workers/shapefileWorker.js');
     workerRef.current.onmessage = (event: MessageEvent) => {
-      const { status, geojson, columns, error, layer: processedLayer } = event.data;
+      const { status, geojson, error, layer: processedLayer } = event.data;
       
       if (!processedLayer) return;
 
@@ -149,8 +149,8 @@ export default function ImportParcelsClient() {
   const homeStyle = { color: "#16a34a", weight: 1.5, fillOpacity: 0.6 };
   
   return (
-    <div className="flex h-full w-full">
-      <div className="flex-1 relative">
+    <div className="flex h-full w-full overflow-hidden">
+      <div className="flex-1 h-full relative min-w-0">
         <MapContainer
           ref={mapRef}
           center={[30.3753, 69.3451]} // Center of Pakistan

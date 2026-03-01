@@ -92,10 +92,10 @@ export default function MergeJSONsPage() {
     event.stopPropagation();
     setIsDragging(false);
     handleFileChange(event.dataTransfer.files);
-  }, []);
+  }, [handleFileChange]);
 
   return (
-    <div className="flex items-center justify-center h-full bg-gray-100/50 p-4 sm:p-8">
+    <div className="flex items-center justify-center h-full bg-gray-100/50 p-4 sm:p-8 overflow-y-auto">
       <Card className="w-full max-w-2xl shadow-lg">
         <CardHeader className="text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">

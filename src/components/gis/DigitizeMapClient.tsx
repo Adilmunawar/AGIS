@@ -323,7 +323,7 @@ export default function DigitizeMapClient() {
   };
   
   return (
-    <div className="absolute inset-0 z-0">
+    <div className="relative h-full w-full">
       <MapContainer center={[31.46, 74.38]} zoom={16} zoomControl={false} style={{ height: '100%', width: '100%' }}>
         <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
         

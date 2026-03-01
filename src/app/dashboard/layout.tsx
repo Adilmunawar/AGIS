@@ -56,8 +56,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <GisDataProvider>
-      <div className="flex h-screen w-full bg-background">
-        <aside className="w-72 flex-shrink-0 border-r bg-gray-50 flex flex-col">
+      <div className="flex h-screen w-screen overflow-hidden bg-background">
+        <aside className="w-72 flex-shrink-0 border-r bg-gray-50 flex flex-col overflow-y-auto">
           <div className="p-5 border-b">
             <h1 className="text-2xl font-bold tracking-tight text-primary">AGIS</h1>
             <p className="text-sm text-muted-foreground">Advanced Geo-Processing</p>
@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Button>
           </div>
         </aside>
-        <main className="flex-1 relative min-h-0">{children}</main>
+        <main className="flex-1 relative min-h-0 overflow-hidden">{children}</main>
       </div>
     </GisDataProvider>
   );
