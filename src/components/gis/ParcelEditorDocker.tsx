@@ -1,5 +1,5 @@
 'use client'
-import React, { useMemo, useState, useRef, useCallback } from 'react'
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import * as turf from '@turf/turf'
 import {
   MousePointerSquare, Trash2, X, Undo, Redo, UploadCloud, File as FileIcon, Loader2, Layers, Table as TableIcon, Wrench, Combine, Ruler, Download
@@ -22,7 +22,7 @@ const LayerPreviewMap = ({ data }: { data: any }) => {
     // This component runs inside the map to fit the view to the data
     const MapEffect = ({ dataToFit }: { dataToFit: any }) => {
         const map = useMap();
-        React.useEffect(() => {
+        useEffect(() => {
             if (dataToFit && dataToFit.features && dataToFit.features.length > 0) {
                 try {
                     const geoJsonLayer = L.geoJSON(dataToFit);
@@ -62,7 +62,7 @@ const LayerPreviewMap = ({ data }: { data: any }) => {
 };
 
 
-const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: 'boundary' | 'parcels' | 'homes', title: string, data: any, onUpload: (files: File[], layer: 'boundary' | 'parcels' | 'homes') => void, isProcessing: boolean }) => {
+const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: 'boundary' | 'parcels', title: string, data: any, onUpload: (files: File[], layer: 'boundary' | 'parcels') => void, isProcessing: boolean }) => {
     const [isDragging, setIsDragging] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -179,7 +179,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
     const visibleColumns = useMemo(() => getVisibleColumns(parcelsData?.features || []), [parcelsData]);
     const selectedRowRef = useRef<HTMLTableRowElement>(null);
     
-    React.useEffect(() => {
+    useEffect(() => {
         if (selectedRowRef.current) {
             selectedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
@@ -234,7 +234,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
                 <TabsContent value="table" className="flex-1 min-h-0 overflow-auto data-[state=inactive]:hidden">
                     <div className="p-2 h-full">
-                        <table className="w-max min-w-full text-[11px] border-collapse">
+                        <table className="w-max min-w-full text-[10px] border-collapse">
                             <thead className="sticky top-0 bg-background z-10 shadow-sm">
                                 <tr>
                                     {visibleColumns.map(h => 
@@ -286,17 +286,17 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                         }
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="p-1.5 text-[11px] overflow-y-auto">
+                <CardContent className="p-2 text-[10px] overflow-y-auto">
                     {!selectedFeature ? (
-                         <p className="text-muted-foreground text-center text-[11px] pt-4">
+                         <p className="text-muted-foreground text-center text-[10px] pt-4">
                             {selectedFeatureIds.length > 1 ? `Click a single feature to see its properties.` : `No feature selected`}
                          </p>
                     ) : (
-                        <div className="space-y-0.5">
+                        <div className="space-y-1.5">
                             {Object.entries(selectedFeature.properties).map(([key, value]) => (
-                                <div key={key} className="grid grid-cols-2 gap-2 items-center">
-                                    <span className="font-medium text-muted-foreground truncate" title={key}>{key}</span>
-                                    <span className="bg-muted/50 px-1 py-0.5 text-[10px] rounded truncate" title={String(value)}>{String(value)}</span>
+                                <div key={key} className="leading-tight">
+                                    <span className="font-semibold text-muted-foreground/90">{key}: </span>
+                                    <span className="text-foreground font-medium break-words">{String(value)}</span>
                                 </div>
                             ))}
                         </div>
