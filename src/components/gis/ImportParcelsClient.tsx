@@ -7,144 +7,196 @@ import * as shapefile from 'shapefile';
 import { useToast } from '@/hooks/use-toast';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { ParcelEditorDocker } from './ParcelEditorDocker';
-import { UploadCloud, FileJson, XCircle } from 'lucide-react';
+import { UploadCloud, FileJson, XCircle, ArrowRight, ArrowLeft, Layers, Check, Search, LandPlot, Loader2, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 
 // --- TYPES & CONFIGS ---
+type Step = 'upload' | 'select' | 'preview';
+type ShapefileData = { [key: string]: any };
+
 const baseLayers: BaseLayer[] = [
     { name: 'Google Hybrid', url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlehybrid/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
     { name: 'Google Satellite', url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlesatellite/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
     { name: 'ESRI Satellite', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri', previewUrl: 'https://picsum.photos/seed/esrisat/400/300', subdomains: []},
 ];
-const geoJsonStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
-const geoJsonHighlightStyle = { color: '#ef4444', weight: 3, fillColor: '#fecaca', fillOpacity: 0.7 };
 
-// --- MAIN COMPONENT ---
+const boundaryStyle = { color: '#e11d48', weight: 3, fillOpacity: 0 };
+const parcelsStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
+const highlightStyle = { color: '#ef4444', weight: 3, fillColor: '#fecaca', fillOpacity: 0.7 };
 
-export default function ImportParcelsClient() {
-    const [geoData, setGeoData] = useState<any>(null);
+
+// --- STEP COMPONENTS ---
+
+const UploadStep = ({ onFilesUploaded, isProcessing }: { onFilesUploaded: (files: File[]) => void, isProcessing: boolean }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [fileNames, setFileNames] = useState<string[]>([]);
-    const [activeTool, setActiveTool] = useState<string>('select');
+    const onDrag = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
+    const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
+    const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); onFilesUploaded(Array.from(e.dataTransfer.files)); }, [onFilesUploaded]);
+
+    return (
+         <div className="flex flex-col items-center justify-center h-full bg-gray-50/50 p-8">
+            <Card className="w-full max-w-3xl shadow-xl">
+                <CardHeader className="text-center">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">
+                        <Package className="h-8 w-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold">Import Parcel Data</CardTitle>
+                    <CardDescription className="mt-2 text-lg text-muted-foreground">
+                        Drag and drop all shapefile components to begin.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <div onDragEnter={onDrag} onDragLeave={onDragLeave} onDragOver={onDrag} onDrop={onDrop}
+                        className={cn("w-full h-64 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-colors relative",
+                            isDragging ? 'border-primary bg-primary/10' : 'border-border bg-gray-50/50'
+                        )}>
+                        <input
+                            id="file-upload" type="file" multiple
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={(e) => onFilesUploaded(Array.from(e.target.files || []))}
+                            accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg"
+                        />
+                        <div className="text-center p-6 pointer-events-none">
+                            {isProcessing ? (
+                                <>
+                                    <Loader2 className="mx-auto h-16 w-16 mb-4 text-primary animate-spin" />
+                                    <h2 className="text-2xl font-semibold">Processing Files...</h2>
+                                    <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                                        Parsing shapefiles and preparing data layers.
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <UploadCloud className={cn("mx-auto h-16 w-16 mb-4", isDragging ? "text-primary" : "text-muted-foreground")} />
+                                    <h2 className="text-2xl font-semibold">Drop Shapefiles Here</h2>
+                                    <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                                        Include all related files (.shp, .dbf, .shx, etc) for each layer.
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+const SelectionStep = ({ shapefileData, onProceed, onBack }: { shapefileData: ShapefileData, onProceed: (boundary: string, parcels: string) => void, onBack: () => void }) => {
+    const [boundaryFile, setBoundaryFile] = useState<string>('');
+    const [parcelsFile, setParcelsFile] = useState<string>('');
+    const shapefileNames = Object.keys(shapefileData);
+
+    const handleProceed = () => {
+        if (boundaryFile && parcelsFile) {
+            onProceed(boundaryFile, parcelsFile);
+        }
+    }
+
+    return (
+        <div className="flex flex-col items-center justify-center h-full bg-gray-50/50 p-8">
+            <Card className="w-full max-w-3xl shadow-xl">
+                 <CardHeader className="text-center">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">
+                        <Layers className="h-8 w-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold">Assign Layer Roles</CardTitle>
+                    <CardDescription className="mt-2 text-lg text-muted-foreground">
+                        Define which shapefile contains the boundaries and which contains the parcels.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-3">
+                                <Search className="h-6 w-6 text-muted-foreground"/>
+                                <CardTitle className="text-lg">Boundary Layer</CardTitle>
+                            </div>
+                            <CardDescription>Select the shapefile representing the outer boundary (e.g., Tehsil).</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Select value={boundaryFile} onValueChange={setBoundaryFile}>
+                                <SelectTrigger><SelectValue placeholder="Select boundary file..." /></SelectTrigger>
+                                <SelectContent>
+                                    {shapefileNames.map(name => <SelectItem key={name} value={name}>{name}.shp</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-3">
+                                <LandPlot className="h-6 w-6 text-muted-foreground"/>
+                                <CardTitle className="text-lg">Parcels Layer</CardTitle>
+                            </div>
+                            <CardDescription>Select the shapefile containing the individual parcels or plots.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <Select value={parcelsFile} onValueChange={setParcelsFile}>
+                                <SelectTrigger><SelectValue placeholder="Select parcels file..." /></SelectTrigger>
+                                <SelectContent>
+                                    {shapefileNames.filter(name => name !== boundaryFile).map(name => <SelectItem key={name} value={name}>{name}.shp</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </CardContent>
+                    </Card>
+                </CardContent>
+                <CardContent className="flex justify-between items-center">
+                    <Button variant="outline" onClick={onBack}><ArrowLeft className="mr-2 h-4 w-4"/>Back</Button>
+                    <Button onClick={handleProceed} disabled={!boundaryFile || !parcelsFile}><Check className="mr-2 h-4 w-4"/>Process & Preview</Button>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any, parcelsData: any, onBack: () => void }) => {
     const [selectedFeature, setSelectedFeature] = useState<any>(null);
     const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
-    
     const mapRef = useRef<L.Map>(null);
-    const geoJsonLayerRef = useRef<L.GeoJSON>(null); // Ref to hold the GeoJSON layer
+    const geoJsonLayerRef = useRef<L.GeoJSON>(null);
     const { toast } = useToast();
-    
-    const handleFileDrop = useCallback(async (files: File[]) => {
-        setIsDragging(false);
-        setError(null);
-        setGeoData(null);
-        setSelectedFeature(null);
-        
-        if (files.length === 0) {
-            setFileNames([]);
-            return;
-        }
 
-        const fileGroups = new Map<string, File[]>();
-        for (const file of files) {
-            const basename = file.name.substring(0, file.name.lastIndexOf('.'));
-            if (!fileGroups.has(basename)) {
-                fileGroups.set(basename, []);
-            }
-            fileGroups.get(basename)!.push(file);
-        }
-
-        if (fileGroups.size > 1) {
-             setError("Please drop files for only one shapefile at a time.");
-             setFileNames(Array.from(fileGroups.keys()));
-             return;
-        }
-        
-        const mainGroupName = fileGroups.keys().next().value;
-        const mainGroup = fileGroups.get(mainGroupName)!;
-        setFileNames(mainGroup.map(f => f.name));
-
-        const shpFile = mainGroup.find(f => f.name.endsWith('.shp'));
-        const dbfFile = mainGroup.find(f => f.name.endsWith('.dbf'));
-
-        if (!shpFile || !dbfFile) {
-            setError("Import failed. A shapefile requires at least a .shp and a .dbf file with the same name. Please drop all associated files together.");
-            return;
-        }
-
-        try {
-            const [shpBuffer, dbfBuffer] = await Promise.all([
-                shpFile.arrayBuffer(),
-                dbfFile.arrayBuffer()
-            ]);
-
-            const source = await shapefile.read(shpBuffer, dbfBuffer);
-            source.features.forEach((f: any, i: number) => f.id = i);
-            setGeoData(source);
-            
-            toast({ title: "Import Successful", description: `${source.features.length} parcels loaded from ${shpFile.name}.` });
-
-        } catch (err: any) {
-            setError(`Parsing Error: ${err.message}. Ensure all required shapefile components are included.`);
-            console.error(err);
-        }
-    }, [toast]);
+    const enrichedParcels = useMemo(() => {
+        if (!parcelsData?.features) return null;
+        const featuresWithId = parcelsData.features.map((f: any, i: number) => ({ ...f, id: i }));
+        return { ...parcelsData, features: featuresWithId };
+    }, [parcelsData]);
 
     useEffect(() => {
-        // This effect handles zooming to the data's bounds when it's loaded.
-        // It creates a temporary layer from the data to calculate bounds,
-        // avoiding race conditions with the rendered GeoJSON layer ref.
-        if (geoData && mapRef.current) {
-            const geoJsonLayer = L.geoJSON(geoData);
+        if (boundaryData && mapRef.current) {
+            const geoJsonLayer = L.geoJSON(boundaryData);
             const bounds = geoJsonLayer.getBounds();
             if (bounds.isValid()) {
                 mapRef.current.fitBounds(bounds, { padding: [50, 50] });
             }
         }
-    }, [geoData]);
+    }, [boundaryData]);
 
     useEffect(() => {
-        // This effect handles re-styling when a feature is selected
         if (geoJsonLayerRef.current) {
             geoJsonLayerRef.current.eachLayer((layer: any) => {
                 if (layer.feature.id === selectedFeature?.id) {
-                    layer.setStyle(geoJsonHighlightStyle);
+                    layer.setStyle(highlightStyle);
                     layer.bringToFront();
                 } else {
-                    layer.setStyle(geoJsonStyle);
+                    layer.setStyle(parcelsStyle);
                 }
             });
         }
     }, [selectedFeature]);
-    
-    const onDrag = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
-    const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
-    const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); handleFileDrop(Array.from(e.dataTransfer.files)); }, [handleFileDrop]);
 
     const onEachFeature = (feature: any, layer: L.Layer) => {
-        layer.on({
-            click: (e) => {
-                L.DomEvent.stopPropagation(e);
-                setSelectedFeature(feature);
-            },
-        });
+        layer.on({ click: (e) => { L.DomEvent.stopPropagation(e); setSelectedFeature(feature); } });
     };
 
     const handleDeleteSelected = () => {
-        if (!selectedFeature || !geoData) return;
-        
-        const newFeatures = geoData.features.filter((f: any) => f.id !== selectedFeature.id);
-        setGeoData({ ...geoData, features: newFeatures });
-        setSelectedFeature(null);
-        toast({ title: "Parcel Deleted", description: "The selected parcel has been removed." });
-    };
-
-    const clearData = () => {
-        setGeoData(null);
-        setFileNames([]);
-        setError(null);
-        setSelectedFeature(null);
+        // This is a placeholder for actual deletion logic
+        toast({ variant: 'destructive', title: "Not Implemented", description: "Deletion is a future enhancement." });
     };
 
     return (
@@ -154,64 +206,109 @@ export default function ImportParcelsClient() {
                     <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
                     <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
                     
-                    {geoData && <GeoJSON ref={geoJsonLayerRef} key={JSON.stringify(geoData.features.map((f:any) => f.id))} data={geoData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
+                    {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
+                    {enrichedParcels && <GeoJSON ref={geoJsonLayerRef} key={JSON.stringify(enrichedParcels.features.map((f:any) => f.id))} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
+                
+                    <div className="absolute top-24 left-4 z-20">
+                         <Button variant="outline" onClick={onBack} className="bg-background/80 backdrop-blur-md shadow-lg hover:bg-background">
+                            <ArrowLeft className="mr-2 h-4 w-4"/>Start Over
+                        </Button>
+                    </div>
                 </MapContainer>
-
-                {!geoData && (
-                    <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-sm p-8 flex items-center justify-center">
-                        <div onDragEnter={onDrag} onDragLeave={onDragLeave} onDragOver={onDrag} onDrop={onDrop}
-                            className={cn("w-full h-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-colors",
-                                isDragging ? 'border-primary bg-primary/10' : 'border-border bg-gray-50/50'
-                            )}>
-                            <input
-                                id="file-upload" type="file" multiple
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={(e) => handleFileDrop(Array.from(e.target.files || []))}
-                                accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg"
-                            />
-                            <div className="text-center p-6 pointer-events-none">
-                                <UploadCloud className={cn("mx-auto h-16 w-16 mb-4", isDragging ? "text-primary" : "text-muted-foreground")} />
-                                <h2 className="text-2xl font-semibold">Drop Shapefiles Here</h2>
-                                <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-                                    Drag and drop all shapefile components (.shp, .shx, .dbf, etc.) to import parcels. No need to zip them.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                 
-                 {(error || fileNames.length > 0) && (
-                    <div className="absolute top-24 left-4 z-20 max-w-sm">
-                        {error && (
-                            <div className="p-4 rounded-lg bg-destructive/90 text-destructive-foreground shadow-lg flex items-start gap-3">
-                                <XCircle className="h-5 w-5 mt-0.5 shrink-0" />
-                                <div>
-                                    <h4 className="font-semibold">Import Error</h4>
-                                    <p className="text-sm">{error}</p>
-                                </div>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setError(null)}><XCircle className="h-4 w-4"/></Button>
-                            </div>
-                        )}
-                        {!error && fileNames.length > 0 && !geoData &&(
-                             <div className="p-4 rounded-lg bg-background/90 shadow-lg flex items-center gap-3">
-                                <FileJson className="h-5 w-5 text-primary" />
-                                <span className="text-sm font-medium">Processing {fileNames.length} files...</span>
-                            </div>
-                        )}
-                    </div>
-                )}
-
             </div>
-            <ParcelEditorDocker
-                activeTool={activeTool}
-                onToolChange={setActiveTool}
+             <ParcelEditorDocker
+                activeTool={'select'}
+                onToolChange={() => {}}
                 selectedFeature={selectedFeature}
-                allFeatures={geoData?.features || []}
+                allFeatures={enrichedParcels?.features || []}
                 onDeleteSelected={handleDeleteSelected}
-                onClearData={clearData}
-                hasData={!!geoData}
+                onClearData={onBack}
+                hasData={!!enrichedParcels}
                 onFeatureSelect={setSelectedFeature}
              />
         </div>
     );
+};
+
+
+// --- MAIN COMPONENT ---
+
+export default function ImportParcelsClient() {
+    const [step, setStep] = useState<Step>('upload');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [shapefileData, setShapefileData] = useState<ShapefileData | null>(null);
+    const [boundaryFile, setBoundaryFile] = useState<string>('');
+    const [parcelsFile, setParcelsFile] = useState<string>('');
+    const { toast } = useToast();
+
+    const handleFileDrop = useCallback(async (files: File[]) => {
+        if (files.length === 0) return;
+        setIsProcessing(true);
+        
+        const fileGroups = new Map<string, { [key: string]: File }>();
+        for (const file of files) {
+            const basename = file.name.substring(0, file.name.lastIndexOf('.'));
+            const ext = file.name.substring(file.name.lastIndexOf('.') + 1);
+            if (!fileGroups.has(basename)) fileGroups.set(basename, {});
+            fileGroups.get(basename)![ext] = file;
+        }
+
+        const parsedData: ShapefileData = {};
+        const errors: string[] = [];
+
+        for (const [name, group] of fileGroups.entries()) {
+            if (!group.shp || !group.dbf) {
+                errors.push(`Shapefile "${name}" is missing required .shp or .dbf file.`);
+                continue;
+            }
+            try {
+                const [shpBuffer, dbfBuffer] = await Promise.all([ group.shp.arrayBuffer(), group.dbf.arrayBuffer() ]);
+                const source = await shapefile.read(shpBuffer, dbfBuffer);
+                parsedData[name] = source;
+            } catch (err: any) {
+                errors.push(`Error parsing "${name}": ${err.message}`);
+            }
+        }
+        
+        setIsProcessing(false);
+
+        if (errors.length > 0) {
+            toast({ variant: 'destructive', title: "Import Error", description: errors.join(' ') });
+            return;
+        }
+        
+        if (Object.keys(parsedData).length === 0) {
+            toast({ variant: 'destructive', title: "No Valid Shapefiles Found", description: "Please check your dropped files." });
+            return;
+        }
+
+        toast({ title: "Files Processed", description: `Successfully parsed ${Object.keys(parsedData).length} shapefile(s).` });
+        setShapefileData(parsedData);
+        setStep('select');
+
+    }, [toast]);
+    
+    const handleSelection = (boundary: string, parcels: string) => {
+        setBoundaryFile(boundary);
+        setParcelsFile(parcels);
+        setStep('preview');
+    };
+
+    const handleReset = () => {
+        setStep('upload');
+        setShapefileData(null);
+        setBoundaryFile('');
+        setParcelsFile('');
+    };
+
+    switch (step) {
+        case 'upload':
+            return <UploadStep onFilesUploaded={handleFileDrop} isProcessing={isProcessing} />;
+        case 'select':
+            return shapefileData && <SelectionStep shapefileData={shapefileData} onProceed={handleSelection} onBack={handleReset} />;
+        case 'preview':
+            return shapefileData && boundaryFile && parcelsFile && <PreviewStep boundaryData={shapefileData[boundaryFile]} parcelsData={shapefileData[parcelsFile]} onBack={handleReset} />;
+        default:
+            return <UploadStep onFilesUploaded={handleFileDrop} isProcessing={isProcessing} />;
+    }
 }
