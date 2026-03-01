@@ -11,20 +11,20 @@ importScripts(
 proj4.defs("EPSG:32643", "+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs");
 
 self.onmessage = async (e) => {
-  const { files } = e.data;
+  // FIX: Destructure both `files` and `layer` from the incoming message.
+  const { files, layer } = e.data;
 
-  // Sometimes the client sends the files directly instead of inside an object
-  const fileArray = files || e.data;
-
-  if (!fileArray || !Array.isArray(fileArray) || fileArray.length === 0) {
-    postMessage({ status: 'error', message: 'No files received.' });
+  // FIX: Use the destructured `files` array directly and validate it.
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    // FIX: Include the `layer` in the error message post-back.
+    postMessage({ status: 'error', message: 'No files received.', layer });
     return;
   }
 
   try {
     const zip = new JSZip();
 
-    const fileReadPromises = fileArray.map(file => {
+    const fileReadPromises = files.map(file => {
       return file.arrayBuffer().then(buffer => {
         zip.file(file.name, buffer);
       });
@@ -38,7 +38,7 @@ self.onmessage = async (e) => {
 
     let combinedFeatures = [];
     
-    // 3. FIX THE DATA DELETION BUG: Safely merge ALL uploaded shapefiles
+    // FIX: Safely merge ALL uploaded shapefiles
     if (Array.isArray(geojson)) {
       geojson.forEach(collection => {
         if (collection.features) combinedFeatures.push(...collection.features);
@@ -64,16 +64,20 @@ self.onmessage = async (e) => {
       columns = Object.keys(combinedFeatures[0].properties);
     }
     
+    // FIX: Include the `layer` in the success message post-back.
     postMessage({
       status: 'success',
       geojson: featureCollection,
       columns: columns,
+      layer: layer, // This is the crucial part that was missing.
     });
 
   } catch (error) {
+    // FIX: Include the `layer` in the error message post-back.
     postMessage({
       status: 'error',
       message: error.message || 'An unknown error occurred while parsing.',
+      layer: layer, // Also crucial for error handling on the client.
     });
   }
 };
