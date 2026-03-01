@@ -1,8 +1,8 @@
 'use client'
-import React from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   MousePointer, Edit3, PenSquare, Scissors, Combine, Trash2, Undo, Redo,
-  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal, MinusSquare, Home
+  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal, MinusSquare, Home, UploadCloud, File, Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -12,16 +12,21 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 
 export type EditorTool = 'select' | 'clear-selection' | 'edit-vertices' | 'draw-polygon' | 'draw-rectangle' | 'delete' | 'split' | 'merge' | 'undo' | 'redo' | 'measure' | 'snap-vertex' | 'snap-edge';
 
-
 const PropertiesPanel = ({ feature, parcelsCount, homesCount, onDeleteClick }: { feature: any, parcelsCount: number, homesCount: number, onDeleteClick: () => void }) => (
     <div className="p-4 text-sm h-full flex flex-col">
          {(parcelsCount > 0 || homesCount > 0) && (
             <div className="mb-4">
                 <h4 className="font-semibold mb-2">Boundary Summary</h4>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 items-center bg-muted/50 p-3 rounded-md">
-                    <span className="font-medium text-muted-foreground">Total Parcels</span>
+                    <div className='flex items-center gap-2 font-medium text-muted-foreground'>
+                      <Home className="h-4 w-4"/>
+                      <span>Total Parcels</span>
+                    </div>
                     <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
-                    <span className="font-medium text-muted-foreground">Total Homes</span>
+                    <div className='flex items-center gap-2 font-medium text-muted-foreground'>
+                      <Home className="h-4 w-4"/>
+                      <span>Total Homes</span>
+                    </div>
                     <span className="font-bold text-lg text-right text-green-600">{homesCount.toLocaleString()}</span>
                 </div>
             </div>
@@ -31,12 +36,12 @@ const PropertiesPanel = ({ feature, parcelsCount, homesCount, onDeleteClick }: {
 
         {!feature ? (
             <div className="text-center text-muted-foreground flex-1 flex items-center justify-center p-8">
-                <p>Select a parcel on the map or from the table to view its properties.</p>
+                <p>Select a parcel or home on the map to view its properties.</p>
             </div>
         ) : (
             <div className="space-y-4">
                  <div>
-                    <h4 className="font-semibold mb-2 text-primary break-all">Parcel ID: {feature.id}</h4>
+                    <h4 className="font-semibold mb-2 text-primary break-all">Feature ID: {feature.id}</h4>
                 </div>
                 <Separator/>
                 <h4 className="font-semibold mb-2">Attributes</h4>
@@ -49,13 +54,13 @@ const PropertiesPanel = ({ feature, parcelsCount, homesCount, onDeleteClick }: {
                             </div>
                         ))
                     ) : (
-                        <p className="text-muted-foreground text-xs">No attributes found for this parcel.</p>
+                        <p className="text-muted-foreground text-xs">No attributes found for this feature.</p>
                     )}
                 </div>
                 <Separator />
                 <Button variant="destructive" className="w-full" onClick={onDeleteClick}>
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Selected Parcel
+                    Delete Selected Feature
                 </Button>
             </div>
         )}
@@ -76,7 +81,9 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
     }
 
     const allHeaders = features.reduce((acc, f) => {
-        Object.keys(f.properties).forEach(key => acc.add(key));
+        if (f.properties) {
+          Object.keys(f.properties).forEach(key => acc.add(key));
+        }
         return acc;
     }, new Set<string>());
 
@@ -131,7 +138,86 @@ const ExportPanel = ({ hasData, onExportGeoJSON }: { hasData: boolean, onExportG
             </Tooltip>
         </TooltipProvider>
     </div>
-)
+);
+
+const FileUploader = ({ layer, title, name, onUpload, isProcessing }: { layer: 'boundary' | 'parcels' | 'homes', title: string, name: string, onUpload: (files: File[], layer: 'boundary' | 'parcels' | 'homes') => void, isProcessing: boolean }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const handleDrag = useCallback((event: React.DragEvent, type: 'enter' | 'leave' | 'over') => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (type === 'enter' || type === 'over') setIsDragging(true);
+        else setIsDragging(false);
+    }, []);
+
+    const handleDrop = useCallback((event: React.DragEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDragging(false);
+        if (event.dataTransfer.files) {
+            onUpload(Array.from(event.dataTransfer.files), layer);
+        }
+    }, [onUpload, layer]);
+    
+    if (isProcessing) {
+        return (
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-gray-50">
+                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                <p className="mt-2 font-semibold">Processing {title}...</p>
+            </div>
+        );
+    }
+
+    if (name) {
+        return (
+            <div className="flex flex-col items-center justify-center p-4 border rounded-lg bg-green-50 border-green-200">
+                <h4 className="font-semibold">{title}</h4>
+                <div className="flex items-center gap-2 mt-2">
+                  <File className="h-4 w-4 text-green-700"/>
+                  <span className="text-sm font-medium text-green-800">{name}</span>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+          <h4 className="font-semibold text-center mb-2">{title}</h4>
+          <div
+              onDragEnter={(e) => handleDrag(e, 'enter')}
+              onDragLeave={(e) => handleDrag(e, 'leave')}
+              onDragOver={(e) => handleDrag(e, 'over')}
+              onDrop={handleDrop}
+              className={cn(
+              'relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors duration-200',
+              isDragging ? 'border-primary bg-primary/10' : 'border-gray-300 bg-gray-50'
+              )}
+          >
+              <input
+                  type="file"
+                  id={`file-upload-${layer}`}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  multiple
+                  accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg,.xml"
+                  onChange={(e) => onUpload(Array.from(e.target.files || []), layer)}
+              />
+              <UploadCloud className={cn("h-8 w-8", isDragging ? 'text-primary' : 'text-gray-400')} />
+              <p className="mt-2 text-xs text-center text-muted-foreground">
+                  {isDragging ? "Drop files here" : "Drag & drop shapefile components"}
+              </p>
+          </div>
+        </div>
+    );
+};
+
+const ImportPanel = ({ onUpload, isProcessing, boundaryName, parcelsName, homesName }: Omit<ParcelEditorDockerProps, 'selectedFeature' | 'allFeatures' | 'homesCount' | 'onDeleteSelected' | 'hasData' | 'onClearData' | 'onFeatureSelect' | 'onExportGeoJSON' | 'activeTool' | 'onToolSelect'| 'onUndo' | 'onRedo'| 'canUndo' | 'canRedo'>) => (
+     <div className="p-4 space-y-6">
+        <p className="text-xs text-muted-foreground">Upload shapefiles for each layer. The Boundary and Parcels layers are required for full functionality.</p>
+        <FileUploader layer="boundary" title="Main Boundary" name={boundaryName} onUpload={onUpload} isProcessing={isProcessing['boundary']} />
+        <FileUploader layer="parcels" title="Parcels Layer" name={parcelsName} onUpload={onUpload} isProcessing={isProcessing['parcels']} />
+        <FileUploader layer="homes" title="Homes Layer" name={homesName} onUpload={onUpload} isProcessing={isProcessing['homes']} />
+    </div>
+);
+
 
 const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: React.ElementType, implemented: boolean }[] }[] = [
     { name: 'Selection & Navigation', tools: [
@@ -161,11 +247,12 @@ const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: R
     ]},
 ];
 
-export function ParcelEditorDocker({ 
-    selectedFeature, allFeatures, homesCount, onDeleteSelected, hasData, onClearData, 
-    onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect,
-    onUndo, onRedo, canUndo, canRedo
-}: {
+interface ParcelEditorDockerProps {
+    onUpload: (files: File[], layer: 'boundary' | 'parcels' | 'homes') => void;
+    isProcessing: Record<string, boolean>;
+    boundaryName: string;
+    parcelsName: string;
+    homesName: string;
     selectedFeature: any | null;
     allFeatures: any[];
     homesCount: number;
@@ -180,22 +267,20 @@ export function ParcelEditorDocker({
     onRedo: () => void;
     canUndo: boolean;
     canRedo: boolean;
-}) {
+}
+
+export function ParcelEditorDocker({ 
+    onUpload, isProcessing, boundaryName, parcelsName, homesName,
+    selectedFeature, allFeatures, homesCount, onDeleteSelected, hasData, onClearData, 
+    onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect,
+    onUndo, onRedo, canUndo, canRedo
+}: ParcelEditorDockerProps) {
 
     const handleToolClick = (toolId: EditorTool) => {
-        switch (toolId) {
-            case 'undo':
-                onUndo();
-                break;
-            case 'redo':
-                onRedo();
-                break;
-            case 'clear-selection':
-                onFeatureSelect(null);
-                break;
-            default:
-                onToolSelect(toolId);
-        }
+        if (toolId === 'undo') onUndo();
+        else if (toolId === 'redo') onRedo();
+        else if (toolId === 'clear-selection') onFeatureSelect(null);
+        else onToolSelect(toolId);
     };
 
     return (
@@ -224,7 +309,10 @@ export function ParcelEditorDocker({
                                 <div className="space-y-2">
                                     {group.tools.map(tool => {
                                         const isUndoRedo = tool.id === 'undo' || tool.id === 'redo';
-                                        const isDisabled = !hasData || (tool.id === 'undo' && !canUndo) || (tool.id === 'redo' && !canRedo);
+                                        const isDisabled = 
+                                            (!hasData && tool.id !== 'select') ||
+                                            (tool.id === 'undo' && !canUndo) || 
+                                            (tool.id === 'redo' && !canRedo);
 
                                         return (
                                             <Tooltip key={tool.id}>
@@ -232,9 +320,7 @@ export function ParcelEditorDocker({
                                                     <Button
                                                         variant={activeTool === tool.id ? 'default' : 'ghost'}
                                                         size="icon"
-                                                        onClick={() => {
-                                                            if (tool.implemented) handleToolClick(tool.id)
-                                                        }}
+                                                        onClick={() => tool.implemented && handleToolClick(tool.id)}
                                                         className="h-10 w-10"
                                                         disabled={isDisabled}
                                                     >
@@ -255,15 +341,19 @@ export function ParcelEditorDocker({
                     </TooltipProvider>
                 </div>
                 <div className="flex-1 flex flex-col min-w-0">
-                     <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
+                     <Tabs defaultValue={hasData ? "properties" : "import"} value={hasData ? undefined : "import"} className="flex-1 flex flex-col min-h-0">
                         <div className="border-b p-2">
-                            <TabsList className="grid w-full grid-cols-3 h-9">
+                            <TabsList className="grid w-full grid-cols-4 h-9">
+                                <TabsTrigger value="import">Import</TabsTrigger>
                                 <TabsTrigger value="properties" disabled={!hasData}>Properties</TabsTrigger>
                                 <TabsTrigger value="table" disabled={!hasData}>Table</TabsTrigger>
                                 <TabsTrigger value="export" disabled={!hasData}>Export</TabsTrigger>
                             </TabsList>
                         </div>
 
+                        <TabsContent value="import" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden overflow-y-auto">
+                            <ImportPanel onUpload={onUpload} isProcessing={isProcessing} boundaryName={boundaryName} parcelsName={parcelsName} homesName={homesName} />
+                        </TabsContent>
                         <TabsContent value="properties" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden overflow-y-auto">
                              <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} homesCount={homesCount} onDeleteClick={onDeleteSelected} />
                         </TabsContent>
