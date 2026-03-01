@@ -63,7 +63,7 @@ export default function ImportParcelsClient() {
       }
       
       setGeoJson(geojson);
-      setDbfColumns(columns);
+      setDbfColumns(columns || []); // Ensure columns is always an array
       toast({
         title: 'Files Processed Successfully',
         description: 'Shapefile was parsed into GeoJSON. Please map the schema below.',
