@@ -92,11 +92,14 @@ export default function ImportParcelsClient() {
     }, [toast]);
 
     useEffect(() => {
-        // This effect handles zooming to the data's bounds when it's loaded
-        if (geoData && geoJsonLayerRef.current && mapRef.current) {
-            const bounds = geoJsonLayerRef.current.getBounds();
+        // This effect handles zooming to the data's bounds when it's loaded.
+        // It creates a temporary layer from the data to calculate bounds,
+        // avoiding race conditions with the rendered GeoJSON layer ref.
+        if (geoData && mapRef.current) {
+            const geoJsonLayer = L.geoJSON(geoData);
+            const bounds = geoJsonLayer.getBounds();
             if (bounds.isValid()) {
-                 mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+                mapRef.current.fitBounds(bounds, { padding: [50, 50] });
             }
         }
     }, [geoData]);
@@ -151,7 +154,7 @@ export default function ImportParcelsClient() {
                     <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
                     <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
                     
-                    {geoData && <GeoJSON ref={geoJsonLayerRef} key={JSON.stringify(geoData)} data={geoData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
+                    {geoData && <GeoJSON ref={geoJsonLayerRef} key={JSON.stringify(geoData.features.map((f:any) => f.id))} data={geoData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
                 </MapContainer>
 
                 {!geoData && (
