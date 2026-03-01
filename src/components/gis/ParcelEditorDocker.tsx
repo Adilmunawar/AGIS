@@ -2,7 +2,7 @@
 import React from 'react'
 import {
   MousePointer, Edit3, PenSquare, Scissors, Combine, Trash2, Undo, Redo,
-  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal
+  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal, MinusSquare
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
-export type EditorTool = 'select' | 'edit-vertices' | 'draw-polygon' | 'draw-rectangle' | 'delete' | 'split' | 'merge' | 'undo' | 'redo' | 'measure' | 'snap-vertex' | 'snap-edge';
+export type EditorTool = 'select' | 'clear-selection' | 'edit-vertices' | 'draw-polygon' | 'draw-rectangle' | 'delete' | 'split' | 'merge' | 'undo' | 'redo' | 'measure' | 'snap-vertex' | 'snap-edge';
 
 
 const PropertiesPanel = ({ feature, parcelsCount, onDeleteClick }: { feature: any, parcelsCount: number, onDeleteClick: () => void }) => (
@@ -134,6 +134,7 @@ const ExportPanel = ({ hasData, onExportGeoJSON }: { hasData: boolean, onExportG
 const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: React.ElementType, implemented: boolean }[] }[] = [
     { name: 'Selection & Navigation', tools: [
         { id: 'select', name: 'Select', icon: MousePointer, implemented: true },
+        { id: 'clear-selection', name: 'Clear Selection', icon: MinusSquare, implemented: true },
     ]},
     { name: 'Drawing', tools: [
         { id: 'draw-polygon', name: 'Draw Polygon', icon: PenSquare, implemented: true },
@@ -143,16 +144,16 @@ const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: R
         { id: 'edit-vertices', name: 'Edit Parcels', icon: Edit3, implemented: true },
         { id: 'delete', name: 'Delete Parcels', icon: Trash2, implemented: true },
     ]},
+     { name: 'History', tools: [
+        { id: 'undo', name: 'Undo', icon: Undo, implemented: true },
+        { id: 'redo', name: 'Redo', icon: Redo, implemented: true },
+    ]},
     { name: 'Geoprocessing', tools: [
         { id: 'split', name: 'Split Parcel', icon: Scissors, implemented: false },
         { id: 'merge', name: 'Merge Parcels', icon: Combine, implemented: false },
     ]},
-    { name: 'History', tools: [
-        { id: 'undo', name: 'Undo', icon: Undo, implemented: false },
-        { id: 'redo', name: 'Redo', icon: Redo, implemented: false },
-    ]},
     { name: 'Measurement & Snapping', tools: [
-        { id: 'measure', name: 'Measure', icon: Ruler, implemented: false },
+        { id: 'measure', name: 'Measure Distance', icon: Ruler, implemented: true },
         { id: 'snap-vertex', name: 'Snap to Vertex', icon: CircleDot, implemented: false },
         { id: 'snap-edge', name: 'Snap to Edge', icon: Magnet, implemented: false },
     ]},
@@ -160,7 +161,8 @@ const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: R
 
 export function ParcelEditorDocker({ 
     selectedFeature, allFeatures, onDeleteSelected, hasData, onClearData, 
-    onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect 
+    onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect,
+    onUndo, onRedo, canUndo, canRedo
 }: {
     selectedFeature: any | null;
     allFeatures: any[];
@@ -171,7 +173,27 @@ export function ParcelEditorDocker({
     onExportGeoJSON: () => void;
     activeTool: EditorTool;
     onToolSelect: (tool: EditorTool) => void;
+    onUndo: () => void;
+    onRedo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
 }) {
+
+    const handleToolClick = (toolId: EditorTool) => {
+        switch (toolId) {
+            case 'undo':
+                onUndo();
+                break;
+            case 'redo':
+                onRedo();
+                break;
+            case 'clear-selection':
+                onFeatureSelect(null);
+                break;
+            default:
+                onToolSelect(toolId);
+        }
+    };
 
     return (
         <div className="w-96 bg-background border-l flex flex-col h-full shadow-2xl">
@@ -197,27 +219,32 @@ export function ParcelEditorDocker({
                         {toolGroups.map((group, index) => (
                             <React.Fragment key={group.name}>
                                 <div className="space-y-2">
-                                    {group.tools.map(tool => (
-                                         <Tooltip key={tool.id}>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant={activeTool === tool.id ? 'default' : 'ghost'}
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        if (tool.implemented) onToolSelect(tool.id)
-                                                    }}
-                                                    className="h-10 w-10"
-                                                    disabled={!hasData}
-                                                >
-                                                    <tool.icon className="h-5 w-5" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="right">
-                                                <p>{tool.name}</p>
-                                                {!tool.implemented && <p className="text-xs text-muted-foreground">(Future Enhancement)</p>}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    ))}
+                                    {group.tools.map(tool => {
+                                        const isUndoRedo = tool.id === 'undo' || tool.id === 'redo';
+                                        const isDisabled = !hasData || (tool.id === 'undo' && !canUndo) || (tool.id === 'redo' && !canRedo);
+
+                                        return (
+                                            <Tooltip key={tool.id}>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant={activeTool === tool.id ? 'default' : 'ghost'}
+                                                        size="icon"
+                                                        onClick={() => {
+                                                            if (tool.implemented) handleToolClick(tool.id)
+                                                        }}
+                                                        className="h-10 w-10"
+                                                        disabled={isDisabled}
+                                                    >
+                                                        <tool.icon className="h-5 w-5" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="right">
+                                                    <p>{tool.name}</p>
+                                                    {!tool.implemented && <p className="text-xs text-muted-foreground">(Requires geometry engine)</p>}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        );
+                                    })}
                                 </div>
                                 {index < toolGroups.length - 1 && <Separator className="my-2" />}
                             </React.Fragment>

@@ -20,7 +20,7 @@ interface SerializableLatLngBounds {
 // Shape of state for a standard map tool
 interface MapToolState {
   geoData: FeatureCollection | null;
-  selectionBounds: SerializableLatLngBounds | null; // This is the change
+  selectionBounds: SerializableLatLngBounds | null;
   polygonCoords: string | null;
 }
 
@@ -32,6 +32,8 @@ interface ImportParcelsState {
   parcelsData: any | null;
   parcelsName: string;
   selectedFeatureId: number | string | null;
+  history: any[];
+  historyIndex: number;
 }
 
 // Defines the overall state structure managed by the context
@@ -46,6 +48,8 @@ interface GisDataContextState {
 interface GisDataContextValue extends GisDataContextState {
   updateToolState: <T extends keyof GisDataContextState>(tool: T, newState: Partial<GisDataContextState[T]>) => void;
   resetToolState: (tool: keyof GisDataContextState) => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 // --- INITIAL STATES ---
@@ -63,6 +67,8 @@ const initialImportParcelsState: ImportParcelsState = {
   parcelsData: null,
   parcelsName: '',
   selectedFeatureId: null,
+  history: [],
+  historyIndex: -1,
 };
 
 const initialState: GisDataContextState = {
@@ -88,18 +94,22 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
         try {
             const item = window.localStorage.getItem(LOCAL_STORAGE_KEY);
             if (item) {
-                // Parse the raw JSON without trying to revive Leaflet objects
                 const parsedState = JSON.parse(item);
                 
-                // Deep merge with initial state to prevent errors if stored data is outdated
                 const mergedState = {
                     ...initialState,
                     ...parsedState,
                     digitize: { ...initialState.digitize, ...(parsedState.digitize || {}) },
                     extractRoads: { ...initialState.extractRoads, ...(parsedState.extractRoads || {}) },
                     nanoVision: { ...initialState.nanoVision, ...(parsedState.nanoVision || {}) },
-                    importParcels: { ...initialState.importParcels, ...(parsedState.importParcels || {}) },
+                    importParcels: { ...initialState.importParcels, ...(parsedState.importParcels || {}), history: [], historyIndex: -1 }, // Reset history on load
                 };
+
+                 // If loaded data exists, initialize history
+                if (mergedState.importParcels.parcelsData) {
+                    mergedState.importParcels.history = [mergedState.importParcels.parcelsData];
+                    mergedState.importParcels.historyIndex = 0;
+                }
 
                 return mergedState;
             }
@@ -111,34 +121,51 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         try {
-            const serializedState = JSON.stringify(state);
+            // Don't persist history, it can be large and is session-specific
+            const stateToSave = { ...state, importParcels: { ...state.importParcels, history: [], historyIndex: -1 } };
+            const serializedState = JSON.stringify(stateToSave);
             window.localStorage.setItem(LOCAL_STORAGE_KEY, serializedState);
         } catch (error) {
             console.error("Error writing GIS state to localStorage:", error);
         }
     }, [state]);
 
-    const updateToolState = useCallback(<T extends keyof GisDataContextState>(tool: T, newState: Partial<GisDataContextState[T]>) => {
-        // Create a copy to avoid mutating the original `newState` object
+    const updateToolState = useCallback(<T extends keyof GisDataContextState>(
+        tool: T, 
+        newState: Partial<GisDataContextState[T]>,
+        options?: { manageHistory?: boolean }
+    ) => {
+        const manageHistory = options?.manageHistory ?? true;
+        
         const processedNewState = { ...newState };
-
-        // Check if `selectionBounds` exists and if it's a Leaflet LatLngBounds object
         if ('selectionBounds' in processedNewState && processedNewState.selectionBounds) {
             const bounds = processedNewState.selectionBounds as any;
-            // Duck-type check for a Leaflet LatLngBounds instance
             if (typeof bounds.toBBoxString === 'function') {
-                // Serialize it to a plain JSON object before storing in state
                 (processedNewState as any).selectionBounds = bounds.toJSON();
             }
         }
         
-        setState(prevState => ({
-            ...prevState,
-            [tool]: {
-                ...prevState[tool],
-                ...processedNewState,
-            },
-        }));
+        setState(prevState => {
+            const oldToolState = prevState[tool];
+            const newToolState = { ...oldToolState, ...processedNewState };
+
+            if (tool === 'importParcels' && manageHistory) {
+                const oldParcelsState = oldToolState as ImportParcelsState;
+                const newParcelsState = newToolState as ImportParcelsState;
+
+                const hasDataChanged = JSON.stringify(oldParcelsState.parcelsData) !== JSON.stringify(newParcelsState.parcelsData);
+
+                if (hasDataChanged) {
+                    const history = oldParcelsState.history.slice(0, oldParcelsState.historyIndex + 1);
+                    history.push(newParcelsState.parcelsData);
+                    
+                    newParcelsState.history = history;
+                    newParcelsState.historyIndex = history.length - 1;
+                }
+            }
+
+            return { ...prevState, [tool]: newToolState };
+        });
     }, []);
     
     const resetToolState = useCallback((tool: keyof GisDataContextState) => {
@@ -153,14 +180,37 @@ export function GisDataProvider({ children }: { children: ReactNode }) {
         }
         setState(prevState => ({
             ...prevState,
-            [tool]: initial as any, // Type assertion is safe here
+            [tool]: initial as any,
         }));
     }, []);
+
+    const undo = useCallback(() => {
+        const { history, historyIndex } = state.importParcels;
+        if (historyIndex > 0) {
+            updateToolState('importParcels', {
+                parcelsData: history[historyIndex - 1],
+                historyIndex: historyIndex - 1,
+            }, { manageHistory: false });
+        }
+    }, [state.importParcels, updateToolState]);
+
+    const redo = useCallback(() => {
+        const { history, historyIndex } = state.importParcels;
+        if (historyIndex < history.length - 1) {
+            updateToolState('importParcels', {
+                parcelsData: history[historyIndex + 1],
+                historyIndex: historyIndex + 1,
+            }, { manageHistory: false });
+        }
+    }, [state.importParcels, updateToolState]);
+
 
     const value = {
         ...state,
         updateToolState,
         resetToolState,
+        undo,
+        redo
     };
 
     return (

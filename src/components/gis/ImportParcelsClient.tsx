@@ -149,7 +149,7 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
             <div className="grid md:grid-cols-2 gap-6 items-stretch">
                 <UploadCard
                     title="Boundary Layer"
-                    description="The main shapefile defining the area of interest (e.g., a Tehsil)."
+                    description="The shapefile defining the area of interest (e.g., a Tehsil boundary)."
                     icon={<Shield />}
                     fileName={boundaryName}
                     onFilesUploaded={onBoundaryUpload}
@@ -158,7 +158,7 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
                 />
                 <UploadCard
                     title="Parcels Layer"
-                    description="The shapefile containing the individual properties or plots (e.g., Mouzas)."
+                    description="The shapefile with individual properties (e.g., Mouzas) within the boundary."
                     icon={<Layers />}
                     fileName={parcelsName}
                     onFilesUploaded={onParcelsUpload}
@@ -207,8 +207,8 @@ const MapUpdater = ({ parcelsLayer, selectedFeatureId, mapBounds }: { parcelsLay
 
 // --- MAIN COMPONENT ---
 export default function ImportParcelsClient() {
-    const { importParcels, updateToolState, resetToolState } = useGisData();
-    const { boundaryData, parcelsData, boundaryName, parcelsName, selectedFeatureId } = importParcels;
+    const { importParcels, updateToolState, resetToolState, undo, redo } = useGisData();
+    const { boundaryData, parcelsData, boundaryName, parcelsName, selectedFeatureId, history, historyIndex } = importParcels;
     
     const [processingState, setProcessingState] = useState<'boundary' | 'parcels' | null>(null);
     const { toast } = useToast();
@@ -219,6 +219,8 @@ export default function ImportParcelsClient() {
     const mapRef = useRef<L.Map>(null);
     const featureGroupRef = useRef<L.FeatureGroup>(null);
     const drawHandlerRef = useRef<any>(null);
+    const measureLayerRef = useRef<L.FeatureGroup>(null);
+    const [measureState, setMeasureState] = useState<{ points: L.LatLng[], totalDistance: number }>({ points: [], totalDistance: 0 });
 
     const handleFileUpload = async (files: File[], type: 'boundary' | 'parcels') => {
         if (files.length === 0) return;
@@ -239,7 +241,7 @@ export default function ImportParcelsClient() {
     };
     
     const handleClearBoundary = () => resetToolState('importParcels');
-    const handleClearParcels = () => updateToolState('importParcels', { parcelsData: null, parcelsName: '', selectedFeatureId: null });
+    const handleClearParcels = () => updateToolState('importParcels', { parcelsData: null, parcelsName: '', selectedFeatureId: null, history: [], historyIndex: -1 });
     const handleSetSelectedFeature = (feature: any) => updateToolState('importParcels', { selectedFeatureId: feature?.id ?? null });
 
     const handleDeleteSelected = () => {
@@ -299,85 +301,154 @@ export default function ImportParcelsClient() {
         });
     };
 
-    // --- EFFECT FOR DYNAMIC EDITING TOOLS ---
+    // --- EFFECT FOR DYNAMIC EDITING & MEASUREMENT TOOLS ---
     useEffect(() => {
         const map = mapRef.current;
-        const featureGroup = featureGroupRef.current;
-        if (!map || !featureGroup) return;
+        if (!map) return;
 
-        // Disable any active handler before switching
+        // ---- General Cleanup: Disable any active draw/measure handlers before switching ----
         if (drawHandlerRef.current) {
             drawHandlerRef.current.disable();
+            drawHandlerRef.current = null;
         }
-
         map.off(L.Draw.Event.CREATED);
         map.off(L.Draw.Event.EDITED);
         map.off(L.Draw.Event.DELETED);
-        
-        const onCreated = (e: any) => {
-            const newFeature = e.layer.toGeoJSON();
-            newFeature.id = `drawn-${Date.now()}`;
-            newFeature.properties = {};
-            const newParcelsData = {
-                ...(parcelsData || { type: "FeatureCollection", features: [] }),
-                features: [...(parcelsData?.features || []), newFeature]
+        map.off('click');
+        map.off('dblclick');
+        if (measureLayerRef.current) {
+            measureLayerRef.current.clearLayers();
+        }
+        setMeasureState({ points: [], totalDistance: 0 });
+        // --- End General Cleanup ---
+
+
+        // ---- Tool-Specific Logic ----
+        if (activeTool === 'measure') {
+            map.getContainer().style.cursor = 'crosshair';
+
+            const onMapClick = (e: L.LeafletMouseEvent) => {
+                setMeasureState(prev => {
+                    const newPoints = [...prev.points, e.latlng];
+                    let newDistance = 0;
+                    if (newPoints.length > 1) {
+                        for (let i = 1; i < newPoints.length; i++) {
+                            newDistance += map.distance(newPoints[i - 1], newPoints[i]);
+                        }
+                    }
+
+                    const measureLayer = measureLayerRef.current;
+                    if (measureLayer) {
+                        measureLayer.clearLayers();
+                        if (newPoints.length > 1) {
+                            measureLayer.addLayer(L.polyline(newPoints, { color: 'cyan', weight: 3, dashArray: '5, 10' }));
+                        }
+                        newPoints.forEach(p => measureLayer.addLayer(L.circleMarker(p, { radius: 4, color: 'cyan', fillColor: 'white', fillOpacity: 1, weight: 2 })));
+
+                        if (newPoints.length > 0) {
+                            const lastPoint = newPoints[newPoints.length - 1];
+                            const tooltipText = newDistance > 0
+                                ? `Total: <b>${(newDistance / 1000).toFixed(2)} km</b><br/><i class='text-xs'>Double-click to finish</i>`
+                                : 'Click to start measuring';
+
+                            L.tooltip({ permanent: true, direction: 'right', offset: [10, 0] })
+                                .setLatLng(lastPoint)
+                                .setContent(tooltipText)
+                                .addTo(measureLayer);
+                        }
+                    }
+                    return { points: newPoints, totalDistance: newDistance };
+                });
             };
-            updateToolState('importParcels', { parcelsData: newParcelsData });
-            toast({ title: 'Parcel Created', description: `New parcel (ID: ${newFeature.id}) added.` });
-            setActiveTool('select');
-        };
 
-        const onEdited = (e: any) => {
-            if (!parcelsData) return;
-            let updatedFeatures = [...parcelsData.features];
-            e.layers.eachLayer((layer: any) => {
-                const featureIndex = updatedFeatures.findIndex(f => f.id === layer.feature.id);
-                if (featureIndex > -1) {
-                    updatedFeatures[featureIndex] = { ...updatedFeatures[featureIndex], geometry: layer.toGeoJSON().geometry };
-                }
-            });
-            updateToolState('importParcels', { parcelsData: { ...parcelsData, features: updatedFeatures } });
-            toast({ title: 'Parcels Updated', description: `${Object.keys(e.layers.getLayers()).length} parcel(s) have been modified.` });
-            setActiveTool('select');
-        };
+            const onDoubleClick = () => setActiveTool('select');
 
-        const onDeleted = (e: any) => {
-             if (!parcelsData) return;
-            const deletedIds = new Set<string|number>();
-            e.layers.eachLayer((layer: any) => deletedIds.add(layer.feature.id));
-            const newFeatures = parcelsData.features.filter((f: any) => !deletedIds.has(f.id));
-             updateToolState('importParcels', {
-                parcelsData: { ...parcelsData, features: newFeatures },
-                selectedFeatureId: selectedFeatureId && deletedIds.has(selectedFeatureId) ? null : selectedFeatureId,
-            });
-            toast({ title: 'Parcels Deleted', description: `${deletedIds.size} parcel(s) have been removed.` });
-            setActiveTool('select');
-        };
+            map.on('click', onMapClick);
+            map.on('dblclick', onDoubleClick);
+        
+        } else if (['draw-polygon', 'draw-rectangle', 'edit-vertices', 'delete'].includes(activeTool)) {
+            map.getContainer().style.cursor = '';
+            const featureGroup = featureGroupRef.current;
+            if (!featureGroup) return;
 
-        map.on(L.Draw.Event.CREATED, onCreated);
-        map.on(L.Draw.Event.EDITED, onEdited);
-        map.on(L.Draw.Event.DELETED, onDeleted);
+            const onCreated = (e: any) => {
+                const newFeature = e.layer.toGeoJSON();
+                newFeature.id = `drawn-${Date.now()}`;
+                newFeature.properties = {};
+                const newParcelsData = {
+                    ...(parcelsData || { type: "FeatureCollection", features: [] }),
+                    features: [...(parcelsData?.features || []), newFeature]
+                };
+                updateToolState('importParcels', { parcelsData: newParcelsData });
+                toast({ title: 'Parcel Created', description: `New parcel (ID: ${newFeature.id}) added.` });
+                setActiveTool('select');
+            };
 
-        switch (activeTool) {
-            case 'draw-polygon':
-                drawHandlerRef.current = new L.Draw.Polygon(map, { shapeOptions: highlightStyle });
-                break;
-            case 'draw-rectangle':
-                drawHandlerRef.current = new L.Draw.Rectangle(map, { shapeOptions: highlightStyle });
-                break;
-            case 'edit-vertices':
-                drawHandlerRef.current = new L.EditToolbar.Edit(map, { featureGroup });
-                break;
-            case 'delete':
-                 drawHandlerRef.current = new L.EditToolbar.Delete(map, { featureGroup });
-                break;
-            default:
-                drawHandlerRef.current = null;
+            const onEdited = (e: any) => {
+                if (!parcelsData) return;
+                let updatedFeatures = [...parcelsData.features];
+                e.layers.eachLayer((layer: any) => {
+                    const featureIndex = updatedFeatures.findIndex(f => f.id === layer.feature.id);
+                    if (featureIndex > -1) {
+                        const newGeometry = layer.toGeoJSON().geometry;
+                        updatedFeatures[featureIndex] = { ...updatedFeatures[featureIndex], geometry: newGeometry };
+                    }
+                });
+                updateToolState('importParcels', { parcelsData: { ...parcelsData, features: updatedFeatures } });
+                toast({ title: 'Parcels Updated', description: `${Object.keys(e.layers.getLayers()).length} parcel(s) have been modified.` });
+                setActiveTool('select');
+            };
+
+            const onDeleted = (e: any) => {
+                if (!parcelsData) return;
+                const deletedIds = new Set<string | number>();
+                e.layers.eachLayer((layer: any) => deletedIds.add(layer.feature.id));
+                const newFeatures = parcelsData.features.filter((f: any) => !deletedIds.has(f.id));
+                updateToolState('importParcels', {
+                    parcelsData: { ...parcelsData, features: newFeatures },
+                    selectedFeatureId: selectedFeatureId && deletedIds.has(selectedFeatureId) ? null : selectedFeatureId,
+                });
+                toast({ title: 'Parcels Deleted', description: `${deletedIds.size} parcel(s) have been removed.` });
+                setActiveTool('select');
+            };
+            
+            map.on(L.Draw.Event.CREATED, onCreated);
+            map.on(L.Draw.Event.EDITED, onEdited);
+            map.on(L.Draw.Event.DELETED, onDeleted);
+
+            switch (activeTool) {
+                case 'draw-polygon':
+                    drawHandlerRef.current = new L.Draw.Polygon(map, { shapeOptions: highlightStyle });
+                    break;
+                case 'draw-rectangle':
+                    drawHandlerRef.current = new L.Draw.Rectangle(map, { shapeOptions: highlightStyle });
+                    break;
+                case 'edit-vertices':
+                    drawHandlerRef.current = new L.EditToolbar.Edit(map, { featureGroup });
+                    break;
+                case 'delete':
+                    drawHandlerRef.current = new L.EditToolbar.Delete(map, { featureGroup });
+                    break;
+            }
+            if (drawHandlerRef.current) {
+                drawHandlerRef.current.enable();
+            }
+        } else {
+             map.getContainer().style.cursor = '';
         }
 
-        if (drawHandlerRef.current) {
-            drawHandlerRef.current.enable();
-        }
+        // Cleanup function for the entire effect
+        return () => {
+            map.getContainer().style.cursor = '';
+            if (drawHandlerRef.current) {
+                drawHandlerRef.current.disable();
+            }
+            map.off(L.Draw.Event.CREATED);
+            map.off(L.Draw.Event.EDITED);
+            map.off(L.Draw.Event.DELETED);
+            map.off('click');
+            map.off('dblclick');
+        };
 
     }, [activeTool, mapRef, featureGroupRef, parcelsData, updateToolState, toast, selectedFeatureId]);
 
@@ -402,8 +473,10 @@ export default function ImportParcelsClient() {
                         <FeatureGroup ref={featureGroupRef}>
                            {parcelsData && <GeoJSON key={JSON.stringify(parcelsData)} data={parcelsData} style={parcelsStyle} onEachFeature={onEachFeature} />}
                         </FeatureGroup>
+
+                        <FeatureGroup ref={measureLayerRef} />
                         
-                        <MapUpdater parcelsLayer={featureGroupRef.current} selectedFeatureId={selectedFeatureId} />
+                        <MapUpdater parcelsLayer={featureGroupRef.current?.getLayers()[0] as L.GeoJSON} selectedFeatureId={selectedFeatureId} />
                     </MapContainer>
                 ) : (
                     <PreAnalysisView
@@ -427,6 +500,10 @@ export default function ImportParcelsClient() {
                 onExportGeoJSON={handleExportGeoJSON}
                 activeTool={activeTool}
                 onToolSelect={setActiveTool}
+                onUndo={undo}
+                onRedo={redo}
+                canUndo={historyIndex > 0}
+                canRedo={historyIndex < history.length - 1}
              />
         </div>
     );
