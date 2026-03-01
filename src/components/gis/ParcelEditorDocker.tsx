@@ -1,5 +1,5 @@
 'use client'
-import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react'
+import React, { useMemo, useState, useRef, useEffect } from 'react'
 import * as turf from '@turf/turf'
 import {
   MousePointerSquare, Trash2, X, Undo, Redo, UploadCloud, File as FileIcon, Loader2, Layers, Table as TableIcon, Wrench, Combine, Ruler, Download
@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 
 export type EditorTool = 'select' | 'multi-select';
 
-// Helper to filter out empty/zero columns for a cleaner table view
+// Helper to get all columns. The user wants to see all data.
 const getVisibleColumns = (features: any[]) => {
   if (!features || features.length === 0) return [];
   
@@ -24,13 +24,9 @@ const getVisibleColumns = (features: any[]) => {
     return acc;
   }, new Set<string>());
 
-  return Array.from(allHeaders).filter(columnName => {
-    return !features.every(feature => {
-      const value = feature.properties?.[columnName];
-      return value === null || value === undefined || value === '' || String(value).trim() === '0';
-    });
-  });
+  return Array.from(allHeaders);
 };
+
 
 const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: 'boundary' | 'parcels' | 'homes', title: string, data: any, onUpload: (files: File[], layer: 'boundary' | 'parcels' | 'homes') => void, isProcessing: boolean }) => {
     const [isDragging, setIsDragging] = useState(false);
@@ -190,11 +186,11 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
                 <TabsContent value="table" className="flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
                     <div className="overflow-auto p-2">
-                        <table className="w-max min-w-full text-sm border-collapse">
+                        <table className="w-max min-w-full text-xs border-collapse">
                             <thead className="sticky top-0 bg-background z-10 shadow-sm">
                                 <tr>
                                     {visibleColumns.map(h => 
-                                        <th key={h} className="p-2 font-semibold text-left border-b truncate min-w-[120px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
+                                        <th key={h} className="p-1.5 font-semibold text-left border-b truncate min-w-[100px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
                                             <div className="flex items-center gap-1">
                                                 {h}
                                                 {sortConfig?.key === h && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -211,7 +207,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                                         onClick={() => onFeatureSelect(f)}
                                         className={cn("cursor-pointer border-b border-border hover:bg-muted/50", selectedFeatureIds.includes(f.id) && "bg-primary/10 hover:bg-primary/20")}
                                     >
-                                        {visibleColumns.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
+                                        {visibleColumns.map(h => <td key={h} className="p-1.5 truncate" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
                                     </tr>
                                 ))}
                             </tbody>
