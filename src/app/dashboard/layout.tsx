@@ -20,6 +20,7 @@ const sidebarNavItems = [
   { href: '/dashboard/merge-jsons', label: 'Merge JSONs', icon: LayersIcon },
   { href: '/dashboard/export-shapefile', label: 'Export Shapefile', icon: Download },
   { href: '/dashboard/nano-vision', label: 'Nano Vision', icon: Sparkles },
+  { href: '/dashboard/import-parcels', label: 'Import Parcels', icon: Package },
 ];
 
 const secondaryNavItems = [
