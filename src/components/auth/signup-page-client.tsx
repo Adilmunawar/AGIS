@@ -28,7 +28,7 @@ export function SignUpPageClient() {
   return (
     <>
       <WavyBackground
-        backgroundFill="hsl(var(--background))"
+        backgroundFill="white"
         colors={['#14B886', '#4DB6AC', '#7AD9B8', '#DAE0E5']}
         waveOpacity={0.2}
         blur={7}
