@@ -90,12 +90,12 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
     const headers = Array.from(allHeaders);
 
     return (
-        <div className="relative h-full w-full overflow-auto">
-            <table className="w-full text-sm border-collapse">
+        <div className="relative h-full w-full overflow-auto max-w-full">
+            <table className="w-max min-w-full text-sm border-collapse">
                 <thead className="sticky top-0 bg-secondary z-10 shadow-sm">
                     <tr>
                         <th className="p-2 font-semibold text-left border-b">ID</th>
-                        {headers.map(h => <th key={h} className="p-2 font-semibold text-left border-b truncate" title={h}>{h}</th>)}
+                        {headers.map(h => <th key={h} className="p-2 font-semibold text-left border-b truncate min-w-[120px]" title={h}>{h}</th>)}
                     </tr>
                 </thead>
                 <tbody>

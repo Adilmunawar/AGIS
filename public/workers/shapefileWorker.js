@@ -1,38 +1,30 @@
+// public/workers/shapefileWorker.js
+
+// 1. IMPORT PROJ4 FIRST! This is the math engine that fixes the "Ocean Bug"
 importScripts(
   'https://unpkg.com/jszip/dist/jszip.min.js', 
-  'https://unpkg.com/proj4/dist/proj4.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js',
   'https://unpkg.com/shpjs@latest/dist/shp.js'
 );
 
-// Define standard projection for Pakistan/Punjab (UTM Zone 43N), which corresponds to EPSG:32643
+// 2. Pre-define Pakistan Punjab Projection (UTM Zone 43N) just in case the .prj fails
 proj4.defs("EPSG:32643", "+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs");
 
 self.onmessage = async (e) => {
-  // Correctly extract the files array and the layer identifier
-  const { files, layer } = e.data;
+  const { files } = e.data;
 
-  if (!files || !Array.isArray(files) || files.length === 0) {
-    postMessage({ status: 'error', message: 'No files were received by the worker.', layer });
+  // Sometimes the client sends the files directly instead of inside an object
+  const fileArray = files || e.data;
+
+  if (!fileArray || !Array.isArray(fileArray) || fileArray.length === 0) {
+    postMessage({ status: 'error', message: 'No files received.' });
     return;
   }
 
   try {
     const zip = new JSZip();
-    
-    // Find the .prj file to determine the projection
-    const prjFile = files.find(f => f.name.toLowerCase().endsWith('.prj'));
-    let needsReprojection = false;
-    
-    if (prjFile) {
-      const prjText = await prjFile.text();
-      // Simple check for UTM Zone 43N. A more robust solution might parse the WKT string.
-      if (prjText.includes('UTM_Zone_43N')) {
-        needsReprojection = true;
-      }
-    }
-    
-    // Add all files to a virtual zip
-    const fileReadPromises = files.map(file => {
+
+    const fileReadPromises = fileArray.map(file => {
       return file.arrayBuffer().then(buffer => {
         zip.file(file.name, buffer);
       });
@@ -41,66 +33,47 @@ self.onmessage = async (e) => {
 
     const zipBuffer = await zip.generateAsync({ type: "arraybuffer" });
 
-    // Parse shapefile(s) from the buffer. shpjs can return a single object or an array.
-    const geojsonResult = await shp(zipBuffer);
-    const collections = Array.isArray(geojsonResult) ? geojsonResult : [geojsonResult];
+    // shp.js will now automatically use the globally imported proj4 to fix coordinates!
+    const geojson = await shp(zipBuffer);
 
     let combinedFeatures = [];
-    const utmToWgs84 = proj4("EPSG:32643", "EPSG:4326"); // From UTM 43N to WGS84 Lat/Lon
+    
+    // 3. FIX THE DATA DELETION BUG: Safely merge ALL uploaded shapefiles
+    if (Array.isArray(geojson)) {
+      geojson.forEach(collection => {
+        if (collection.features) combinedFeatures.push(...collection.features);
+      });
+    } else if (geojson && geojson.features) {
+      combinedFeatures = geojson.features;
+    } else {
+      throw new Error("Could not parse valid features from files.");
+    }
 
-    collections.forEach(collection => {
-      if (collection && collection.features) {
-        collection.features.forEach(feature => {
-            // Reproject coordinates if the .prj file indicated UTM
-            if (needsReprojection && feature.geometry) {
-                switch(feature.geometry.type) {
-                    case 'Point':
-                        feature.geometry.coordinates = utmToWgs84.forward(feature.geometry.coordinates);
-                        break;
-                    case 'LineString':
-                    case 'MultiPoint':
-                        feature.geometry.coordinates = feature.geometry.coordinates.map(coord => utmToWgs84.forward(coord));
-                        break;
-                    case 'Polygon':
-                    case 'MultiLineString':
-                        feature.geometry.coordinates = feature.geometry.coordinates.map(ring => ring.map(coord => utmToWgs84.forward(coord)));
-                        break;
-                    case 'MultiPolygon':
-                         feature.geometry.coordinates = feature.geometry.coordinates.map(poly => poly.map(ring => ring.map(coord => utmToWgs84.forward(coord))));
-                        break;
-                }
-            }
-        });
-        combinedFeatures.push(...collection.features);
-      }
-    });
-    
     if (combinedFeatures.length === 0) {
-        throw new Error("Could not parse any valid features from the provided files.");
+      throw new Error("No valid geometry found in the shapefiles.");
     }
-    
-    let columns = [];
-    if (combinedFeatures[0]?.properties) {
-      columns = Object.keys(combinedFeatures[0].properties);
-    }
-    
-    const finalGeoJSON = {
+
+    const featureCollection = {
       type: "FeatureCollection",
       features: combinedFeatures
     };
 
+    // Extract columns securely
+    let columns = [];
+    if (combinedFeatures.length > 0 && combinedFeatures[0].properties) {
+      columns = Object.keys(combinedFeatures[0].properties);
+    }
+    
     postMessage({
       status: 'success',
-      geojson: finalGeoJSON,
+      geojson: featureCollection,
       columns: columns,
-      layer: layer, // Echo the layer back to the client
     });
 
   } catch (error) {
     postMessage({
       status: 'error',
-      message: error.message || 'An unknown error occurred while parsing the shapefile.',
-      layer: layer, // Echo layer back on error too
+      message: error.message || 'An unknown error occurred while parsing.',
     });
   }
 };
