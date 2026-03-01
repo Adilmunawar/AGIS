@@ -10,6 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+
 
 export type EditorTool = 'select' | 'multi-select';
 
@@ -25,6 +29,50 @@ const getVisibleColumns = (features: any[]) => {
   }, new Set<string>());
 
   return Array.from(allHeaders);
+};
+
+// A small component to render the preview map for a layer
+const LayerPreviewMap = ({ data }: { data: any }) => {
+    // This component runs inside the map to fit the view to the data
+    const MapEffect = ({ dataToFit }: { dataToFit: any }) => {
+        const map = useMap();
+        useEffect(() => {
+            if (dataToFit && dataToFit.features && dataToFit.features.length > 0) {
+                try {
+                    const geoJsonLayer = L.geoJSON(dataToFit);
+                    map.fitBounds(geoJsonLayer.getBounds().pad(0.1));
+                } catch(e) {
+                    console.error("Could not fit bounds for preview:", e);
+                }
+            }
+        }, [map, dataToFit]);
+        return null;
+    };
+
+    if (!data) return null;
+
+    return (
+        <div className="h-28 rounded-md overflow-hidden relative border bg-muted/30">
+            <MapContainer
+                center={[0, 0]}
+                zoom={1}
+                zoomControl={false}
+                scrollWheelZoom={false}
+                dragging={false}
+                doubleClickZoom={false}
+                touchZoom={false}
+                attributionControl={false}
+                style={{ height: '100%', width: '100%', backgroundColor: 'transparent' }}
+            >
+                <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                />
+                <GeoJSON data={data} style={{ color: "#2563eb", weight: 1.5 }} />
+                <MapEffect dataToFit={data} />
+            </MapContainer>
+        </div>
+    );
 };
 
 
@@ -50,48 +98,45 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: '
 
     return (
         <Card 
-            className={cn(
-                'relative transition-colors duration-200 cursor-pointer',
-                isDragging ? 'border-primary bg-primary/10' : 'bg-background',
-                data && 'bg-green-50 border-green-200'
-            )}
+            className={cn('relative transition-all duration-200 shadow-sm hover:shadow-md', isDragging && 'ring-2 ring-primary')}
             onDragEnter={(e) => handleDrag(e, 'enter')}
             onDragLeave={(e) => handleDrag(e, 'leave')}
             onDragOver={(e) => handleDrag(e, 'over')}
             onDrop={handleDrop}
-            onClick={() => inputRef.current?.click()}
         >
             <input
                 ref={inputRef}
                 type="file"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 multiple
                 accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg,.xml"
                 onChange={(e) => e.target.files && onUpload(Array.from(e.target.files), layer)}
             />
-             <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                     <h4 className="font-semibold">{title}</h4>
+             <CardContent className="p-2">
+                <div className="flex items-center justify-between px-1">
+                     <h4 className="font-semibold text-sm">{title}</h4>
                      {data && <Badge variant="secondary">{data.features.length} Features</Badge>}
                 </div>
-                <div className="flex flex-col items-center justify-center p-4 mt-2 border-2 border-dashed rounded-lg text-muted-foreground">
+                <div className="mt-2">
                     {isProcessing ? (
-                         <>
+                         <div className="h-28 flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg text-muted-foreground bg-secondary/50">
                             <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                            <p className="mt-2 font-semibold">Processing...</p>
-                        </>
+                            <p className="mt-2 font-semibold text-sm">Processing...</p>
+                        </div>
                     ) : data ? (
-                         <div className="flex items-center gap-2 text-green-700">
-                             <FileIcon className="h-5 w-5"/>
-                             <span className="text-sm font-medium">Loaded</span>
-                         </div>
+                         <LayerPreviewMap data={data} />
                     ) : (
-                         <>
+                         <div
+                            className={cn(
+                                "h-28 flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg text-muted-foreground transition-colors",
+                                isDragging ? "bg-primary/10 border-primary" : "bg-background hover:bg-muted/50"
+                            )}
+                         >
                             <UploadCloud className="h-8 w-8" />
-                            <p className="mt-2 text-xs text-center">
+                            <p className="mt-2 text-xs text-center font-semibold">
                                 {isDragging ? "Drop files here" : "Drag & drop or click"}
                             </p>
-                        </>
+                        </div>
                     )}
                 </div>
              </CardContent>

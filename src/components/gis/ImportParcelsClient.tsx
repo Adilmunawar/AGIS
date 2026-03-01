@@ -8,6 +8,7 @@ import { ParcelEditorDocker, EditorTool } from './ParcelEditorDocker';
 import { useGisData } from '@/context/GisDataContext';
 import { EditControl } from 'react-leaflet-draw';
 import * as turf from '@turf/turf';
+import { MapHeader, type BaseLayer } from './MapHeader';
 
 // Set up default Leaflet icon path
 if (typeof window !== 'undefined') {
@@ -18,6 +19,30 @@ if (typeof window !== 'undefined') {
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
   });
 }
+
+const baseLayers: BaseLayer[] = [
+    { 
+      name: 'Google Hybrid', 
+      url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      attribution: '&copy; Google',
+      previewUrl: 'https://picsum.photos/seed/googlehybrid/400/300',
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    },
+    { 
+      name: 'Google Satellite',
+      url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+      attribution: '&copy; Google',
+      previewUrl: 'https://picsum.photos/seed/googlesatellite/400/300',
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    },
+    { 
+      name: 'ESRI Satellite', 
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri',
+      previewUrl: 'https://picsum.photos/seed/esrisat/400/300',
+      subdomains: [],
+    },
+];
 
 export default function ImportParcelsClient() {
   const { toast } = useToast();
@@ -38,6 +63,7 @@ export default function ImportParcelsClient() {
   const [activeTool, setActiveTool] = useState<EditorTool>('select');
   const featureGroupRef = useRef<L.FeatureGroup>(null);
   const mapRef = useRef<L.Map>(null);
+  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
 
   const selectedFeature = useMemo(() => {
     if (selectedFeatureIds.length !== 1) return null;
@@ -179,10 +205,12 @@ export default function ImportParcelsClient() {
           style={{ height: '100%', width: '100%', backgroundColor: '#f0f0f0' }}
           zoomControl={false}
         >
+          <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
           <TileLayer
-            attribution='&copy; <a href="https://www.google.com/maps">Google</a>'
-            url="https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
-            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+            key={activeLayer.url}
+            attribution={activeLayer.attribution}
+            url={activeLayer.url}
+            subdomains={activeLayer.subdomains || ''}
           />
           <FeatureGroup ref={featureGroupRef}>
             <EditControl
@@ -203,7 +231,7 @@ export default function ImportParcelsClient() {
           </FeatureGroup>
           {boundaryData && <GeoJSON key={`boundary-${historyIndex}-${boundaryData.features.length}`} data={boundaryData} style={boundaryStyle} />}
           {parcelsData && <GeoJSON 
-            key={`parcels-${historyIndex}-${parcelsData.features.length}`}
+            key={`parcels-${historyIndex}-${parcelsData.features.length}-${selectedFeatureIds.join('-')}`}
             data={parcelsData} 
             style={getFeatureStyle}
             onEachFeature={(feature, layer) => {
@@ -215,25 +243,27 @@ export default function ImportParcelsClient() {
           {homesData && <GeoJSON key={`homes-${historyIndex}-${homesData.features.length}`} data={homesData} style={homeStyle} />}
         </MapContainer>
       </div>
-      <ParcelEditorDocker 
-        onUpload={handleUpload}
-        isProcessing={isProcessing}
-        boundaryData={boundaryData}
-        parcelsData={parcelsData}
-        homesData={homesData}
-        selectedFeatureIds={selectedFeatureIds}
-        onDeleteSelected={deleteSelectedFeatures}
-        onClearData={clearAllLayers}
-        onFeatureSelect={handleTableRowClick}
-        onExportGeoJSON={handleExportGeoJSON}
-        activeTool={activeTool}
-        onToolSelect={setActiveTool}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={historyIndex > 0}
-        canRedo={historyIndex < history.length - 1}
-        onMerge={mergeSelectedFeatures}
-      />
+      <div className="w-[550px] flex-shrink-0 h-full flex flex-col border-l bg-background">
+        <ParcelEditorDocker 
+            onUpload={handleUpload}
+            isProcessing={isProcessing}
+            boundaryData={boundaryData}
+            parcelsData={parcelsData}
+            homesData={homesData}
+            selectedFeatureIds={selectedFeatureIds}
+            onDeleteSelected={deleteSelectedFeatures}
+            onClearData={clearAllLayers}
+            onFeatureSelect={handleTableRowClick}
+            onExportGeoJSON={handleExportGeoJSON}
+            activeTool={activeTool}
+            onToolSelect={setActiveTool}
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={historyIndex > 0}
+            canRedo={historyIndex < history.length - 1}
+            onMerge={mergeSelectedFeatures}
+        />
+      </div>
     </div>
   );
 }
