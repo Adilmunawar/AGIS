@@ -2,73 +2,70 @@
 import React from 'react'
 import {
   MousePointer, Edit3, PenSquare, Scissors, Combine, Trash2, Undo, Redo,
-  Ruler, CircleDot, Magnet, Download, X
+  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
+export type EditorTool = 'select' | 'edit-vertices' | 'draw-polygon' | 'draw-rectangle' | 'delete' | 'split' | 'merge' | 'undo' | 'redo' | 'measure' | 'snap-vertex' | 'snap-edge';
+
 
 const PropertiesPanel = ({ feature, parcelsCount, onDeleteClick }: { feature: any, parcelsCount: number, onDeleteClick: () => void }) => (
-    <ScrollArea className="h-full">
-        <div className="p-4 text-sm">
-             {parcelsCount > 0 && (
-                <div className="mb-4">
-                    <h4 className="font-semibold mb-2">Boundary Summary</h4>
-                    <div className="grid grid-cols-2 gap-2 items-center bg-muted/50 p-3 rounded-md">
-                        <span className="font-medium text-muted-foreground">Total Parcels</span>
-                        <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
-                    </div>
+    <div className="p-4 text-sm h-full flex flex-col">
+         {parcelsCount > 0 && (
+            <div className="mb-4">
+                <h4 className="font-semibold mb-2">Boundary Summary</h4>
+                <div className="grid grid-cols-2 gap-2 items-center bg-muted/50 p-3 rounded-md">
+                    <span className="font-medium text-muted-foreground">Total Parcels</span>
+                    <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
                 </div>
-            )}
-            
-            <Separator className={cn(parcelsCount === 0 && 'hidden', 'mb-4')}/>
+            </div>
+        )}
+        
+        <Separator className={cn(parcelsCount === 0 && 'hidden', 'mb-4')}/>
 
-            {!feature ? (
-                <div className="text-center text-muted-foreground h-full flex items-center justify-center p-8">
-                    <p>Select a parcel on the map or from the table to view its properties.</p>
+        {!feature ? (
+            <div className="text-center text-muted-foreground flex-1 flex items-center justify-center p-8">
+                <p>Select a parcel on the map or from the table to view its properties.</p>
+            </div>
+        ) : (
+            <div className="space-y-4">
+                 <div>
+                    <h4 className="font-semibold mb-2 text-primary break-all">Parcel ID: {feature.id}</h4>
                 </div>
-            ) : (
-                <div className="space-y-4">
-                     <div>
-                        <h4 className="font-semibold mb-2 text-primary break-all">Parcel ID: {feature.id}</h4>
-                    </div>
-                    <Separator/>
-                    <h4 className="font-semibold mb-2">Attributes</h4>
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                        {Object.entries(feature.properties).map(([key, value]) => (
+                <Separator/>
+                <h4 className="font-semibold mb-2">Attributes</h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    {Object.keys(feature.properties).length > 0 ? (
+                         Object.entries(feature.properties).map(([key, value]) => (
                             <div key={key} className="grid grid-cols-2 gap-2 items-center">
                                 <span className="font-medium text-muted-foreground truncate" title={key}>{key}</span>
                                 <span className="bg-muted/50 px-2 py-1 rounded-md truncate" title={String(value)}>{String(value)}</span>
                             </div>
-                        ))}
-                    </div>
-                    <Separator />
-                    <Button variant="destructive" className="w-full" onClick={onDeleteClick}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Selected Parcel
-                    </Button>
+                        ))
+                    ) : (
+                        <p className="text-muted-foreground text-xs">No attributes found for this parcel.</p>
+                    )}
                 </div>
-            )}
-        </div>
-    </ScrollArea>
+                <Separator />
+                <Button variant="destructive" className="w-full" onClick={onDeleteClick}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Selected Parcel
+                </Button>
+            </div>
+        )}
+    </div>
 );
 
 const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[], selectedId: string | number | null, onRowClick: (feature: any) => void }) => {
-    const tableContainerRef = React.useRef<HTMLDivElement>(null);
     const selectedRowRef = React.useRef<HTMLTableRowElement>(null);
     
-    // Scroll to selected row
     React.useEffect(() => {
         if (selectedRowRef.current) {
-            selectedRowRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-            });
+            selectedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }, [selectedId]);
     
@@ -76,10 +73,15 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
         return <div className="p-4 text-center text-muted-foreground">No parcel data loaded.</div>
     }
 
-    const headers = Object.keys(features[0].properties);
+    const allHeaders = features.reduce((acc, f) => {
+        Object.keys(f.properties).forEach(key => acc.add(key));
+        return acc;
+    }, new Set<string>());
+
+    const headers = Array.from(allHeaders);
 
     return (
-        <div ref={tableContainerRef} className="relative h-full w-full overflow-y-auto">
+        <div className="relative h-full w-full overflow-auto">
             <table className="w-full text-sm border-collapse">
                 <thead className="sticky top-0 bg-secondary z-10 shadow-sm">
                     <tr>
@@ -96,7 +98,7 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
                             className={cn("cursor-pointer border-b border-border hover:bg-muted/50", f.id === selectedId && "bg-primary/10 hover:bg-primary/20")}
                         >
                             <td className="p-2 font-medium break-all">{f.id}</td>
-                            {headers.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h])}>{String(f.properties[h])}</td>)}
+                            {headers.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
                         </tr>
                     ))}
                 </tbody>
@@ -129,13 +131,17 @@ const ExportPanel = ({ hasData, onExportGeoJSON }: { hasData: boolean, onExportG
     </div>
 )
 
-const toolGroups = [
+const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: React.ElementType, implemented: boolean }[] }[] = [
     { name: 'Selection & Navigation', tools: [
         { id: 'select', name: 'Select', icon: MousePointer, implemented: true },
     ]},
-    { name: 'Drawing & Editing', tools: [
-        { id: 'edit', name: 'Edit Vertices', icon: Edit3, implemented: true },
+    { name: 'Drawing', tools: [
         { id: 'draw-polygon', name: 'Draw Polygon', icon: PenSquare, implemented: true },
+        { id: 'draw-rectangle', name: 'Draw Rectangle', icon: RectangleHorizontal, implemented: true },
+    ]},
+    { name: 'Editing', tools: [
+        { id: 'edit-vertices', name: 'Edit Parcels', icon: Edit3, implemented: true },
+        { id: 'delete', name: 'Delete Parcels', icon: Trash2, implemented: true },
     ]},
     { name: 'Geoprocessing', tools: [
         { id: 'split', name: 'Split Parcel', icon: Scissors, implemented: false },
@@ -143,16 +149,19 @@ const toolGroups = [
     ]},
     { name: 'History', tools: [
         { id: 'undo', name: 'Undo', icon: Undo, implemented: false },
-        { id: 'redo', name: 'Redo', icon: Redo, implemented: false },
+        { id: 'redo', name: 'Redo', implemented: false },
     ]},
     { name: 'Measurement & Snapping', tools: [
         { id: 'measure', name: 'Measure', icon: Ruler, implemented: false },
-        { id: 'snap-to-vertex', name: 'Snap to Vertex', icon: CircleDot, implemented: false },
-        { id: 'snap-to-edge', name: 'Snap to Edge', icon: Magnet, implemented: false },
+        { id: 'snap-vertex', name: 'Snap to Vertex', icon: CircleDot, implemented: false },
+        { id: 'snap-edge', name: 'Snap to Edge', icon: Magnet, implemented: false },
     ]},
 ];
 
-export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelected, hasData, onClearData, onFeatureSelect, onExportGeoJSON }: {
+export function ParcelEditorDocker({ 
+    selectedFeature, allFeatures, onDeleteSelected, hasData, onClearData, 
+    onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect 
+}: {
     selectedFeature: any | null;
     allFeatures: any[];
     onDeleteSelected: () => void;
@@ -160,8 +169,9 @@ export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelec
     onClearData: () => void;
     onFeatureSelect: (feature: any) => void;
     onExportGeoJSON: () => void;
+    activeTool: EditorTool;
+    onToolSelect: (tool: EditorTool) => void;
 }) {
-    const [activeTool, setActiveTool] = React.useState('select');
 
     return (
         <div className="w-96 bg-background border-l flex flex-col h-full shadow-2xl">
@@ -183,7 +193,7 @@ export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelec
 
             <div className="flex flex-1 min-h-0">
                 <div className="w-16 bg-muted/30 border-r p-2 flex flex-col items-center gap-2 overflow-y-auto">
-                    <TooltipProvider>
+                    <TooltipProvider delayDuration={0}>
                         {toolGroups.map((group, index) => (
                             <React.Fragment key={group.name}>
                                 <div className="space-y-2">
@@ -194,11 +204,7 @@ export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelec
                                                     variant={activeTool === tool.id ? 'default' : 'ghost'}
                                                     size="icon"
                                                     onClick={() => {
-                                                        if (tool.implemented) {
-                                                            setActiveTool(tool.id)
-                                                            // Note: Activating leaflet-draw controls is handled on the map.
-                                                            // The Draw/Edit/Delete tools are on the map's toolbar.
-                                                        }
+                                                        if (tool.implemented) onToolSelect(tool.id)
                                                     }}
                                                     className="h-10 w-10"
                                                     disabled={!hasData || !tool.implemented}
@@ -228,7 +234,7 @@ export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelec
                             </TabsList>
                         </div>
 
-                        <TabsContent value="properties" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
+                        <TabsContent value="properties" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden overflow-y-auto">
                              <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} onDeleteClick={onDeleteSelected} />
                         </TabsContent>
                         <TabsContent value="table" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
