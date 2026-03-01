@@ -2,7 +2,7 @@
 import React from 'react'
 import {
   MousePointer, Edit3, PenSquare, Scissors, Combine, Trash2, Undo, Redo,
-  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal, MinusSquare
+  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal, MinusSquare, Home
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -13,19 +13,21 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 export type EditorTool = 'select' | 'clear-selection' | 'edit-vertices' | 'draw-polygon' | 'draw-rectangle' | 'delete' | 'split' | 'merge' | 'undo' | 'redo' | 'measure' | 'snap-vertex' | 'snap-edge';
 
 
-const PropertiesPanel = ({ feature, parcelsCount, onDeleteClick }: { feature: any, parcelsCount: number, onDeleteClick: () => void }) => (
+const PropertiesPanel = ({ feature, parcelsCount, homesCount, onDeleteClick }: { feature: any, parcelsCount: number, homesCount: number, onDeleteClick: () => void }) => (
     <div className="p-4 text-sm h-full flex flex-col">
-         {parcelsCount > 0 && (
+         {(parcelsCount > 0 || homesCount > 0) && (
             <div className="mb-4">
                 <h4 className="font-semibold mb-2">Boundary Summary</h4>
-                <div className="grid grid-cols-2 gap-2 items-center bg-muted/50 p-3 rounded-md">
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 items-center bg-muted/50 p-3 rounded-md">
                     <span className="font-medium text-muted-foreground">Total Parcels</span>
                     <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
+                    <span className="font-medium text-muted-foreground">Total Homes</span>
+                    <span className="font-bold text-lg text-right text-green-600">{homesCount.toLocaleString()}</span>
                 </div>
             </div>
         )}
         
-        <Separator className={cn(parcelsCount === 0 && 'hidden', 'mb-4')}/>
+        <Separator className={cn(parcelsCount === 0 && homesCount === 0 && 'hidden', 'mb-4')}/>
 
         {!feature ? (
             <div className="text-center text-muted-foreground flex-1 flex items-center justify-center p-8">
@@ -160,12 +162,13 @@ const toolGroups: { name: string, tools: { id: EditorTool, name: string, icon: R
 ];
 
 export function ParcelEditorDocker({ 
-    selectedFeature, allFeatures, onDeleteSelected, hasData, onClearData, 
+    selectedFeature, allFeatures, homesCount, onDeleteSelected, hasData, onClearData, 
     onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect,
     onUndo, onRedo, canUndo, canRedo
 }: {
     selectedFeature: any | null;
     allFeatures: any[];
+    homesCount: number;
     onDeleteSelected: () => void;
     hasData: boolean;
     onClearData: () => void;
@@ -240,7 +243,7 @@ export function ParcelEditorDocker({
                                                 </TooltipTrigger>
                                                 <TooltipContent side="right">
                                                     <p>{tool.name}</p>
-                                                    {!tool.implemented && <p className="text-xs text-muted-foreground">(Requires geometry engine)</p>}
+                                                    {!tool.implemented && <p className="text-xs text-muted-foreground">(Future Enhancement)</p>}
                                                 </TooltipContent>
                                             </Tooltip>
                                         );
@@ -262,7 +265,7 @@ export function ParcelEditorDocker({
                         </div>
 
                         <TabsContent value="properties" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden overflow-y-auto">
-                             <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} onDeleteClick={onDeleteSelected} />
+                             <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} homesCount={homesCount} onDeleteClick={onDeleteSelected} />
                         </TabsContent>
                         <TabsContent value="table" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
                              <AttributeTable features={allFeatures} selectedId={selectedFeature?.id} onRowClick={onFeatureSelect} />

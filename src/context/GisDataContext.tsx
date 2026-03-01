@@ -31,6 +31,8 @@ interface ImportParcelsState {
   boundaryName: string;
   parcelsData: any | null;
   parcelsName: string;
+  homesData: any | null;
+  homesName: string;
   selectedFeatureId: number | string | null;
   history: any[];
   historyIndex: number;
@@ -66,6 +68,8 @@ const initialImportParcelsState: ImportParcelsState = {
   boundaryName: '',
   parcelsData: null,
   parcelsName: '',
+  homesData: null,
+  homesName: '',
   selectedFeatureId: null,
   history: [],
   historyIndex: -1,

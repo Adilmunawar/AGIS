@@ -7,7 +7,7 @@ import * as shapefile from 'shapefile';
 import { useToast } from '@/hooks/use-toast';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { ParcelEditorDocker, type EditorTool } from './ParcelEditorDocker';
-import { Layers, FileCheck2, UploadCloud, Trash2, Shield } from 'lucide-react';
+import { Layers, FileCheck2, UploadCloud, Trash2, Shield, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
@@ -23,6 +23,7 @@ const baseLayers: BaseLayer[] = [
 
 const boundaryStyle = { color: '#e11d48', weight: 3, fillOpacity: 0.1, fillColor: '#e11d48' };
 const parcelsStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
+const homesStyle = { color: '#22c55e', weight: 1, fillColor: '#86efac', fillOpacity: 0.6 };
 const highlightStyle = { color: '#16a34a', weight: 3, fillColor: '#86efac', fillOpacity: 0.7 };
 
 
@@ -137,19 +138,28 @@ const UploadCard = ({ title, description, icon, fileName, onFilesUploaded, onCle
     </Card>
 );
 
-const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parcelsName, onClearBoundary, onClearParcels, processingState }: {
-    onBoundaryUpload: (f: File[]) => void, onParcelsUpload: (f: File[]) => void, boundaryName: string, parcelsName: string, onClearBoundary: () => void, onClearParcels: () => void, processingState: 'boundary' | 'parcels' | null
+const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, onHomesUpload, boundaryName, parcelsName, homesName, onClearBoundary, onClearParcels, onClearHomes, processingState }: {
+    onBoundaryUpload: (f: File[]) => void,
+    onParcelsUpload: (f: File[]) => void,
+    onHomesUpload: (f: File[]) => void,
+    boundaryName: string,
+    parcelsName: string,
+    homesName: string,
+    onClearBoundary: () => void,
+    onClearParcels: () => void,
+    onClearHomes: () => void,
+    processingState: 'boundary' | 'parcels' | 'homes' | null
 }) => (
     <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 bg-gray-100/50">
-        <div className="w-full max-w-4xl space-y-4">
+        <div className="w-full max-w-6xl space-y-4">
             <header className="text-center">
                 <h1 className="text-3xl font-bold tracking-tight">Import Parcels for Analysis</h1>
-                <p className="text-muted-foreground mt-2">Upload your boundary and parcel shapefiles to begin editing.</p>
+                <p className="text-muted-foreground mt-2">Upload your boundary, parcel, and housing shapefiles to begin editing.</p>
             </header>
-            <div className="grid md:grid-cols-2 gap-6 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
                 <UploadCard
-                    title="Boundary Layer"
-                    description="The shapefile defining the area of interest (e.g., a Tehsil boundary)."
+                    title="1. Boundary Layer"
+                    description="Shapefile defining the area of interest (e.g., Tehsil boundary)."
                     icon={<Shield />}
                     fileName={boundaryName}
                     onFilesUploaded={onBoundaryUpload}
@@ -157,13 +167,23 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
                     isProcessing={processingState === 'boundary'}
                 />
                 <UploadCard
-                    title="Parcels Layer"
-                    description="The shapefile with individual properties (e.g., Mouzas) within the boundary."
+                    title="2. Parcels Layer"
+                    description="Shapefile with individual properties (e.g., Mouzas) within the boundary."
                     icon={<Layers />}
                     fileName={parcelsName}
                     onFilesUploaded={onParcelsUpload}
                     onClear={onClearParcels}
                     isProcessing={processingState === 'parcels'}
+                    disabled={!boundaryName}
+                />
+                <UploadCard
+                    title="3. Homes Layer"
+                    description="Optional shapefile containing individual housing structures."
+                    icon={<Home />}
+                    fileName={homesName}
+                    onFilesUploaded={onHomesUpload}
+                    onClear={onClearHomes}
+                    isProcessing={processingState === 'homes'}
                     disabled={!boundaryName}
                 />
             </div>
@@ -208,9 +228,9 @@ const MapUpdater = ({ parcelsLayer, selectedFeatureId, mapBounds }: { parcelsLay
 // --- MAIN COMPONENT ---
 export default function ImportParcelsClient() {
     const { importParcels, updateToolState, resetToolState, undo, redo } = useGisData();
-    const { boundaryData, parcelsData, boundaryName, parcelsName, selectedFeatureId, history, historyIndex } = importParcels;
+    const { boundaryData, parcelsData, homesData, boundaryName, parcelsName, homesName, selectedFeatureId, history, historyIndex } = importParcels;
     
-    const [processingState, setProcessingState] = useState<'boundary' | 'parcels' | null>(null);
+    const [processingState, setProcessingState] = useState<'boundary' | 'parcels' | 'homes' | null>(null);
     const { toast } = useToast();
     const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
     const [activeTool, setActiveTool] = useState<EditorTool>('select');
@@ -222,16 +242,18 @@ export default function ImportParcelsClient() {
     const measureLayerRef = useRef<L.FeatureGroup>(null);
     const [measureState, setMeasureState] = useState<{ points: L.LatLng[], totalDistance: number }>({ points: [], totalDistance: 0 });
 
-    const handleFileUpload = async (files: File[], type: 'boundary' | 'parcels') => {
+    const handleFileUpload = async (files: File[], type: 'boundary' | 'parcels' | 'homes') => {
         if (files.length === 0) return;
         setProcessingState(type);
         try {
             const { name, data } = await processShapefile(files);
-            toast({ title: `${type === 'boundary' ? 'Boundary' : 'Parcels'} Loaded`, description: `Successfully loaded ${name}.` });
+            toast({ title: `${type.charAt(0).toUpperCase() + type.slice(1)} Layer Loaded`, description: `Successfully loaded ${name}.` });
             if (type === 'boundary') {
                 updateToolState('importParcels', { boundaryName: name, boundaryData: data });
-            } else {
+            } else if (type === 'parcels') {
                 updateToolState('importParcels', { parcelsName: name, parcelsData: data });
+            } else {
+                updateToolState('importParcels', { homesName: name, homesData: data });
             }
         } catch (error: any) {
             toast({ variant: 'destructive', title: "Import Error", description: error.message });
@@ -242,6 +264,7 @@ export default function ImportParcelsClient() {
     
     const handleClearBoundary = () => resetToolState('importParcels');
     const handleClearParcels = () => updateToolState('importParcels', { parcelsData: null, parcelsName: '', selectedFeatureId: null, history: [], historyIndex: -1 });
+    const handleClearHomes = () => updateToolState('importParcels', { homesData: null, homesName: '' });
     const handleSetSelectedFeature = (feature: any) => updateToolState('importParcels', { selectedFeatureId: feature?.id ?? null });
 
     const handleDeleteSelected = () => {
@@ -469,6 +492,7 @@ export default function ImportParcelsClient() {
                         <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
                         
                         {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
+                        {homesData && <GeoJSON data={homesData} style={homesStyle} />}
                         
                         <FeatureGroup ref={featureGroupRef}>
                            {parcelsData && <GeoJSON key={JSON.stringify(parcelsData)} data={parcelsData} style={parcelsStyle} onEachFeature={onEachFeature} />}
@@ -482,10 +506,13 @@ export default function ImportParcelsClient() {
                     <PreAnalysisView
                         onBoundaryUpload={(files) => handleFileUpload(files, 'boundary')}
                         onParcelsUpload={(files) => handleFileUpload(files, 'parcels')}
+                        onHomesUpload={(files) => handleFileUpload(files, 'homes')}
                         boundaryName={boundaryName}
                         parcelsName={parcelsName}
+                        homesName={homesName}
                         onClearBoundary={handleClearBoundary}
                         onClearParcels={handleClearParcels}
+                        onClearHomes={handleClearHomes}
                         processingState={processingState}
                     />
                 )}
@@ -493,6 +520,7 @@ export default function ImportParcelsClient() {
              <ParcelEditorDocker
                 selectedFeature={selectedFeature}
                 allFeatures={parcelsData?.features || []}
+                homesCount={homesData?.features?.length || 0}
                 onDeleteSelected={handleDeleteSelected}
                 hasData={!!parcelsData}
                 onClearData={handleClearBoundary}
