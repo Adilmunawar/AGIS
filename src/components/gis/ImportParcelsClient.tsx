@@ -172,6 +172,7 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
     const [selectedFeature, setSelectedFeature] = useState<any>(null);
     const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
     const mapRef = useRef<L.Map>(null);
+    const boundaryLayerRef = useRef<L.GeoJSON>(null);
     const parcelsLayerRef = useRef<L.GeoJSON>(null);
     const { toast } = useToast();
 
@@ -182,14 +183,16 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
     }, [parcelsData]);
 
     useEffect(() => {
-        if (boundaryData && mapRef.current) {
-            const geoJsonLayer = L.geoJSON(boundaryData);
-            const bounds = geoJsonLayer.getBounds();
+        const map = mapRef.current;
+        const boundaryLayer = boundaryLayerRef.current;
+
+        if (map && boundaryLayer) {
+            const bounds = boundaryLayer.getBounds();
             if (bounds.isValid()) {
-                mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+                map.fitBounds(bounds, { padding: [50, 50] });
             }
         }
-    }, [boundaryData]);
+    }, [boundaryData, parcelsData]); // Rerun when data changes to ensure map zooms correctly
 
     useEffect(() => {
         const layer = parcelsLayerRef.current;
@@ -227,7 +230,7 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
                     <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
                     <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
                     
-                    {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
+                    {boundaryData && <GeoJSON ref={boundaryLayerRef} data={boundaryData} style={boundaryStyle} />}
                     {enrichedParcels && <GeoJSON ref={parcelsLayerRef} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
                 
                     <div className="absolute top-24 left-4 z-[1001]">
