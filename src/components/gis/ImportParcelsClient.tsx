@@ -24,7 +24,7 @@ const baseLayers: BaseLayer[] = [
 
 const boundaryStyle = { color: '#e11d48', weight: 3, fillOpacity: 0 };
 const parcelsStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
-const highlightStyle = { color: '#ef4444', weight: 3, fillColor: '#fecaca', fillOpacity: 0.7 };
+const highlightStyle = { color: '#16a34a', weight: 3, fillColor: '#86efac', fillOpacity: 0.7 };
 
 
 // --- FILE PROCESSING ---

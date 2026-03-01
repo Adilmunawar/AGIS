@@ -88,7 +88,7 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
     const headers = Object.keys(features[0].properties);
 
     return (
-        <ScrollArea className="h-full">
+        <div className="h-full w-full overflow-auto">
             <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-secondary z-10">
                     <tr>
@@ -101,7 +101,7 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
                         <tr
                             key={f.id}
                             onClick={() => onRowClick(f)}
-                            className={cn("cursor-pointer border-b border-border hover:bg-muted/50", f.id === selectedId && "bg-primary/10 hover:bg-primary/20")}
+                            className={cn("cursor-pointer border-b border-border hover:bg-muted/50", f.id === selectedId && "bg-green-100 hover:bg-green-200 dark:bg-green-900/50")}
                         >
                             <td className="p-2">{f.id}</td>
                             {headers.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h])}>{String(f.properties[h])}</td>)}
@@ -109,7 +109,7 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
                     ))}
                 </tbody>
             </table>
-        </ScrollArea>
+        </div>
     )
 }
 
