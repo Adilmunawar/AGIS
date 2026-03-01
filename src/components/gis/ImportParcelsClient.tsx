@@ -171,8 +171,6 @@ const ParcelsUploadStep = ({ onParcelsUploaded, isProcessing, boundaryName, onBa
 const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any, parcelsData: any, onBack: () => void }) => {
     const [selectedFeature, setSelectedFeature] = useState<any>(null);
     const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
-    const mapRef = useRef<L.Map>(null);
-    const boundaryLayerRef = useRef<L.GeoJSON>(null);
     const parcelsLayerRef = useRef<L.GeoJSON>(null);
     const { toast } = useToast();
 
@@ -182,17 +180,20 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
         return { ...parcelsData, features: featuresWithId };
     }, [parcelsData]);
 
-    useEffect(() => {
-        const map = mapRef.current;
-        const boundaryLayer = boundaryLayerRef.current;
-
-        if (map && boundaryLayer) {
-            const bounds = boundaryLayer.getBounds();
-            if (bounds.isValid()) {
-                map.fitBounds(bounds, { padding: [50, 50] });
-            }
+    const mapBounds = useMemo(() => {
+      if (!boundaryData) return undefined;
+      try {
+        const bounds = L.geoJSON(boundaryData).getBounds();
+        if (bounds.isValid()) {
+            return bounds;
         }
-    }, [boundaryData, parcelsData]); // Rerun when data changes to ensure map zooms correctly
+        return undefined;
+      } catch (e) {
+        console.error("Could not calculate bounds from boundary data:", e);
+        return undefined;
+      }
+    }, [boundaryData]);
+
 
     useEffect(() => {
         const layer = parcelsLayerRef.current;
@@ -226,11 +227,16 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
     return (
         <div className="w-full h-full flex">
             <div className="flex-1 relative h-full">
-                <MapContainer ref={mapRef} center={[31.46, 74.38]} zoom={13} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+                <MapContainer 
+                    bounds={mapBounds}
+                    boundsOptions={{ padding: [50, 50] }}
+                    zoomControl={false}
+                    style={{ height: '100%', width: '100%' }}
+                    >
                     <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
                     <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
                     
-                    {boundaryData && <GeoJSON ref={boundaryLayerRef} data={boundaryData} style={boundaryStyle} />}
+                    {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
                     {enrichedParcels && <GeoJSON ref={parcelsLayerRef} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
                 
                     <div className="absolute top-24 left-4 z-[1001]">
