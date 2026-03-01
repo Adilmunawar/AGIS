@@ -23,7 +23,7 @@ const editingTools = [
 ]
 const historyTools = [
   { id: 'undo', name: 'Undo', icon: Undo, implemented: false },
-  { id: 'redo', name: 'Redo', implemented: false },
+  { id: 'redo', name: 'Redo', icon: Redo, implemented: false },
 ]
 const analysisTools = [
   { id: 'measure', name: 'Measure Tool', icon: Ruler, implemented: false },
