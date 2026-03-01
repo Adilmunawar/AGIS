@@ -1,5 +1,5 @@
 'use client'
-import React, { useMemo, useState, useRef, useEffect } from 'react'
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import * as turf from '@turf/turf'
 import {
   MousePointerSquare, Trash2, X, Undo, Redo, UploadCloud, File as FileIcon, Loader2, Layers, Table, Wrench, Combine, Ruler, Download
