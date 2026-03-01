@@ -190,24 +190,24 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
 
                 {/* Main Content Area */}
                 <div className="flex-1 flex flex-col min-w-0">
-                    <Tabs defaultValue="properties" className="flex-1 flex flex-col">
-                        <TabsContent value="properties" className="flex-1 h-0 -mt-0">
-                             <PropertiesPanel feature={selectedFeature} />
-                        </TabsContent>
-                        <TabsContent value="table" className="flex-1 h-0 -mt-0">
-                             <AttributeTable features={allFeatures} selectedId={selectedFeature?.id} onRowClick={onFeatureSelect} />
-                        </TabsContent>
-                        <TabsContent value="export" className="flex-1 h-0 -mt-0">
-                             <ExportPanel />
-                        </TabsContent>
-
-                        <div className="border-t p-2">
+                    <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
+                        <div className="border-b p-2">
                              <TabsList className="grid w-full grid-cols-3 h-9">
                                 <TabsTrigger value="properties">Properties</TabsTrigger>
                                 <TabsTrigger value="table">Table</TabsTrigger>
                                 <TabsTrigger value="export">Export</TabsTrigger>
                             </TabsList>
                         </div>
+
+                        <TabsContent value="properties" className="flex-1 min-h-0 -mt-0">
+                             <PropertiesPanel feature={selectedFeature} />
+                        </TabsContent>
+                        <TabsContent value="table" className="flex-1 min-h-0 -mt-0">
+                             <AttributeTable features={allFeatures} selectedId={selectedFeature?.id} onRowClick={onFeatureSelect} />
+                        </TabsContent>
+                        <TabsContent value="export" className="flex-1 min-h-0 -mt-0">
+                             <ExportPanel />
+                        </TabsContent>
                     </Tabs>
                 </div>
             </div>
