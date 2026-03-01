@@ -15,10 +15,8 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 
-export type EditorTool = 'select' | 'multi-select';
-
 // A small component to render the preview map for a layer
-const LayerPreviewMap = ({ data }: { data: any }) => {
+const LayerPreviewMap = ({ data, style }: { data: any, style?: any }) => {
     // This component runs inside the map to fit the view to the data
     const MapEffect = ({ dataToFit }: { dataToFit: any }) => {
         const map = useMap();
@@ -54,7 +52,7 @@ const LayerPreviewMap = ({ data }: { data: any }) => {
                     url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 />
-                <GeoJSON data={data} style={{ color: "#2563eb", weight: 1.5 }} />
+                <GeoJSON data={data} style={style || { color: "#2563eb", weight: 1.5 }} />
                 <MapEffect dataToFit={data} />
             </MapContainer>
         </div>
@@ -62,7 +60,7 @@ const LayerPreviewMap = ({ data }: { data: any }) => {
 };
 
 
-const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: 'boundary' | 'parcels', title: string, data: any, onUpload: (files: File[], layer: 'boundary' | 'parcels') => void, isProcessing: boolean }) => {
+const FileUploader = ({ layer, title, data, onUpload, isProcessing, previewStyle }: { layer: 'boundary' | 'parcels', title: string, data: any, onUpload: (files: File[], layer: 'boundary' | 'parcels') => void, isProcessing: boolean, previewStyle?: any }) => {
     const [isDragging, setIsDragging] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -110,7 +108,7 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: '
                             <p className="mt-2 font-semibold text-xs">Processing...</p>
                         </div>
                     ) : data ? (
-                         <LayerPreviewMap data={data} />
+                         <LayerPreviewMap data={data} style={previewStyle} />
                     ) : (
                          <div
                             className={cn(
@@ -129,7 +127,6 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: '
         </Card>
     );
 };
-
 
 // Helper to get all columns. The user wants to see all data.
 const getVisibleColumns = (features: any[]) => {
@@ -212,33 +209,60 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
         return parcelsData?.features.find((f: any) => f.id === selectedFeatureIds[0]);
     }, [parcelsData, selectedFeatureIds]);
 
+    const selectedFeatureDetails = useMemo(() => {
+        if (!selectedFeature) return null;
+
+        const areaSqm = turf.area(selectedFeature);
+        const areaAcres = areaSqm * 0.000247105;
+
+        return {
+            ...selectedFeature.properties,
+            "Area (sq. m)": areaSqm.toFixed(2),
+            "Area (acres)": areaAcres.toFixed(4),
+        };
+    }, [selectedFeature]);
+
+
     return (
-        <div className="flex flex-col h-full w-full overflow-hidden">
+        <div className="flex flex-col h-full w-[350px] overflow-hidden">
             <div className="p-2 border-b flex items-center justify-between shrink-0">
-                <h3 className="font-semibold text-sm text-foreground">Parcel Editor</h3>
+                <h3 className="font-semibold text-xs text-foreground">Parcel Editor</h3>
             </div>
             
             <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
-                <div className="border-b px-2.5">
-                    <TabsList className="grid w-full grid-cols-3 h-9">
-                        <TabsTrigger value="layers" className="text-xs"><Layers className="size-3 mr-1"/>Layers</TabsTrigger>
-                        <TabsTrigger value="table" className="text-xs" disabled={!parcelsData}><TableIcon className="size-3 mr-1"/>Table</TabsTrigger>
-                        <TabsTrigger value="tools" className="text-xs" disabled={!parcelsData}><Wrench className="size-3 mr-1"/>Tools</TabsTrigger>
+                <div className="border-b px-2">
+                    <TabsList className="grid w-full grid-cols-3 h-8">
+                        <TabsTrigger value="layers" className="text-xs h-6"><Layers className="size-3 mr-1"/>Layers</TabsTrigger>
+                        <TabsTrigger value="table" className="text-xs h-6" disabled={!parcelsData}><TableIcon className="size-3 mr-1"/>Table</TabsTrigger>
+                        <TabsTrigger value="tools" className="text-xs h-6" disabled={!parcelsData}><Wrench className="size-3 mr-1"/>Tools</TabsTrigger>
                     </TabsList>
                 </div>
 
-                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2.5 data-[state=inactive]:hidden space-y-2">
-                    <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} />
-                    <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} />
+                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2 data-[state=inactive]:hidden space-y-2">
+                    <FileUploader 
+                        layer="boundary" 
+                        title="Main Boundary" 
+                        data={boundaryData} 
+                        onUpload={onUpload} 
+                        isProcessing={isProcessing['boundary']} 
+                        previewStyle={{ color: "#dc2626", weight: 1.5 }}
+                    />
+                    <FileUploader 
+                        layer="parcels" 
+                        title="Parcels Layer" 
+                        data={parcelsData} 
+                        onUpload={onUpload} 
+                        isProcessing={isProcessing['parcels']} 
+                    />
                 </TabsContent>
 
                 <TabsContent value="table" className="flex-1 min-h-0 overflow-auto data-[state=inactive]:hidden">
-                    <div className="p-2 h-full">
-                        <table className="w-max min-w-full text-[10px] border-collapse">
+                    <div className="p-1 h-full">
+                        <table className="w-max min-w-full text-[9px] border-collapse">
                             <thead className="sticky top-0 bg-background z-10 shadow-sm">
                                 <tr>
                                     {visibleColumns.map(h => 
-                                        <th key={h} className="p-1 font-semibold text-left border-b truncate min-w-[70px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
+                                        <th key={h} className="p-1 font-semibold text-left border-b truncate min-w-[60px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
                                             <div className="flex items-center gap-1">
                                                 {h}
                                                 {sortConfig?.key === h && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -263,23 +287,23 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     </div>
                 </TabsContent>
 
-                <TabsContent value="tools" className="flex-1 min-h-0 overflow-y-auto p-2.5 data-[state=inactive]:hidden">
+                <TabsContent value="tools" className="flex-1 min-h-0 overflow-y-auto p-2 data-[state=inactive]:hidden">
                     <div className="grid grid-cols-2 gap-1.5">
-                        <Button size="sm" variant={activeTool === 'multi-select' ? 'default' : 'outline'} onClick={() => onToolSelect(activeTool === 'select' ? 'multi-select' : 'select')} className="text-xs h-8"><MousePointerSquare className="mr-1.5 h-3.5 w-3.5"/> Multi-Select</Button>
-                        <Button size="sm" variant="outline" onClick={onMerge} disabled={selectedFeatureIds.length < 2} className="text-xs h-8"><Combine className="mr-1.5 h-3.5 w-3.5"/> Merge Parcels</Button>
-                        <Button size="sm" variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1} className="text-xs h-8"><Ruler className="mr-1.5 h-3.5 w-3.5"/> Measure Area</Button>
-                        <Button size="sm" variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData} className="text-xs h-8"><Download className="mr-1.5 h-3.5 w-3.5"/> Export GeoJSON</Button>
-                        <Button size="sm" variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0} className="text-xs h-8"><Trash2 className="mr-1.5 h-3.5 w-3.5"/> Delete Selected</Button>
-                        <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs h-8" onClick={onClearData}><X className="mr-1.5 h-3.5 w-3.5"/> Clear All Data</Button>
-                        <Button size="sm" variant="outline" onClick={onUndo} disabled={!canUndo} className="text-xs h-8"><Undo className="mr-1.5 h-3.5 w-3.5"/> Undo</Button>
-                        <Button size="sm" variant="outline" onClick={onRedo} disabled={!canRedo} className="text-xs h-8"><Redo className="mr-1.5 h-3.5 w-3.5"/> Redo</Button>
+                        <Button size="sm" variant={activeTool === 'multi-select' ? 'default' : 'outline'} onClick={() => onToolSelect(activeTool === 'select' ? 'multi-select' : 'select')} className="text-xs h-7"><MousePointerSquare className="mr-1.5 h-3 w-3"/> Multi-Select</Button>
+                        <Button size="sm" variant="outline" onClick={onMerge} disabled={selectedFeatureIds.length < 2} className="text-xs h-7"><Combine className="mr-1.5 h-3 w-3"/> Merge Parcels</Button>
+                        <Button size="sm" variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1} className="text-xs h-7"><Ruler className="mr-1.5 h-3 w-3"/> Measure Area</Button>
+                        <Button size="sm" variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData} className="text-xs h-7"><Download className="mr-1.5 h-3 w-3"/> Export GeoJSON</Button>
+                        <Button size="sm" variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0} className="text-xs h-7"><Trash2 className="mr-1.5 h-3 w-3"/> Delete Selected</Button>
+                        <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs h-7" onClick={onClearData}><X className="mr-1.5 h-3 w-3"/> Clear All Data</Button>
+                        <Button size="sm" variant="outline" onClick={onUndo} disabled={!canUndo} className="text-xs h-7"><Undo className="mr-1.5 h-3 w-3"/> Undo</Button>
+                        <Button size="sm" variant="outline" onClick={onRedo} disabled={!canRedo} className="text-xs h-7"><Redo className="mr-1.5 h-3 w-3"/> Redo</Button>
                     </div>
                 </TabsContent>
             </Tabs>
 
             <Card className="shrink-0 border-t rounded-t-none border-x-0 border-b-0 max-h-32">
                 <CardHeader className="p-1.5 border-b">
-                    <CardTitle className="text-xs">
+                    <CardTitle className="text-[10px] font-bold">
                         {selectedFeatureIds.length > 1 
                             ? `${selectedFeatureIds.length} Features Selected`
                             : "Selected Feature"
@@ -287,16 +311,18 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-2 text-[10px] overflow-y-auto">
-                    {!selectedFeature ? (
-                         <p className="text-muted-foreground text-center text-[10px] pt-4">
-                            {selectedFeatureIds.length > 1 ? `Click a single feature to see its properties.` : `No feature selected`}
-                         </p>
+                    {!selectedFeatureDetails ? (
+                         <div className="flex items-center justify-center h-full text-muted-foreground text-[10px] pt-4">
+                            <p>
+                                {selectedFeatureIds.length > 1 ? `Click a single feature to see its properties.` : `No feature selected`}
+                            </p>
+                         </div>
                     ) : (
-                        <div className="space-y-1.5">
-                            {Object.entries(selectedFeature.properties).map(([key, value]) => (
-                                <div key={key} className="leading-tight">
-                                    <span className="font-semibold text-muted-foreground/90">{key}: </span>
-                                    <span className="text-foreground font-medium break-words">{String(value)}</span>
+                        <div className="space-y-0.5">
+                            {Object.entries(selectedFeatureDetails).map(([key, value]) => (
+                                <div key={key} className="leading-tight flex">
+                                    <span className="font-semibold text-muted-foreground/90 w-1/3 truncate pr-2">{key}:</span>
+                                    <span className="text-foreground font-medium break-words w-2/3">{String(value)}</span>
                                 </div>
                             ))}
                         </div>
@@ -306,4 +332,3 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
         </div>
     )
 }
-    
