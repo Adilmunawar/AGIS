@@ -1,77 +1,47 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import L from 'leaflet';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { MapContainer, TileLayer, GeoJSON, FeatureGroup } from 'react-leaflet';
+import L, { LatLngBounds } from 'leaflet';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, Files, CheckCircle, Database, Map, AlertTriangle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { uploadMauzaData } from '@/firebase/services/gis-upload';
-import * as turf from '@turf/turf';
+import { ParcelEditorDocker, EditorTool } from './ParcelEditorDocker';
+import { useGisData } from '@/context/GisDataContext';
+import { EditControl } from 'react-leaflet-draw';
+import { feature } from '@turf/turf';
 
-
-const schemaMappingFormSchema = z.object({
-  mauzaName: z.string().min(1, 'You must map the Mauza Name column.'),
-  plotNumber: z.string().min(1, 'You must map the Plot Number column.'),
-  landUse: z.string().min(1, 'You must map the Land Use column.'),
-  area: z.string().min(1, 'You must map the Area column.'),
-});
-
-type SchemaMappingFormValues = z.infer<typeof schemaMappingFormSchema>;
-
+// Set up default Leaflet icon path
+if (typeof window !== 'undefined') {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  });
+}
 
 export default function ImportParcelsClient() {
-  const [step, setStep] = useState<number>(1);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isCommitting, setIsCommitting] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [geoJsonData, setGeoJsonData] = useState<any | null>(null);
-  const [dbfColumns, setDbfColumns] = useState<string[]>([]);
-  const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
+  const { 
+    importParcels: { boundaryData, parcelsData, homesData, selectedFeatureId, history, historyIndex }, 
+    updateToolState,
+    resetToolState,
+    undo,
+    redo
+  } = useGisData();
+  
+  const [isProcessing, setIsProcessing] = useState({ boundary: false, parcels: false, homes: false });
+  const workerRef = useRef<Worker | null>(null);
 
-  const form = useForm<SchemaMappingFormValues>({
-    resolver: zodResolver(schemaMappingFormSchema),
-    defaultValues: { mauzaName: '', plotNumber: '', landUse: '', area: '' },
-  });
+  const [activeTool, setActiveTool] = useState<EditorTool>('select');
+  const featureGroupRef = useRef<L.FeatureGroup>(null);
+  const mapRef = useRef<L.Map>(null);
 
-  useEffect(() => {
-    workerRef.current = new Worker('/workers/shapefileWorker.js');
-    workerRef.current.onmessage = (event: MessageEvent) => {
-      setIsProcessing(false);
-      const { geojson, columns, error } = event.data;
-      if (error) {
-        toast({ variant: 'destructive', title: 'Shapefile Parsing Error', description: error });
-        return;
-      }
+  const selectedFeature = useMemo(() => {
+    return parcelsData?.features.find((f: any) => f.id === selectedFeatureId) || null;
+  }, [parcelsData, selectedFeatureId]);
 
-      if (!geojson) {
-        toast({
-          variant: 'destructive',
-          title: 'Processing Error',
-          description: 'Failed to parse the shapefile. Please ensure it is valid and try again.',
-        });
-        return;
-      }
-      
-      setGeoJsonData(geojson);
-      setDbfColumns(columns || []);
-      setStep(2);
-      toast({ title: 'Shapefile Processed', description: `Found ${geojson.features?.length || 0} features.` });
-    };
-    return () => {
-      workerRef.current?.terminate();
-    };
-  }, [toast]);
 
-  const handleFileChange = (files: File[] | null) => {
+  const handleUpload = (files: File[], layer: 'boundary' | 'parcels' | 'homes') => {
     if (!files || files.length === 0) return;
 
     const hasShp = files.some(f => f.name.toLowerCase().endsWith('.shp'));
@@ -82,243 +52,186 @@ export default function ImportParcelsClient() {
       return;
     }
 
-    setIsProcessing(true);
-    toast({ title: 'Processing Shapefile...', description: 'Zipping and parsing files in browser memory.' });
-    workerRef.current?.postMessage(files);
+    setIsProcessing(prev => ({ ...prev, [layer]: true }));
+    toast({ title: `Processing ${layer}...`, description: 'Parsing files in browser memory.' });
+    workerRef.current?.postMessage({ files, layer });
   };
+  
+  useEffect(() => {
+    workerRef.current = new Worker('/workers/shapefileWorker.js');
+    workerRef.current.onmessage = (event: MessageEvent) => {
+      const { status, geojson, columns, error, layer: processedLayer } = event.data;
+      
+      if (!processedLayer) return;
 
-  const handleCommitToFirebase = async (mappedSchema: SchemaMappingFormValues) => {
-    if (!geoJsonData || !mappedSchema.mauzaName) {
-      toast({ variant: 'destructive', title: 'Missing Data', description: 'Cannot commit without GeoJSON data and a mapped Mauza name.' });
-      return;
-    }
+      setIsProcessing(prev => ({ ...prev, [processedLayer]: false }));
 
-    setIsCommitting(true);
-    try {
-      const firstFeature = geoJsonData.features[0];
-      if (!firstFeature?.properties) {
-        throw new Error("The shapefile's attribute table is empty or invalid.");
+      if (error) {
+        toast({ variant: 'destructive', title: `Error Processing ${processedLayer}`, description: error });
+        return;
       }
       
-      const mauzaNameValue = firstFeature.properties[mappedSchema.mauzaName] as string;
-      if (!mauzaNameValue) {
-        throw new Error(`The mapped 'Mauza Name' column '${mappedSchema.mauzaName}' was not found on the feature.`);
+      if (status === 'success' && geojson) {
+        const dataKey = `${processedLayer}Data` as 'boundaryData' | 'parcelsData' | 'homesData';
+        const nameKey = `${processedLayer}Name` as 'boundaryName' | 'parcelsName' | 'homesName';
+        
+        let featureIdCounter = 0;
+        geojson.features.forEach((feature: any) => {
+          if (!feature.id) {
+            feature.id = `${processedLayer}-${Date.now()}-${featureIdCounter++}`;
+          }
+        });
+
+        const name = (geojson.features[0]?.properties?.name as string) || (geojson.features[0]?.properties?.Mauza as string) || `${processedLayer}-layer.shp`
+
+        updateToolState('importParcels', {
+          [dataKey]: geojson,
+          [nameKey]: name,
+        }, {manageHistory: processedLayer === 'parcels'});
+
+
+        toast({ title: `${processedLayer.charAt(0).toUpperCase() + processedLayer.slice(1)} Layer Processed`, description: `Found ${geojson.features.length} features.` });
+      } else {
+         toast({ variant: 'destructive', title: 'Processing Error', description: 'Failed to parse the shapefile. Please ensure it is valid.' });
       }
+    };
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, [toast, updateToolState]);
 
-      // 1. Calculate master bounding box using Turf.js
-      const bbox = turf.bbox(geoJsonData) as [number, number, number, number];
-
-      // 2. Call the upload service
-      const result = await uploadMauzaData(mauzaNameValue, geoJsonData, firstFeature.properties, bbox);
-
-      toast({
-        title: 'Commit Successful',
-        description: `Mauza '${result.docId}' has been saved to Firebase.`,
-      });
-      setStep(3); // Advance to success screen
-
-    } catch (error: any) {
-      console.error("Firebase commit error:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Commit Failed',
-        description: error.message || 'An unknown error occurred during the upload process.',
-      });
-    } finally {
-      setIsCommitting(false);
+  const boundsToFly = useMemo(() => {
+    if (!parcelsData && !boundaryData) return null;
+    const bounds = new L.LatLngBounds([]);
+    if (parcelsData) {
+      const geoJsonLayer = L.geoJSON(parcelsData);
+      bounds.extend(geoJsonLayer.getBounds());
     }
-  };
-
-
-  const onDrag = useCallback((event: React.DragEvent, type: 'enter' | 'leave' | 'over') => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (isProcessing) return;
-    if (type === 'enter' || type === 'over') setIsDragging(true);
-    else setIsDragging(false);
-  }, [isProcessing]);
-
-  const onDrop = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (isProcessing) return;
-    setIsDragging(false);
-    handleFileChange(Array.from(event.dataTransfer.files));
-  }, [isProcessing]);
-
-
-  const renderStepContent = () => {
-    switch (step) {
-      case 1:
-        return (
-          <>
-            <CardHeader className="text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">
-                <Files className="h-8 w-8 text-primary" />
-              </div>
-              <CardTitle>Step 1: Upload Shapefile Components</CardTitle>
-              <CardDescription>Select all parts of your shapefile (.shp, .dbf, .shx, etc.).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div
-                onDragEnter={(e) => onDrag(e, 'enter')}
-                onDragLeave={(e) => onDrag(e, 'leave')}
-                onDragOver={(e) => onDrag(e, 'over')}
-                onDrop={onDrop}
-                className={cn(
-                  'relative flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-lg transition-colors duration-200',
-                  isProcessing ? 'cursor-not-allowed bg-gray-100' : isDragging ? 'border-primary bg-primary/10' : 'border-gray-300 bg-gray-50'
-                )}
-              >
-                <input
-                  type="file"
-                  id="file-upload"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  multiple
-                  accept=".shp,.shx,.dbf,.prj,.cpg,.sbn,.sbx,.xml"
-                  onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
-                  disabled={isProcessing}
-                />
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                    <p className="mt-4 text-center text-muted-foreground">Processing files in memory...</p>
-                  </>
-                ) : (
-                  <>
-                    <Files className={cn("h-12 w-12", isDragging ? 'text-primary' : 'text-gray-400')} />
-                    <p className="mt-4 text-center text-muted-foreground">
-                      {isDragging ? "Drop files here" : "Drag & drop shapefile components, or click to browse"}
-                    </p>
-                  </>
-                )}
-              </div>
-               <div className="mt-6 flex items-start gap-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
-                    <AlertTriangle className="h-6 w-6 flex-shrink-0 text-amber-600" />
-                    <div className="text-sm text-amber-800">
-                        <h4 className="font-semibold">Important</h4>
-                        <p className="mt-1">Please ensure your shapefile is projected in **WGS 84 (Latitude/Longitude)**. The system does not currently re-project other coordinate systems.</p>
-                    </div>
-                </div>
-            </CardContent>
-          </>
-        );
-      case 2:
-        return (
-          <>
-            <CardHeader>
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-4">
-                <Map className="h-8 w-8 text-primary" />
-              </div>
-              <CardTitle>Step 2: Map Attribute Schema</CardTitle>
-              <CardDescription>Tell the system which columns in your data correspond to the required fields.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleCommitToFirebase)} className="space-y-6">
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <FormField control={form.control} name="mauzaName" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mauza Name Column</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {dbfColumns.map((col) => (
-                              <SelectItem key={col} value={col}>{col}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="plotNumber" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Plot Number Column</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {dbfColumns.map((col) => (
-                              <SelectItem key={col} value={col}>{col}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="landUse" render={({ field }) => (
-                       <FormItem>
-                        <FormLabel>Land Use Column</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {dbfColumns.map((col) => (
-                              <SelectItem key={col} value={col}>{col}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="area" render={({ field }) => (
-                       <FormItem>
-                        <FormLabel>Area (Sqm) Column</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
-                          </FormControl>
-                           <SelectContent>
-                            {dbfColumns.map((col) => (
-                              <SelectItem key={col} value={col}>{col}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  </div>
-                   <Button type="submit" className="w-full h-11 text-base" disabled={isCommitting}>
-                    {isCommitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Database className="mr-2 h-5 w-5"/>}
-                    {isCommitting ? 'Committing to Database...' : 'Commit to Firebase'}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </>
-        );
-        case 3:
-            return (
-                 <>
-                    <CardHeader className="text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-500/20 to-green-500/5 mb-4">
-                            <CheckCircle className="h-8 w-8 text-green-600" />
-                        </div>
-                        <CardTitle className="text-2xl">Upload Successful</CardTitle>
-                        <CardDescription>Your Mauza data has been successfully imported and saved to the AGIS database.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col items-center gap-4">
-                        <p className="text-center text-muted-foreground">You can now query this data in other parts of the application or import another dataset.</p>
-                        <Button onClick={() => { setStep(1); setGeoJsonData(null); setDbfColumns([]); form.reset(); }} className="w-full max-w-sm">
-                            Import Another Shapefile
-                        </Button>
-                    </CardContent>
-                </>
-            )
-      default:
-        return null;
+     if (boundaryData) {
+      const geoJsonLayer = L.geoJSON(boundaryData);
+      bounds.extend(geoJsonLayer.getBounds());
     }
-  };
+    return bounds.isValid() ? bounds : null;
+  }, [parcelsData, boundaryData]);
 
+  useEffect(() => {
+    if (mapRef.current && boundsToFly) {
+      mapRef.current.flyToBounds(boundsToFly, { padding: [50, 50] });
+    }
+  }, [boundsToFly]);
+
+  const handleFeatureClick = useCallback((feature: any) => {
+      updateToolState('importParcels', { selectedFeatureId: feature.id });
+      if (mapRef.current && feature.geometry) {
+        const featureLayer = L.geoJSON(feature);
+        mapRef.current.flyToBounds(featureLayer.getBounds(), { maxZoom: 18 });
+      }
+  }, [updateToolState]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedFeatureId || !parcelsData) return;
+    const newFeatures = parcelsData.features.filter((f: any) => f.id !== selectedFeatureId);
+    const newParcelsData = { ...parcelsData, features: newFeatures };
+    updateToolState('importParcels', { parcelsData: newParcelsData, selectedFeatureId: null });
+    toast({ title: 'Feature Deleted', description: `Feature ID ${selectedFeatureId} removed.` });
+  }, [selectedFeatureId, parcelsData, updateToolState, toast]);
+
+  const handleExportGeoJSON = () => {
+    if (!parcelsData) return;
+    const blob = new Blob([JSON.stringify(parcelsData)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "edited_parcels.geojson";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: 'Export Successful', description: 'Parcels exported to edited_parcels.geojson' });
+  };
+  
+  const handleClearData = () => {
+    resetToolState('importParcels');
+    if (mapRef.current) {
+        mapRef.current.flyTo([30.3753, 69.3451], 6); // Fly back to Pakistan overview
+    }
+    toast({ title: 'Data Cleared', description: 'All imported data has been removed.' });
+  }
+
+  const boundaryStyle = { color: "#dc2626", weight: 3, fill: false };
+  const parcelStyle = { color: "#2563eb", weight: 2, fillOpacity: 0.1 };
+  const homeStyle = { color: "#16a34a", weight: 1.5, fillOpacity: 0.6 };
+  const selectedStyle = { color: "#e11d48", weight: 4, fillOpacity: 0.3 };
+  
   return (
-    <div className="flex items-center justify-center h-full bg-gray-100/50 p-4 sm:p-8">
-      <Card className="w-full max-w-3xl shadow-lg transition-all duration-300">
-        {renderStepContent()}
-      </Card>
+    <div className="flex h-full w-full">
+      <div className="flex-1 relative">
+        <MapContainer
+          ref={mapRef}
+          center={[30.3753, 69.3451]} // Center of Pakistan
+          zoom={6}
+          style={{ height: '100%', width: '100%', backgroundColor: '#f0f0f0' }}
+          zoomControl={false}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.google.com/maps">Google</a>'
+            url="https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+          />
+          <FeatureGroup ref={featureGroupRef}>
+            <EditControl
+              position="topright"
+              draw={{
+                polygon: true,
+                polyline: false,
+                rectangle: true,
+                circle: false,
+                marker: false,
+                circlemarker: false,
+              }}
+              edit={{
+                edit: true,
+                remove: true,
+              }}
+            />
+          </FeatureGroup>
+          {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
+          {parcelsData && <GeoJSON 
+            key={JSON.stringify(parcelsData)} // Force re-render on data change
+            data={parcelsData} 
+            style={parcelStyle} 
+            onEachFeature={(feature, layer) => {
+                layer.on({
+                    click: () => handleFeatureClick(feature)
+                });
+            }}
+          />}
+          {homesData && <GeoJSON data={homesData} style={homeStyle} />}
+          {selectedFeature && <GeoJSON key={selectedFeature.id} data={selectedFeature} style={selectedStyle} />}
+
+        </MapContainer>
+      </div>
+      <ParcelEditorDocker 
+        onUpload={handleUpload}
+        isProcessing={isProcessing}
+        boundaryName={useGisData().importParcels.boundaryName}
+        parcelsName={useGisData().importParcels.parcelsName}
+        homesName={useGisData().importParcels.homesName}
+        selectedFeature={selectedFeature}
+        allFeatures={parcelsData?.features || []}
+        homesCount={homesData?.features?.length || 0}
+        onDeleteSelected={handleDeleteSelected}
+        hasData={!!boundaryData || !!parcelsData || !!homesData}
+        onClearData={handleClearData}
+        onFeatureSelect={handleFeatureClick}
+        onExportGeoJSON={handleExportGeoJSON}
+        activeTool={activeTool}
+        onToolSelect={setActiveTool}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={historyIndex > 0}
+        canRedo={historyIndex < history.length - 1}
+      />
     </div>
   );
 }
