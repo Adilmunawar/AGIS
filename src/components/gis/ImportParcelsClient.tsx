@@ -51,10 +51,20 @@ export default function ImportParcelsClient() {
         toast({ variant: 'destructive', title: 'Shapefile Parsing Error', description: error });
         return;
       }
+
+      if (!geojson) {
+        toast({
+          variant: 'destructive',
+          title: 'Processing Error',
+          description: 'Failed to parse the shapefile. Please ensure it is valid and try again.',
+        });
+        return;
+      }
+      
       setGeoJsonData(geojson);
       setDbfColumns(columns || []);
       setStep(2);
-      toast({ title: 'Shapefile Processed', description: `Found ${geojson.features.length} features.` });
+      toast({ title: 'Shapefile Processed', description: `Found ${geojson.features?.length || 0} features.` });
     };
     return () => {
       workerRef.current?.terminate();
