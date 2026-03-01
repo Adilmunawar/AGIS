@@ -243,7 +243,7 @@ export default function ImportParcelsClient() {
           {homesData && <GeoJSON key={`homes-${historyIndex}-${homesData.features.length}`} data={homesData} style={homeStyle} />}
         </MapContainer>
       </div>
-      <div className="w-[550px] flex-shrink-0 h-full flex flex-col border-l bg-background">
+      <div className="w-[450px] flex-shrink-0 h-full flex flex-col border-l bg-background">
         <ParcelEditorDocker 
             onUpload={handleUpload}
             isProcessing={isProcessing}

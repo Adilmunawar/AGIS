@@ -17,20 +17,6 @@ import 'leaflet/dist/leaflet.css'
 
 export type EditorTool = 'select' | 'multi-select';
 
-// Helper to get all columns. The user wants to see all data.
-const getVisibleColumns = (features: any[]) => {
-  if (!features || features.length === 0) return [];
-  
-  const allHeaders = features.reduce((acc, f) => {
-    if (f.properties) {
-      Object.keys(f.properties).forEach(key => acc.add(key));
-    }
-    return acc;
-  }, new Set<string>());
-
-  return Array.from(allHeaders);
-};
-
 // A small component to render the preview map for a layer
 const LayerPreviewMap = ({ data }: { data: any }) => {
     // This component runs inside the map to fit the view to the data
@@ -52,7 +38,7 @@ const LayerPreviewMap = ({ data }: { data: any }) => {
     if (!data) return null;
 
     return (
-        <div className="h-28 rounded-md overflow-hidden relative border bg-muted/30">
+        <div className="h-24 rounded-md overflow-hidden relative border bg-muted/30">
             <MapContainer
                 center={[0, 0]}
                 zoom={1}
@@ -114,25 +100,25 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: '
             />
              <CardContent className="p-2">
                 <div className="flex items-center justify-between px-1">
-                     <h4 className="font-semibold text-sm">{title}</h4>
+                     <h4 className="font-semibold text-xs">{title}</h4>
                      {data && <Badge variant="secondary">{data.features.length} Features</Badge>}
                 </div>
                 <div className="mt-2">
                     {isProcessing ? (
-                         <div className="h-28 flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg text-muted-foreground bg-secondary/50">
-                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                            <p className="mt-2 font-semibold text-sm">Processing...</p>
+                         <div className="h-24 flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg text-muted-foreground bg-secondary/50">
+                            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                            <p className="mt-2 font-semibold text-xs">Processing...</p>
                         </div>
                     ) : data ? (
                          <LayerPreviewMap data={data} />
                     ) : (
                          <div
                             className={cn(
-                                "h-28 flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg text-muted-foreground transition-colors",
+                                "h-24 flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg text-muted-foreground transition-colors",
                                 isDragging ? "bg-primary/10 border-primary" : "bg-background hover:bg-muted/50"
                             )}
                          >
-                            <UploadCloud className="h-8 w-8" />
+                            <UploadCloud className="h-6 w-6" />
                             <p className="mt-2 text-xs text-center font-semibold">
                                 {isDragging ? "Drop files here" : "Drag & drop or click"}
                             </p>
@@ -142,6 +128,21 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing }: { layer: '
              </CardContent>
         </Card>
     );
+};
+
+
+// Helper to get all columns. The user wants to see all data.
+const getVisibleColumns = (features: any[]) => {
+  if (!features || features.length === 0) return [];
+  
+  const allHeaders = features.reduce((acc, f) => {
+    if (f.properties) {
+      Object.keys(f.properties).forEach(key => acc.add(key));
+    }
+    return acc;
+  }, new Set<string>());
+
+  return Array.from(allHeaders);
 };
 
 export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parcelsData, homesData, selectedFeatureIds, onDeleteSelected, onClearData, onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect, onUndo, onRedo, canUndo, canRedo, onMerge }) {
@@ -213,20 +214,20 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
     return (
         <div className="flex flex-col h-full w-full overflow-hidden">
-            <div className="p-3 border-b flex items-center justify-between shrink-0">
-                <h3 className="font-bold text-lg text-foreground">Parcel Editor</h3>
+            <div className="p-2.5 border-b flex items-center justify-between shrink-0">
+                <h3 className="font-semibold text-base text-foreground">Parcel Editor</h3>
             </div>
             
             <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
                 <div className="border-b px-2.5">
-                    <TabsList className="grid w-full grid-cols-3 h-10">
-                        <TabsTrigger value="layers"><Layers className="w-4 h-4 mr-1.5"/>Layers</TabsTrigger>
-                        <TabsTrigger value="table" disabled={!parcelsData}><TableIcon className="w-4 h-4 mr-1.5"/>Table</TabsTrigger>
-                        <TabsTrigger value="tools" disabled={!parcelsData}><Wrench className="w-4 h-4 mr-1.5"/>Tools</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 h-9">
+                        <TabsTrigger value="layers" className="text-xs"><Layers className="size-3.5 mr-1.5"/>Layers</TabsTrigger>
+                        <TabsTrigger value="table" className="text-xs" disabled={!parcelsData}><TableIcon className="size-3.5 mr-1.5"/>Table</TabsTrigger>
+                        <TabsTrigger value="tools" className="text-xs" disabled={!parcelsData}><Wrench className="size-3.5 mr-1.5"/>Tools</TabsTrigger>
                     </TabsList>
                 </div>
 
-                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden space-y-4">
+                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-3 data-[state=inactive]:hidden space-y-3">
                     <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} />
                     <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} />
                     <FileUploader layer="homes" title="Homes Layer" data={homesData} onUpload={onUpload} isProcessing={isProcessing['homes']} />
@@ -238,7 +239,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                             <thead className="sticky top-0 bg-background z-10 shadow-sm">
                                 <tr>
                                     {visibleColumns.map(h => 
-                                        <th key={h} className="p-1.5 font-semibold text-left border-b truncate min-w-[100px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
+                                        <th key={h} className="p-1 font-semibold text-left border-b truncate min-w-[80px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
                                             <div className="flex items-center gap-1">
                                                 {h}
                                                 {sortConfig?.key === h && (sortConfig.direction === 'asc' ? '▲' : '▼')}
@@ -255,7 +256,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                                         onClick={() => onFeatureSelect(f)}
                                         className={cn("cursor-pointer border-b border-border hover:bg-muted/50", selectedFeatureIds.includes(f.id) && "bg-primary/10 hover:bg-primary/20")}
                                     >
-                                        {visibleColumns.map(h => <td key={h} className="p-1.5 truncate" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
+                                        {visibleColumns.map(h => <td key={h} className="p-1 truncate" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
                                     </tr>
                                 ))}
                             </tbody>
@@ -263,40 +264,40 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     </div>
                 </TabsContent>
 
-                <TabsContent value="tools" className="flex-1 min-h-0 overflow-y-auto p-4 data-[state=inactive]:hidden">
-                    <div className="grid grid-cols-2 gap-3">
-                        <Button variant={activeTool === 'multi-select' ? 'default' : 'outline'} onClick={() => onToolSelect(activeTool === 'select' ? 'multi-select' : 'select')}><MousePointerSquare className="mr-2"/> Multi-Select</Button>
-                        <Button variant="outline" onClick={onMerge} disabled={selectedFeatureIds.length < 2}><Combine className="mr-2"/> Merge Parcels</Button>
-                        <Button variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1}><Ruler className="mr-2"/> Measure Area</Button>
-                        <Button variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData}><Download className="mr-2"/> Export GeoJSON</Button>
-                        <Button variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0}><Trash2 className="mr-2"/> Delete Selected</Button>
-                        <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={onClearData}><X className="mr-2"/> Clear All Data</Button>
-                        <Button variant="outline" onClick={onUndo} disabled={!canUndo}><Undo className="mr-2"/> Undo</Button>
-                        <Button variant="outline" onClick={onRedo} disabled={!canRedo}><Redo className="mr-2"/> Redo</Button>
+                <TabsContent value="tools" className="flex-1 min-h-0 overflow-y-auto p-3 data-[state=inactive]:hidden">
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button size="sm" variant={activeTool === 'multi-select' ? 'default' : 'outline'} onClick={() => onToolSelect(activeTool === 'select' ? 'multi-select' : 'select')}><MousePointerSquare className="mr-2 h-4 w-4"/> Multi-Select</Button>
+                        <Button size="sm" variant="outline" onClick={onMerge} disabled={selectedFeatureIds.length < 2}><Combine className="mr-2 h-4 w-4"/> Merge Parcels</Button>
+                        <Button size="sm" variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1}><Ruler className="mr-2 h-4 w-4"/> Measure Area</Button>
+                        <Button size="sm" variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData}><Download className="mr-2 h-4 w-4"/> Export GeoJSON</Button>
+                        <Button size="sm" variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0}><Trash2 className="mr-2 h-4 w-4"/> Delete Selected</Button>
+                        <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={onClearData}><X className="mr-2 h-4 w-4"/> Clear All Data</Button>
+                        <Button size="sm" variant="outline" onClick={onUndo} disabled={!canUndo}><Undo className="mr-2 h-4 w-4"/> Undo</Button>
+                        <Button size="sm" variant="outline" onClick={onRedo} disabled={!canRedo}><Redo className="mr-2 h-4 w-4"/> Redo</Button>
                     </div>
                 </TabsContent>
             </Tabs>
 
             <Card className="shrink-0 border-t rounded-t-none border-x-0 border-b-0 max-h-52">
-                <CardHeader className="p-3 border-b">
-                    <CardTitle className="text-base">
+                <CardHeader className="p-2 border-b">
+                    <CardTitle className="text-sm">
                         {selectedFeatureIds.length > 1 
                             ? `${selectedFeatureIds.length} Features Selected`
                             : "Selected Feature"
                         }
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="p-3 text-sm overflow-y-auto">
+                <CardContent className="p-2 text-xs overflow-y-auto">
                     {!selectedFeature ? (
                          <p className="text-muted-foreground text-center text-xs pt-4">
                             {selectedFeatureIds.length > 1 ? `Click a single feature to see its properties.` : `No feature selected`}
                          </p>
                     ) : (
-                        <div className="space-y-1.5">
+                        <div className="space-y-1">
                             {Object.entries(selectedFeature.properties).map(([key, value]) => (
                                 <div key={key} className="grid grid-cols-2 gap-2 items-center">
                                     <span className="font-medium text-muted-foreground truncate" title={key}>{key}</span>
-                                    <span className="bg-muted/50 px-2 py-0.5 text-xs rounded-md truncate" title={String(value)}>{String(value)}</span>
+                                    <span className="bg-muted/50 px-1.5 py-0.5 text-xs rounded truncate" title={String(value)}>{String(value)}</span>
                                 </div>
                             ))}
                         </div>
