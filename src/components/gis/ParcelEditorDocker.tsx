@@ -23,7 +23,7 @@ const editingTools = [
 ]
 const historyTools = [
   { id: 'undo', name: 'Undo', icon: Undo, implemented: false },
-  { id: 'redo', name: 'Redo', icon: Redo, implemented: false },
+  { id: 'redo', name: 'Redo', implemented: false },
 ]
 const analysisTools = [
   { id: 'measure', name: 'Measure Tool', icon: Ruler, implemented: false },
@@ -45,7 +45,7 @@ const ToolButton = ({ tool, activeTool, onToolChange }: any) => (
                     <tool.icon className="h-5 w-5" />
                 </Button>
             </TooltipTrigger>
-            <TooltipContent side="left">
+            <TooltipContent side="right">
                 <p>{tool.name}{!tool.implemented && " (Future Enhancement)"}</p>
             </TooltipContent>
         </Tooltip>
@@ -153,8 +153,8 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
     }, [activeTool, selectedFeature, onDeleteSelected, onToolChange]);
 
     return (
-        <div className="w-96 bg-gray-50 border-l flex flex-col h-full shadow-2xl">
-            <div className="p-3 border-b flex items-center justify-between">
+        <div className="w-80 bg-background border-l flex flex-col h-full shadow-2xl">
+            <div className="p-3 border-b flex items-center justify-between shrink-0">
                 <h3 className="font-bold text-lg text-foreground">Parcel Editor</h3>
                 {hasData && (
                     <TooltipProvider>
@@ -171,8 +171,25 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
             </div>
 
             <div className="flex flex-1 min-h-0">
+                {/* Toolbar */}
+                <div className="border-r bg-gray-50/50">
+                    <ScrollArea className="h-full">
+                        <div className="p-1 flex flex-col items-center gap-2">
+                            <Card className="p-1">
+                                <div className="flex flex-col gap-1">
+                                    {editingTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
+                                    <Separator className="my-1" />
+                                    {historyTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
+                                    <Separator className="my-1" />
+                                    {analysisTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
+                                </div>
+                            </Card>
+                        </div>
+                    </ScrollArea>
+                </div>
+
                 {/* Main Content Area */}
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col min-w-0">
                     <Tabs defaultValue="properties" className="flex-1 flex flex-col">
                         <TabsContent value="properties" className="flex-1 h-0 -mt-0">
                              <PropertiesPanel feature={selectedFeature} />
@@ -185,34 +202,13 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
                         </TabsContent>
 
                         <div className="border-t p-2">
-                             <TabsList className="grid w-full grid-cols-3">
+                             <TabsList className="grid w-full grid-cols-3 h-9">
                                 <TabsTrigger value="properties">Properties</TabsTrigger>
                                 <TabsTrigger value="table">Table</TabsTrigger>
                                 <TabsTrigger value="export">Export</TabsTrigger>
                             </TabsList>
                         </div>
                     </Tabs>
-                </div>
-
-                {/* Toolbar */}
-                <div className="bg-background/50 border-l p-2 flex flex-col items-center gap-1">
-                    <Card className="p-1">
-                        <div className="flex flex-col gap-1">
-                            {editingTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
-                        </div>
-                    </Card>
-                    <Separator className="my-1" />
-                    <Card className="p-1">
-                         <div className="flex flex-col gap-1">
-                            {historyTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
-                        </div>
-                    </Card>
-                    <Separator className="my-1" />
-                    <Card className="p-1">
-                         <div className="flex flex-col gap-1">
-                            {analysisTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
-                        </div>
-                    </Card>
                 </div>
             </div>
         </div>
