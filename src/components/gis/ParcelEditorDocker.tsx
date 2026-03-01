@@ -12,47 +12,8 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
-// --- TOOL DEFINITIONS ---
-const editingTools = [
-  { id: 'select', name: 'Select / Identify', icon: MousePointer, implemented: true },
-  { id: 'edit', name: 'Edit Vertices', icon: Edit3, implemented: false },
-  { id: 'draw', name: 'Draw Parcel', icon: PenSquare, implemented: false },
-  { id: 'split', name: 'Split Parcel', icon: Scissors, implemented: false },
-  { id: 'merge', name: 'Merge Parcels', icon: Combine, implemented: false },
-  { id: 'delete', name: 'Delete Parcel', icon: Trash2, implemented: true },
-]
-const historyTools = [
-  { id: 'undo', name: 'Undo', icon: Undo, implemented: false },
-  { id: 'redo', name: 'Redo', icon: Redo, implemented: false },
-]
-const analysisTools = [
-  { id: 'measure', name: 'Measure Tool', icon: Ruler, implemented: false },
-  { id: 'buffer', name: 'Buffer Tool', icon: CircleDot, implemented: false },
-  { id: 'snapping', name: 'Snapping Manager', icon: Magnet, implemented: false },
-]
 
-const ToolButton = ({ tool, activeTool, onToolChange }: any) => (
-    <TooltipProvider>
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <Button
-                    variant={activeTool === tool.id ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => tool.implemented && onToolChange(tool.id)}
-                    disabled={!tool.implemented}
-                    className={cn("h-11 w-11", !tool.implemented && "cursor-not-allowed opacity-50")}
-                >
-                    <tool.icon className="h-5 w-5" />
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-                <p>{tool.name}{!tool.implemented && " (Future Enhancement)"}</p>
-            </TooltipContent>
-        </Tooltip>
-    </TooltipProvider>
-)
-
-const PropertiesPanel = ({ feature, parcelsCount }: { feature: any, parcelsCount: number }) => (
+const PropertiesPanel = ({ feature, parcelsCount, onDeleteClick }: { feature: any, parcelsCount: number, onDeleteClick: () => void }) => (
     <ScrollArea className="h-full">
         <div className="p-4 text-sm">
              {parcelsCount > 0 && (
@@ -74,11 +35,11 @@ const PropertiesPanel = ({ feature, parcelsCount }: { feature: any, parcelsCount
             ) : (
                 <div className="space-y-4">
                      <div>
-                        <h4 className="font-semibold mb-2 text-primary">Feature ID: {feature.id}</h4>
+                        <h4 className="font-semibold mb-2 text-primary break-all">Feature ID: {feature.id}</h4>
                     </div>
                     <Separator/>
                     <h4 className="font-semibold mb-2">Attributes</h4>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
                         {Object.entries(feature.properties).map(([key, value]) => (
                             <div key={key} className="grid grid-cols-2 gap-2 items-center">
                                 <span className="font-medium text-muted-foreground truncate" title={key}>{key}</span>
@@ -86,6 +47,11 @@ const PropertiesPanel = ({ feature, parcelsCount }: { feature: any, parcelsCount
                             </div>
                         ))}
                     </div>
+                    <Separator />
+                    <Button variant="destructive" className="w-full" onClick={onDeleteClick}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Selected Parcel
+                    </Button>
                 </div>
             )}
         </div>
@@ -129,7 +95,7 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
                             onClick={() => onRowClick(f)}
                             className={cn("cursor-pointer border-b border-border hover:bg-muted/50", f.id === selectedId && "bg-primary/10 hover:bg-primary/20")}
                         >
-                            <td className="p-2 font-medium">{f.id}</td>
+                            <td className="p-2 font-medium break-all">{f.id}</td>
                             {headers.map(h => <td key={h} className="p-2 truncate" title={String(f.properties[h])}>{String(f.properties[h])}</td>)}
                         </tr>
                     ))}
@@ -139,49 +105,40 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
     )
 }
 
-const ExportPanel = ({ hasData }: { hasData: boolean }) => (
+const ExportPanel = ({ hasData, onExportGeoJSON }: { hasData: boolean, onExportGeoJSON: () => void }) => (
      <div className="p-4 space-y-4">
         <h4 className="font-semibold">Export Data</h4>
         <p className="text-sm text-muted-foreground">
             Export the modified parcel data to a standard file format.
         </p>
-         <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <span tabIndex={0} className="w-full inline-block">
-                        <Button disabled={!hasData} className="w-full">
-                            <Download className="mr-2 h-4 w-4" /> Export to GeoJSON
-                        </Button>
-                    </span>
-                </TooltipTrigger>
-                <TooltipContent><p>Future Enhancement</p></TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <Button disabled={!hasData} className="w-full" onClick={onExportGeoJSON}>
+            <Download className="mr-2 h-4 w-4" /> Export to GeoJSON
+        </Button>
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
                      <span tabIndex={0} className="w-full inline-block">
-                        <Button disabled={!hasData} className="w-full">
+                        <Button disabled={true} className="w-full">
                             <Download className="mr-2 h-4 w-4" /> Export to Shapefile
                         </Button>
                     </span>
                 </TooltipTrigger>
-                <TooltipContent><p>Future Enhancement</p></TooltipContent>
+                <TooltipContent><p>Shapefile export is a future enhancement.</p></TooltipContent>
             </Tooltip>
         </TooltipProvider>
     </div>
 )
 
 
-export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, allFeatures, onDeleteSelected, hasData, onClearData, onFeatureSelect }: any) {
-    
-    React.useEffect(() => {
-        if (activeTool === 'delete' && selectedFeature) {
-            onDeleteSelected();
-            onToolChange('select'); // Revert to select tool after deletion
-        }
-    }, [activeTool, selectedFeature, onDeleteSelected, onToolChange]);
-
+export function ParcelEditorDocker({ selectedFeature, allFeatures, onDeleteSelected, hasData, onClearData, onFeatureSelect, onExportGeoJSON }: {
+    selectedFeature: any | null;
+    allFeatures: any[];
+    onDeleteSelected: () => void;
+    hasData: boolean;
+    onClearData: () => void;
+    onFeatureSelect: (feature: any) => void;
+    onExportGeoJSON: () => void;
+}) {
     return (
         <div className="w-96 bg-background border-l flex flex-col h-full shadow-2xl">
             <div className="p-3 border-b flex items-center justify-between shrink-0">
@@ -201,24 +158,6 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
             </div>
 
             <div className="flex flex-1 min-h-0">
-                {/* Toolbar */}
-                <div className="border-r bg-gray-50/50">
-                    <ScrollArea className="h-full">
-                        <div className="p-1 flex flex-col items-center gap-2">
-                            <Card className="p-1">
-                                <div className="flex flex-col gap-1">
-                                    {editingTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
-                                    <Separator className="my-1" />
-                                    {historyTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
-                                    <Separator className="my-1" />
-                                    {analysisTools.map(tool => <ToolButton key={tool.id} tool={tool} activeTool={activeTool} onToolChange={onToolChange} />)}
-                                </div>
-                            </Card>
-                        </div>
-                    </ScrollArea>
-                </div>
-
-                {/* Main Content Area */}
                 <div className="flex-1 flex flex-col min-w-0">
                      <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
                         <div className="border-b p-2">
@@ -230,13 +169,13 @@ export function ParcelEditorDocker({ activeTool, onToolChange, selectedFeature, 
                         </div>
 
                         <TabsContent value="properties" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
-                             <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} />
+                             <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} onDeleteClick={onDeleteSelected} />
                         </TabsContent>
                         <TabsContent value="table" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
                              <AttributeTable features={allFeatures} selectedId={selectedFeature?.id} onRowClick={onFeatureSelect} />
                         </TabsContent>
                         <TabsContent value="export" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
-                             <ExportPanel hasData={hasData} />
+                             <ExportPanel hasData={hasData} onExportGeoJSON={onExportGeoJSON} />
                         </TabsContent>
                     </Tabs>
                 </div>

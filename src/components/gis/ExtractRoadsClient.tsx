@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
@@ -116,40 +116,6 @@ function MapControlsWrapper({
     );
 }
 
-const DrawnShapes = () => {
-  const { extractRoads: { polygonCoords } } = useGisData();
-  const map = useMap();
-  const featureGroupRef = useRef<L.FeatureGroup>(null);
-
-  useMapEvents({
-      'draw:created': (e: any) => {
-        // We let the client component handle state updates.
-      },
-  });
-
-  useEffect(() => {
-      // Clear existing layers to prevent duplicates when state changes
-      featureGroupRef.current?.clearLayers();
-
-      if (polygonCoords) {
-        try {
-          const latlngs = polygonCoords.split(' ').map(coord => {
-              const [lat, lng] = coord.split(',').map(Number);
-              return L.latLng(lat, lng);
-          });
-          const polygon = L.polygon(latlngs, {
-              color: '#16a34a', weight: 2, fillOpacity: 0.1
-          });
-          featureGroupRef.current?.addLayer(polygon);
-        } catch (error) {
-            console.error("Error creating polygon from stored coords:", error);
-        }
-      }
-  }, [polygonCoords, map]);
-
-  return <FeatureGroup ref={featureGroupRef} />;
-}
-
 export default function ExtractRoadsClient() {
   const { extractRoads: { polygonCoords, selectionBounds, geoData }, updateToolState } = useGisData();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -158,6 +124,29 @@ export default function ExtractRoadsClient() {
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[2]);
+  const featureGroupRef = useRef<L.FeatureGroup>(null);
+
+  useEffect(() => {
+    const fg = featureGroupRef.current;
+    if (!fg) return;
+
+    fg.clearLayers();
+
+    if (polygonCoords) {
+      try {
+        const latlngs = polygonCoords.split(' ').map(coord => {
+            const [lat, lng] = coord.split(',').map(Number);
+            return L.latLng(lat, lng);
+        });
+        const polygon = L.polygon(latlngs, {
+            color: '#16a34a', weight: 2, fillOpacity: 0.1
+        });
+        fg.addLayer(polygon);
+      } catch (error) {
+          console.error("Error creating polygon from stored coords:", error);
+      }
+    }
+  }, [polygonCoords]);
   
   useEffect(() => {
     workerRef.current = new Worker('/workers/roadsWorker.js');
@@ -191,7 +180,7 @@ export default function ExtractRoadsClient() {
     setStatusMessage('Area selected. Ready for extraction.');
   };
 
-  const handleDeleted = () => {
+  const handleDeleted = (e: any) => {
     updateToolState('extractRoads', {
       polygonCoords: null,
       selectionBounds: null,
@@ -309,7 +298,7 @@ export default function ExtractRoadsClient() {
           noWrap={true}
         />
         
-        <FeatureGroup>
+        <FeatureGroup ref={featureGroupRef}>
           <EditControl 
             position="bottomright" 
             onCreated={handleCreated}
@@ -335,7 +324,6 @@ export default function ExtractRoadsClient() {
             }}
             edit={{ edit: true, remove: true }}
             />
-            <DrawnShapes />
         </FeatureGroup>
         
         {geoData && <GeoJSON data={geoData} style={{ color: '#ef4444', weight: 4 }} />}

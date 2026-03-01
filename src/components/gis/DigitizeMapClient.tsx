@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
@@ -150,40 +150,6 @@ function MapControlsWrapper({
     );
 }
 
-const DrawnShapes = () => {
-  const { digitize: { polygonCoords } } = useGisData();
-  const map = useMap();
-  const featureGroupRef = useRef<L.FeatureGroup>(null);
-
-  useMapEvents({
-      'draw:created': (e: any) => {
-        // We let the client component handle state updates.
-      },
-  });
-
-  useEffect(() => {
-      // Clear existing layers to prevent duplicates when state changes
-      featureGroupRef.current?.clearLayers();
-
-      if (polygonCoords) {
-        try {
-          const latlngs = polygonCoords.split(' ').map(coord => {
-              const [lat, lng] = coord.split(',').map(Number);
-              return L.latLng(lat, lng);
-          });
-          const polygon = L.polygon(latlngs, {
-              color: '#16a34a', weight: 2, fillOpacity: 0.1
-          });
-          featureGroupRef.current?.addLayer(polygon);
-        } catch (error) {
-            console.error("Error creating polygon from stored coords:", error);
-        }
-      }
-  }, [polygonCoords, map]);
-
-  return <FeatureGroup ref={featureGroupRef} />;
-}
-
 export default function DigitizeMapClient() {
   const { digitize: { polygonCoords, selectionBounds, geoData }, updateToolState } = useGisData();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -192,7 +158,32 @@ export default function DigitizeMapClient() {
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[2]);
+  const featureGroupRef = useRef<L.FeatureGroup>(null);
   
+  useEffect(() => {
+    const fg = featureGroupRef.current;
+    if (!fg) return;
+
+    // This effect is the single source of truth for what's drawn from the state.
+    // It clears all layers and redraws the one from the context state.
+    fg.clearLayers();
+
+    if (polygonCoords) {
+      try {
+        const latlngs = polygonCoords.split(' ').map(coord => {
+            const [lat, lng] = coord.split(',').map(Number);
+            return L.latLng(lat, lng);
+        });
+        const polygon = L.polygon(latlngs, {
+            color: '#16a34a', weight: 2, fillOpacity: 0.1
+        });
+        fg.addLayer(polygon);
+      } catch (error) {
+          console.error("Error creating polygon from stored coords:", error);
+      }
+    }
+  }, [polygonCoords]);
+
   useEffect(() => {
     workerRef.current = new Worker('/workers/digitizeWorker.js');
     workerRef.current.onmessage = (e: MessageEvent) => {
@@ -217,6 +208,8 @@ export default function DigitizeMapClient() {
     const layer = e.layer;
     const latlngs: LatLng[] = layer.getLatLngs()[0];
     const polyString = latlngs.map((ll) => `${ll.lat},${ll.lng}`).join(' ');
+    // When a new shape is drawn, update the state.
+    // The useEffect listening to `polygonCoords` will handle drawing it.
     updateToolState('digitize', {
         polygonCoords: polyString,
         selectionBounds: layer.getBounds(),
@@ -225,7 +218,9 @@ export default function DigitizeMapClient() {
     setStatusMessage('Area selected. Ready for extraction.');
   };
   
-  const handleDeleted = () => {
+  const handleDeleted = (e: any) => {
+    // When shapes are deleted via the toolbar, clear the state.
+    // The useEffect will then clear the layer from the map.
     updateToolState('digitize', {
         polygonCoords: null,
         selectionBounds: null,
@@ -339,12 +334,13 @@ export default function DigitizeMapClient() {
           noWrap={true}
         />
         
-        <FeatureGroup>
+        <FeatureGroup ref={featureGroupRef}>
           <EditControl 
             position="bottomright" 
             onCreated={handleCreated}
             onEdited={(e) => {
               const layers = e.layers;
+              // On edit, just update the state. The useEffect will handle the redraw.
               layers.eachLayer((layer: any) => {
                 const latlngs: LatLng[] = layer.getLatLngs()[0];
                 const polyString = latlngs.map((ll) => `${ll.lat},${ll.lng}`).join(' ');
@@ -367,7 +363,6 @@ export default function DigitizeMapClient() {
             }}
             edit={{ edit: true, remove: true }}
             />
-            <DrawnShapes />
         </FeatureGroup>
         
         {geoData && <GeoJSON data={geoData} style={{ color: '#2563eb', weight: 2, fillColor: '#60a5fa', fillOpacity: 0.4 }} />}

@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMap, FeatureGroup } from 'react-leaflet';
 import L from 'leaflet';
 import * as shapefile from 'shapefile';
+import { EditControl } from 'react-leaflet-draw';
 
 import { useToast } from '@/hooks/use-toast';
 import { MapHeader, type BaseLayer } from './MapHeader';
@@ -49,6 +50,16 @@ const processShapefile = async (files: File[]): Promise<{ name: string; data: an
   
   const [shpBuffer, dbfBuffer] = await Promise.all([group.shp.arrayBuffer(), group.dbf.arrayBuffer()]);
   const data = await shapefile.read(shpBuffer, dbfBuffer);
+  
+  // Add unique, stable IDs to each feature for reliable editing
+  if (data && data.features) {
+    const basename = name.replace(/\.[^/.]+$/, "");
+    data.features = data.features.map((feature: any, index: number) => ({
+      ...feature,
+      id: feature.id || `${basename}-${index}-${Date.now()}` // Use existing ID or create one
+    }));
+  }
+
   return { name: `${name}.shp`, data };
 };
 
@@ -139,7 +150,7 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
             <div className="grid md:grid-cols-2 gap-6 items-stretch">
                 <UploadCard
                     title="Boundary Layer"
-                    description="The shapefile for the overall area boundary (e.g., a Tehsil)."
+                    description="The main shapefile defining the area of interest (e.g., a Tehsil)."
                     icon={<Shield />}
                     fileName={boundaryName}
                     onFilesUploaded={onBoundaryUpload}
@@ -148,7 +159,7 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
                 />
                 <UploadCard
                     title="Parcels Layer"
-                    description="The shapefile containing the individual properties or 'parcels' (e.g., Mouzas)."
+                    description="The shapefile containing the individual properties or plots (e.g., Mouzas)."
                     icon={<Layers />}
                     fileName={parcelsName}
                     onFilesUploaded={onParcelsUpload}
@@ -161,116 +172,6 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
     </div>
 );
 
-// MapUpdater component to handle imperative map actions
-const MapUpdater = ({ parcelsLayerRef, selectedFeatureId, mapBounds }: { parcelsLayerRef: React.RefObject<L.GeoJSON>, selectedFeatureId: string | number | null, mapBounds?: L.LatLngBounds }) => {
-    const map = useMap();
-
-    useEffect(() => {
-        if (mapBounds && mapBounds.isValid()) {
-            map.fitBounds(mapBounds, { padding: [50, 50] });
-        }
-    }, [map, mapBounds]);
-
-    useEffect(() => {
-        const parcelsLayer = parcelsLayerRef.current;
-        if (!parcelsLayer) return;
-
-        let selectedLayer: L.Layer | null = null;
-
-        parcelsLayer.eachLayer((layer: any) => {
-            if (layer.feature && layer.feature.id === selectedFeatureId) {
-                selectedLayer = layer;
-                layer.setStyle(highlightStyle);
-                if (layer.bringToFront) {
-                    layer.bringToFront();
-                }
-            } else {
-                layer.setStyle(parcelsStyle);
-            }
-        });
-        
-        if (selectedLayer) {
-            const bounds = (selectedLayer as L.GeoJSON).getBounds();
-            if (bounds.isValid()) {
-                map.flyToBounds(bounds, { maxZoom: 18, padding: [50, 50] });
-            }
-        }
-
-    }, [selectedFeatureId, map, parcelsLayerRef]);
-
-    return null;
-}
-
-
-const MapComponent = () => {
-    const { importParcels, updateToolState } = useGisData();
-    const { boundaryData, parcelsData, selectedFeatureId } = importParcels;
-
-    const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
-    const parcelsLayerRef = useRef<L.GeoJSON>(null);
-    const { toast } = useToast();
-
-    const handleSetSelectedFeature = (feature: any) => {
-        updateToolState('importParcels', { selectedFeatureId: feature?.id ?? null });
-    };
-
-    const enrichedParcels = useMemo(() => {
-        if (!parcelsData?.features || parcelsData.features.length === 0) return null;
-        return { 
-            ...parcelsData, 
-            features: parcelsData.features.map((f: any, i: number) => ({ ...f, id: i })) 
-        };
-    }, [parcelsData]);
-
-    const mapBounds = useMemo(() => {
-        if (!boundaryData) return undefined;
-        try {
-            const bounds = L.geoJSON(boundaryData).getBounds();
-            return bounds.isValid() ? bounds : undefined;
-        } catch (e) {
-            console.error("Could not calculate bounds from boundary data:", e);
-        }
-        return undefined;
-    }, [boundaryData]);
-
-    const onEachFeature = (feature: any, layer: L.Layer) => {
-        layer.on({
-            click: (e) => {
-                L.DomEvent.stopPropagation(e);
-                handleSetSelectedFeature(feature);
-            }
-        });
-    };
-
-    if (!mapBounds) {
-        return (
-            <div className="flex h-full w-full items-center justify-center bg-gray-100">
-                <div className="text-center">
-                    <h3 className="text-lg font-semibold text-destructive">Could Not Determine Map Bounds</h3>
-                    <p className="text-muted-foreground">The boundary data might be invalid or missing coordinates.</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <MapContainer 
-            bounds={mapBounds}
-            zoomControl={false}
-            style={{ height: '100%', width: '100%' }}
-            >
-            <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
-            <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
-            
-            {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
-            {enrichedParcels && <GeoJSON ref={parcelsLayerRef} key={JSON.stringify(enrichedParcels)} data={enrichedParcels} style={parcelsStyle} onEachFeature={onEachFeature} />}
-            
-            <MapUpdater parcelsLayerRef={parcelsLayerRef} selectedFeatureId={selectedFeatureId} />
-        </MapContainer>
-    );
-};
-
-
 // --- MAIN COMPONENT ---
 export default function ImportParcelsClient() {
     const { importParcels, updateToolState, resetToolState } = useGisData();
@@ -278,6 +179,10 @@ export default function ImportParcelsClient() {
     
     const [processingState, setProcessingState] = useState<'boundary' | 'parcels' | null>(null);
     const { toast } = useToast();
+
+    const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
+    const parcelsLayerRef = useRef<L.GeoJSON>(null);
+    const layerIdToFeatureIdRef = useRef<Map<number, string | number>>(new Map());
 
     const handleFileUpload = async (files: File[], type: 'boundary' | 'parcels') => {
         if (files.length === 0) return;
@@ -310,18 +215,156 @@ export default function ImportParcelsClient() {
     };
 
     const handleDeleteSelected = () => {
-        toast({ variant: 'destructive', title: "Not Implemented", description: "Deletion is a future enhancement." });
+        if (selectedFeatureId === null) {
+            toast({ variant: 'destructive', title: 'No Parcel Selected', description: 'Please select a parcel from the map or table to delete.' });
+            return;
+        }
+        if (parcelsData && parcelsData.features) {
+            const newFeatures = parcelsData.features.filter((f: any) => f.id !== selectedFeatureId);
+            updateToolState('importParcels', {
+                parcelsData: { ...parcelsData, features: newFeatures },
+                selectedFeatureId: null,
+            });
+            toast({ title: 'Parcel Deleted', description: `Parcel ID ${selectedFeatureId} has been removed.` });
+        }
+    };
+    
+    const handleExportGeoJSON = () => {
+        if (!parcelsData) {
+            toast({ variant: 'destructive', title: 'No Data to Export', description: 'There is no parcel data to export.' });
+            return;
+        }
+        const blob = new Blob([JSON.stringify(parcelsData)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'edited_parcels.geojson';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast({ title: 'Export Successful', description: 'edited_parcels.geojson has been downloaded.' });
     };
 
     const selectedFeature = useMemo(() => {
         if (selectedFeatureId === null || !parcelsData?.features) return null;
-        return parcelsData.features.find((f: any, i: number) => i === selectedFeatureId) || null;
+        return parcelsData.features.find((f: any) => f.id === selectedFeatureId) || null;
     }, [selectedFeatureId, parcelsData]);
 
-    const enrichedParcels = useMemo(() => {
-        if (!parcelsData?.features) return [];
-        return parcelsData.features.map((f: any, i: number) => ({ ...f, id: i }));
-    }, [parcelsData]);
+    const mapBounds = useMemo(() => {
+        if (!boundaryData) return undefined;
+        try {
+            const bounds = L.geoJSON(boundaryData).getBounds();
+            return bounds.isValid() ? bounds : undefined;
+        } catch (e) {
+            console.error("Could not calculate bounds from boundary data:", e);
+        }
+        return undefined;
+    }, [boundaryData]);
+
+    const onEachFeature = (feature: any, layer: L.Layer) => {
+        const leafletId = (layer as any)._leaflet_id;
+        if (feature.id) {
+            layerIdToFeatureIdRef.current.set(leafletId, feature.id);
+        }
+        layer.on({
+            click: (e) => {
+                L.DomEvent.stopPropagation(e);
+                handleSetSelectedFeature(feature);
+            },
+        });
+    };
+    
+    const handleMapCreated = (e: any) => {
+        const createdLayer = e.layer;
+        const newFeature = createdLayer.toGeoJSON();
+        newFeature.id = `drawn-${Date.now()}`;
+        
+        const newParcelsData = {
+            ...(parcelsData || { type: "FeatureCollection", features: [] }),
+            features: [...(parcelsData?.features || []), newFeature]
+        };
+        updateToolState('importParcels', { parcelsData: newParcelsData });
+        toast({ title: 'Parcel Created', description: `New parcel (ID: ${newFeature.id}) added.` });
+    };
+
+    const handleMapEdited = (e: any) => {
+        const layers = e.layers;
+        if (!parcelsData) return;
+    
+        let updatedFeatures = [...parcelsData.features];
+        layers.eachLayer((layer: any) => {
+            const leafletId = layer._leaflet_id;
+            const featureId = layerIdToFeatureIdRef.current.get(leafletId);
+            if (featureId === undefined) return;
+    
+            const featureIndex = updatedFeatures.findIndex(f => f.id === featureId);
+            if (featureIndex > -1) {
+                const updatedGeoJSON = layer.toGeoJSON();
+                updatedFeatures[featureIndex] = {
+                    ...updatedFeatures[featureIndex],
+                    geometry: updatedGeoJSON.geometry,
+                };
+            }
+        });
+        updateToolState('importParcels', { parcelsData: { ...parcelsData, features: updatedFeatures } });
+        toast({ title: 'Parcels Updated', description: `${layers.getLayers().length} parcel(s) have been modified.` });
+    };
+    
+    const handleMapDeleted = (e: any) => {
+        const layers = e.layers;
+        if (!parcelsData) return;
+    
+        let featuresToDeleteIds: (string | number)[] = [];
+        layers.eachLayer((layer: any) => {
+            const leafletId = layer._leaflet_id;
+            const featureId = layerIdToFeatureIdRef.current.get(leafletId);
+            if (featureId !== undefined) {
+                featuresToDeleteIds.push(featureId);
+            }
+        });
+    
+        const newFeatures = parcelsData.features.filter((f: any) => !featuresToDeleteIds.includes(f.id));
+        updateToolState('importParcels', {
+            parcelsData: { ...parcelsData, features: newFeatures },
+            selectedFeatureId: selectedFeatureId && featuresToDeleteIds.includes(selectedFeatureId) ? null : selectedFeatureId,
+        });
+        toast({ title: 'Parcels Deleted', description: `${featuresToDeleteIds.length} parcel(s) have been removed from the map.` });
+    };
+    
+    const MapUpdater = ({ parcelsLayer, selectedFeatureId, mapBounds }: { parcelsLayer: L.GeoJSON | null, selectedFeatureId: string | number | null, mapBounds?: L.LatLngBounds }) => {
+        const map = useMap();
+    
+        useEffect(() => {
+            if (mapBounds && mapBounds.isValid()) {
+                map.fitBounds(mapBounds, { padding: [50, 50] });
+            }
+        }, [map, mapBounds]);
+    
+        useEffect(() => {
+            if (!parcelsLayer) return;
+            let selectedLayer: L.Layer | null = null;
+    
+            parcelsLayer.eachLayer((layer: any) => {
+                if (layer.feature && layer.feature.id === selectedFeatureId) {
+                    selectedLayer = layer;
+                    layer.setStyle(highlightStyle);
+                    if (layer.bringToFront) layer.bringToFront();
+                } else {
+                    layer.setStyle(parcelsStyle);
+                }
+            });
+    
+            if (selectedLayer) {
+                const bounds = (selectedLayer as L.GeoJSON).getBounds();
+                if (bounds.isValid()) {
+                    map.flyToBounds(bounds, { maxZoom: 18, padding: [50, 50] });
+                }
+            }
+        }, [selectedFeatureId, map, parcelsLayer]);
+    
+        return null;
+    }
 
     const showMap = boundaryData && parcelsData;
 
@@ -329,7 +372,36 @@ export default function ImportParcelsClient() {
         <div className="w-full h-full flex bg-background">
             <main className="flex-1 relative h-full">
                 {showMap ? (
-                    <MapComponent />
+                    <MapContainer
+                        bounds={mapBounds}
+                        zoomControl={false}
+                        style={{ height: '100%', width: '100%' }}
+                    >
+                        <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
+                        <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} noWrap={true} />
+                        
+                        <FeatureGroup>
+                            <EditControl
+                                position="topright"
+                                onCreated={handleMapCreated}
+                                onEdited={handleMapEdited}
+                                onDeleted={handleMapDeleted}
+                                draw={{
+                                    polyline: false,
+                                    rectangle: true,
+                                    circle: false,
+                                    circlemarker: false,
+                                    marker: false,
+                                    polygon: { allowIntersection: false, shapeOptions: highlightStyle },
+                                }}
+                            />
+                        </FeatureGroup>
+
+                        {boundaryData && <GeoJSON data={boundaryData} style={boundaryStyle} />}
+                        {parcelsData && <GeoJSON ref={parcelsLayerRef} key={JSON.stringify(parcelsData)} data={parcelsData} style={parcelsStyle} onEachFeature={onEachFeature} />}
+                        
+                        <MapUpdater parcelsLayer={parcelsLayerRef.current} selectedFeatureId={selectedFeatureId} />
+                    </MapContainer>
                 ) : (
                     <PreAnalysisView
                         onBoundaryUpload={(files) => handleFileUpload(files, 'boundary')}
@@ -343,14 +415,13 @@ export default function ImportParcelsClient() {
                 )}
             </main>
              <ParcelEditorDocker
-                activeTool={'select'}
-                onToolChange={() => {}}
                 selectedFeature={selectedFeature}
-                allFeatures={enrichedParcels}
+                allFeatures={parcelsData?.features || []}
                 onDeleteSelected={handleDeleteSelected}
                 onClearData={handleClearBoundary}
                 hasData={!!parcelsData}
                 onFeatureSelect={handleSetSelectedFeature}
+                onExportGeoJSON={handleExportGeoJSON}
              />
         </div>
     );
