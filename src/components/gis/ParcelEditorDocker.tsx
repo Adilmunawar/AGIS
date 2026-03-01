@@ -1,8 +1,8 @@
 'use client'
-import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import * as turf from '@turf/turf'
 import {
-  MousePointerSquare, Trash2, X, Undo, Redo, UploadCloud, File as FileIcon, Loader2, Layers, Table, Wrench, Combine, Ruler, Download
+  MousePointerSquare, Trash2, X, Undo, Redo, UploadCloud, File as FileIcon, Loader2, Layers, Table as TableIcon, Wrench, Combine, Ruler, Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -178,7 +178,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     <div className="border-b px-2.5">
                         <TabsList className="grid w-full grid-cols-3 h-10">
                             <TabsTrigger value="layers"><Layers className="w-4 h-4 mr-1.5"/>Layers</TabsTrigger>
-                            <TabsTrigger value="table" disabled={!parcelsData}><Table className="w-4 h-4 mr-1.5"/>Table</TabsTrigger>
+                            <TabsTrigger value="table" disabled={!parcelsData}><TableIcon className="w-4 h-4 mr-1.5"/>Table</TabsTrigger>
                             <TabsTrigger value="tools" disabled={!parcelsData}><Wrench className="w-4 h-4 mr-1.5"/>Tools</TabsTrigger>
                         </TabsList>
                     </div>
