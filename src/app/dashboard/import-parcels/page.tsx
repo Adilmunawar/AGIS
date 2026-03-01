@@ -3,15 +3,11 @@
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const ImportParcelsClient = dynamic(() => import('@/components/gis/ImportParcelsClient'), {
+// Directly export the dynamically imported component to simplify the component tree
+// and avoid potential HMR/rendering issues with nested client components.
+const ImportParcelsPage = dynamic(() => import('@/components/gis/ImportParcelsClient'), {
   ssr: false,
   loading: () => <Skeleton className="w-full h-full rounded-none" />,
 });
 
-export default function ImportParcelsPage() {
-  return (
-    <div className="w-full h-full relative">
-      <ImportParcelsClient />
-    </div>
-  );
-}
+export default ImportParcelsPage;

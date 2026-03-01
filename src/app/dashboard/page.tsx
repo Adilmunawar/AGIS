@@ -1,7 +1,12 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-// This page is a server component that redirects to the first tool.
-// This avoids a persistent and unstable rendering error with the welcome page.
-export default function DashboardPage() {
-  redirect('/dashboard/digitize');
+import { Loader2 } from 'lucide-react';
+
+// This component is only visible for a moment while the layout redirects.
+export default function DashboardLoadingPage() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-background">
+      <Loader2 className="h-16 w-16 animate-spin text-primary" />
+    </div>
+  );
 }

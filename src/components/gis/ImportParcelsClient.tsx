@@ -139,7 +139,7 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
             <div className="grid md:grid-cols-2 gap-6 items-stretch">
                 <UploadCard
                     title="Boundary Layer"
-                    description="The main area of interest (e.g., Tehsil)."
+                    description="The shapefile for the overall area boundary (e.g., a Tehsil)."
                     icon={<Shield />}
                     fileName={boundaryName}
                     onFilesUploaded={onBoundaryUpload}
@@ -148,7 +148,7 @@ const PreAnalysisView = ({ onBoundaryUpload, onParcelsUpload, boundaryName, parc
                 />
                 <UploadCard
                     title="Parcels Layer"
-                    description="The individual parcels or lots (e.g., Mouzas)."
+                    description="The shapefile containing the individual properties or 'parcels' (e.g., Mouzas)."
                     icon={<Layers />}
                     fileName={parcelsName}
                     onFilesUploaded={onParcelsUpload}

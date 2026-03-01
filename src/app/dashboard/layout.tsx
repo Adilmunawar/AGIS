@@ -35,10 +35,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (isUserLoading) return; // Wait until the user state is resolved.
+
+    if (!user) {
+      // If no user, redirect to login.
       router.replace('/login');
+    } else if (pathname === '/dashboard') {
+      // If the user is logged in and at the base dashboard, redirect to the first tool.
+      router.replace('/dashboard/digitize');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, pathname, router]);
 
   if (isUserLoading || !user) {
     return (

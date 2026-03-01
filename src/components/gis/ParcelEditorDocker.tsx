@@ -57,7 +57,7 @@ const PropertiesPanel = ({ feature, parcelsCount }: { feature: any, parcelsCount
         <div className="p-4 text-sm">
              {parcelsCount > 0 && (
                 <div className="mb-4">
-                    <h4 className="font-semibold mb-2">Mauza Summary</h4>
+                    <h4 className="font-semibold mb-2">Layer Summary</h4>
                     <div className="grid grid-cols-2 gap-2 items-center bg-muted/50 p-3 rounded-md">
                         <span className="font-medium text-muted-foreground">Total Parcels</span>
                         <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
