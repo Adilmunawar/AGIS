@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import L, { LatLngBounds } from 'leaflet';
 import * as shapefile from 'shapefile';
 
@@ -20,22 +20,6 @@ const baseLayers: BaseLayer[] = [
 const geoJsonStyle = { color: '#3b82f6', weight: 1, fillColor: '#bfdbfe', fillOpacity: 0.5 };
 const geoJsonHighlightStyle = { color: '#ef4444', weight: 3, fillColor: '#fecaca', fillOpacity: 0.7 };
 
-// --- HELPER COMPONENTS ---
-
-const MapEvents = ({ onLayerClick, selectedFeatureId }: { onLayerClick: (e: L.LeafletMouseEvent, feature: any) => void, selectedFeatureId: string | number | null }) => {
-    const map = useMap();
-    useEffect(() => {
-        const geoJsonLayer = (map as any)._layers[Object.keys((map as any)._layers).find(k => (map as any)._layers[k].feature)];
-        if (geoJsonLayer) {
-            geoJsonLayer.eachLayer((layer: any) => {
-                layer.on('click', (e: L.LeafletMouseEvent) => onLayerClick(e, layer.feature));
-                layer.setStyle(layer.feature.id === selectedFeatureId ? geoJsonHighlightStyle : geoJsonStyle);
-            });
-        }
-    }, [map, selectedFeatureId, onLayerClick]);
-    return null;
-};
-
 // --- MAIN COMPONENT ---
 
 export default function ImportParcelsClient() {
@@ -48,6 +32,7 @@ export default function ImportParcelsClient() {
     const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
     
     const mapRef = useRef<L.Map>(null);
+    const geoJsonLayerRef = useRef<L.GeoJSON>(null); // Ref to hold the GeoJSON layer
     const { toast } = useToast();
     
     const handleFileDrop = useCallback(async (files: File[]) => {
@@ -101,7 +86,7 @@ export default function ImportParcelsClient() {
             if (mapRef.current && source.bbox) {
                 const [minLng, minLat, maxLng, maxLat] = source.bbox;
                 const bounds = new LatLngBounds([minLat, minLng], [maxLat, maxLng]);
-                mapRef.current.fitBounds(bounds);
+                mapRef.current.fitBounds(bounds, { padding: [50, 50] });
             }
              toast({ title: "Import Successful", description: `${source.features.length} parcels loaded from ${shpFile.name}.` });
 
@@ -110,14 +95,32 @@ export default function ImportParcelsClient() {
             console.error(err);
         }
     }, [toast]);
+
+    useEffect(() => {
+        // This effect handles re-styling when a feature is selected
+        if (geoJsonLayerRef.current) {
+            geoJsonLayerRef.current.eachLayer((layer: any) => {
+                if (layer.feature.id === selectedFeature?.id) {
+                    layer.setStyle(geoJsonHighlightStyle);
+                    layer.bringToFront();
+                } else {
+                    layer.setStyle(geoJsonStyle);
+                }
+            });
+        }
+    }, [selectedFeature]);
     
     const onDrag = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
     const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
     const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); handleFileDrop(Array.from(e.dataTransfer.files)); }, [handleFileDrop]);
 
-    const handleLayerClick = (e: L.LeafletMouseEvent, feature: any) => {
-        L.DomEvent.stopPropagation(e);
-        setSelectedFeature(feature);
+    const onEachFeature = (feature: any, layer: L.Layer) => {
+        layer.on({
+            click: (e) => {
+                L.DomEvent.stopPropagation(e);
+                setSelectedFeature(feature);
+            },
+        });
     };
 
     const handleDeleteSelected = () => {
@@ -143,8 +146,7 @@ export default function ImportParcelsClient() {
                     <MapHeader layers={baseLayers} activeLayer={activeLayer} onLayerSelect={setActiveLayer} />
                     <TileLayer key={activeLayer.url} url={activeLayer.url} attribution={activeLayer.attribution} subdomains={activeLayer.subdomains || ''} />
                     
-                    {geoData && <GeoJSON data={geoData} style={geoJsonStyle} />}
-                    {geoData && <MapEvents onLayerClick={handleLayerClick} selectedFeatureId={selectedFeature?.id} />}
+                    {geoData && <GeoJSON ref={geoJsonLayerRef} data={geoData} style={geoJsonStyle} onEachFeature={onEachFeature} />}
                 </MapContainer>
 
                 {!geoData && (
