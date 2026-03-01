@@ -14,7 +14,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 
 // --- TYPES & CONFIGS ---
 type Step = 'boundary' | 'parcels' | 'preview';
-type ShapefileData = { [key: string]: any };
 
 const baseLayers: BaseLayer[] = [
     { name: 'Google Hybrid', url: 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attribution: '&copy; Google', previewUrl: 'https://picsum.photos/seed/googlehybrid/400/300', subdomains: ['mt0', 'mt1', 'mt2', 'mt3']},
@@ -61,7 +60,14 @@ const UploadZone = ({ onFilesUploaded, isProcessing, title, description, icon }:
     const [isDragging, setIsDragging] = useState(false);
     const onDrag = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
     const onDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
-    const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); onFilesUploaded(Array.from(e.dataTransfer.files)); }, [onFilesUploaded]);
+    const onDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        if (e.dataTransfer.files) {
+            onFilesUploaded(Array.from(e.dataTransfer.files));
+        }
+    }, [onFilesUploaded]);
 
     return (
         <div onDragEnter={onDrag} onDragLeave={onDragLeave} onDragOver={onDrag} onDrop={onDrop}
@@ -105,7 +111,7 @@ const BoundaryUploadStep = ({ onBoundaryUploaded, isProcessing }: { onBoundaryUp
         }
     };
     return (
-        <div className="flex flex-col items-center justify-center h-full bg-gray-50/50 p-8">
+        <div className="flex flex-col items-center justify-center h-full bg-gray-100/50 p-8">
             <Card className="w-full max-w-3xl shadow-xl">
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl font-bold">Step 1: Import Boundary Data</CardTitle>
@@ -137,7 +143,7 @@ const ParcelsUploadStep = ({ onParcelsUploaded, isProcessing, boundaryName, onBa
         }
     };
     return (
-        <div className="flex flex-col items-center justify-center h-full bg-gray-50/50 p-8">
+        <div className="flex flex-col items-center justify-center h-full bg-gray-100/50 p-8">
             <Card className="w-full max-w-3xl shadow-xl">
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl font-bold">Step 2: Import Parcel Data</CardTitle>
@@ -181,17 +187,17 @@ const PreviewStep = ({ boundaryData, parcelsData, onBack }: { boundaryData: any,
     }, [parcelsData]);
 
     const mapBounds = useMemo(() => {
-      if (!boundaryData) return undefined;
-      try {
-        const bounds = L.geoJSON(boundaryData).getBounds();
-        if (bounds.isValid()) {
-            return bounds;
+        if (!boundaryData) return undefined;
+        try {
+            const bounds = L.geoJSON(boundaryData).getBounds();
+            if (bounds.isValid()) {
+                return bounds;
+            }
+            return undefined;
+        } catch (e) {
+            console.error("Could not calculate bounds from boundary data:", e);
+            return undefined;
         }
-        return undefined;
-      } catch (e) {
-        console.error("Could not calculate bounds from boundary data:", e);
-        return undefined;
-      }
     }, [boundaryData]);
 
 
@@ -288,20 +294,11 @@ export default function ImportParcelsClient() {
         setParcelsData(null);
     };
 
-    const handleBackToBoundary = () => {
-        handleReset();
-    }
-    
-    const handleBackToParcels = () => {
-        setParcelsData(null);
-        setStep('parcels');
-    }
-
     switch (step) {
         case 'boundary':
             return <BoundaryUploadStep onBoundaryUploaded={handleBoundaryUpload} isProcessing={isProcessing} />;
         case 'parcels':
-            return <ParcelsUploadStep onParcelsUploaded={handleParcelsUpload} isProcessing={isProcessing} boundaryName={boundaryName} onBack={handleBackToBoundary} />;
+            return <ParcelsUploadStep onParcelsUploaded={handleParcelsUpload} isProcessing={isProcessing} boundaryName={boundaryName} onBack={handleReset} />;
         case 'preview':
             return <PreviewStep boundaryData={boundaryData} parcelsData={parcelsData} onBack={handleReset} />;
         default:

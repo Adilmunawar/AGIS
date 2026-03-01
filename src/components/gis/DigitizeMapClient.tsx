@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
@@ -11,9 +10,6 @@ import type { LatLng, LatLngBounds } from 'leaflet';
 import { GisControlBar } from './GisControlBar';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import L from 'leaflet';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
 
 function osmToGeoJSON(osmData: any): GeoJSON.FeatureCollection {
     const nodes = new Map<number, number[]>();
@@ -302,7 +298,6 @@ export default function DigitizeMapClient() {
           url={activeLayer.url}
           attribution={activeLayer.attribution}
           subdomains={activeLayer.subdomains || ''}
-          crossOrigin="anonymous"
           noWrap={true}
         />
         

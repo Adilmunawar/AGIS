@@ -179,12 +179,14 @@ export function GisControlBar({
         </TooltipProvider>
       </div>
       
-      <div
-        className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
-      >
-        {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-        <p className="text-muted-foreground">{statusMessage}</p>
-      </div>
+      {statusMessage && (
+        <div
+          className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
+        >
+          {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+          <p className="text-muted-foreground">{statusMessage}</p>
+        </div>
+      )}
     </div>
   );
 }

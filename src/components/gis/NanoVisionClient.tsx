@@ -295,7 +295,6 @@ function MapContent() {
         url={activeLayer.url}
         attribution={activeLayer.attribution}
         subdomains={activeLayer.subdomains || ''}
-        crossOrigin="anonymous"
         noWrap={true}
       />
       

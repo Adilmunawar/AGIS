@@ -88,7 +88,7 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
     const headers = Object.keys(features[0].properties);
 
     return (
-        <div className="h-full w-full overflow-auto">
+        <ScrollArea className="h-full w-full">
             <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-secondary z-10">
                     <tr>
@@ -109,7 +109,7 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
                     ))}
                 </tbody>
             </table>
-        </div>
+        </ScrollArea>
     )
 }
 

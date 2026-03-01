@@ -151,7 +151,7 @@ export function MapHeader({ layers, activeLayer, onLayerSelect }: MapHeaderProps
                 >
                     <CardContent className="p-0">
                         <div className="relative aspect-[4/3]">
-                            <Image src={layer.previewUrl} alt={layer.name} layout="fill" objectFit="cover" />
+                            <Image src={layer.previewUrl} alt={layer.name} fill={true} objectFit="cover" />
                         </div>
                     </CardContent>
                     <CardHeader className="p-3">
