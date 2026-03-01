@@ -1,8 +1,8 @@
 'use client'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useMemo, useEffect } from 'react'
 import {
   MousePointer, Edit3, PenSquare, Scissors, Combine, Trash2, Undo, Redo,
-  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal, MinusSquare, Home, UploadCloud, File, Loader2
+  Ruler, CircleDot, Magnet, Download, X, RectangleHorizontal, MinusSquare, Home, UploadCloud, File, Loader2, ArrowUpDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,7 @@ const PropertiesPanel = ({ feature, parcelsCount, homesCount, onDeleteClick }: {
                 <h4 className="font-semibold mb-2">Boundary Summary</h4>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 items-center bg-muted/50 p-3 rounded-md">
                     <div className='flex items-center gap-2 font-medium text-muted-foreground'>
-                      <Home className="h-4 w-4"/>
+                      <MinusSquare className="h-4 w-4"/>
                       <span>Total Parcels</span>
                     </div>
                     <span className="font-bold text-lg text-right text-primary">{parcelsCount.toLocaleString()}</span>
@@ -67,7 +67,7 @@ const PropertiesPanel = ({ feature, parcelsCount, homesCount, onDeleteClick }: {
     </div>
 );
 
-const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[], selectedId: string | number | null, onRowClick: (feature: any) => void }) => {
+const AttributeTable = ({ features, selectedId, onRowClick, sortConfig, requestSort }: { features: any[], selectedId: string | number | null, onRowClick: (feature: any) => void, sortConfig: { key: string; direction: string } | null, requestSort: (key: string) => void }) => {
     const selectedRowRef = React.useRef<HTMLTableRowElement>(null);
     
     React.useEffect(() => {
@@ -88,14 +88,28 @@ const AttributeTable = ({ features, selectedId, onRowClick }: { features: any[],
     }, new Set<string>());
 
     const headers = Array.from(allHeaders);
+    
+    const getSortIcon = (key: string) => {
+        if (!sortConfig || sortConfig.key !== key) {
+            return <ArrowUpDown className="h-3 w-3 ml-2 text-muted-foreground/50" />;
+        }
+        // Simplified icon, could be ArrowUp/ArrowDown
+        return <ArrowUpDown className="h-3 w-3 ml-2 text-primary" />;
+    };
 
     return (
         <div className="relative h-full w-full overflow-auto max-w-full">
             <table className="w-max min-w-full text-sm border-collapse">
                 <thead className="sticky top-0 bg-secondary z-10 shadow-sm">
                     <tr>
-                        <th className="p-2 font-semibold text-left border-b">ID</th>
-                        {headers.map(h => <th key={h} className="p-2 font-semibold text-left border-b truncate min-w-[120px]" title={h}>{h}</th>)}
+                         <th className="p-2 font-semibold text-left border-b truncate min-w-[120px] cursor-pointer hover:bg-muted" onClick={() => requestSort('id')}>
+                            <div className="flex items-center">ID {getSortIcon('id')}</div>
+                        </th>
+                        {headers.map(h => 
+                            <th key={h} className="p-2 font-semibold text-left border-b truncate min-w-[120px] cursor-pointer hover:bg-muted" title={h} onClick={() => requestSort(h)}>
+                                <div className="flex items-center">{h} {getSortIcon(h)}</div>
+                            </th>
+                        )}
                     </tr>
                 </thead>
                 <tbody>
@@ -198,7 +212,7 @@ const FileUploader = ({ layer, title, name, onUpload, isProcessing }: { layer: '
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   multiple
                   accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.fbn,.fbx,.ain,.aih,.ixs,.mxs,.atx,.cpg,.xml"
-                  onChange={(e) => onUpload(Array.from(e.target.files || []), layer)}
+                  onChange={(e) => e.target.files && onUpload(Array.from(e.target.files), layer)}
               />
               <UploadCloud className={cn("h-8 w-8", isDragging ? 'text-primary' : 'text-gray-400')} />
               <p className="mt-2 text-xs text-center text-muted-foreground">
@@ -276,6 +290,64 @@ export function ParcelEditorDocker({
     onUndo, onRedo, canUndo, canRedo
 }: ParcelEditorDockerProps) {
 
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
+
+    useEffect(() => {
+        // Set default sort order when data is first loaded and no sort is configured
+        if (allFeatures.length > 0 && !sortConfig) {
+          const firstFeatureProps = allFeatures[0].properties;
+          if (firstFeatureProps) {
+            // Common area-related keys, case-insensitive check
+            const areaKeys = ['shape_area', 'area_sqm', 'area', 'sqm'];
+            const propKeys = Object.keys(firstFeatureProps).map(k => k.toLowerCase());
+            const areaKey = areaKeys.find(key => propKeys.includes(key));
+            
+            if (areaKey) {
+                // Find original case-sensitive key
+                const originalKey = Object.keys(firstFeatureProps).find(k => k.toLowerCase() === areaKey);
+                if (originalKey) {
+                    setSortConfig({ key: originalKey, direction: 'descending' });
+                }
+            }
+          }
+        }
+      }, [allFeatures, sortConfig]);
+
+    const requestSort = (key: string) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedFeatures = useMemo(() => {
+        if (!allFeatures) return [];
+        let sortableItems = [...allFeatures];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const aVal = a.properties?.[sortConfig.key];
+                const bVal = b.properties?.[sortConfig.key];
+
+                if (aVal === bVal) return 0;
+                if (aVal === null || aVal === undefined) return 1;
+                if (bVal === null || bVal === undefined) return -1;
+                
+                // Numeric sorting
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    const comparison = aVal - bVal;
+                    return sortConfig.direction === 'ascending' ? comparison : -comparison;
+                }
+
+                // String sorting
+                const strComparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
+                return sortConfig.direction === 'ascending' ? strComparison : -strComparison;
+            });
+        }
+        return sortableItems;
+    }, [allFeatures, sortConfig]);
+
+
     const handleToolClick = (toolId: EditorTool) => {
         if (toolId === 'undo') onUndo();
         else if (toolId === 'redo') onRedo();
@@ -308,11 +380,11 @@ export function ParcelEditorDocker({
                             <React.Fragment key={group.name}>
                                 <div className="space-y-2">
                                     {group.tools.map(tool => {
-                                        const isUndoRedo = tool.id === 'undo' || tool.id === 'redo';
                                         const isDisabled = 
-                                            (!hasData && tool.id !== 'select') ||
+                                            (!hasData && !['select', 'draw-polygon', 'draw-rectangle'].includes(tool.id)) ||
                                             (tool.id === 'undo' && !canUndo) || 
-                                            (tool.id === 'redo' && !canRedo);
+                                            (tool.id === 'redo' && !canRedo) ||
+                                            (tool.id === 'clear-selection' && !selectedFeature);
 
                                         return (
                                             <Tooltip key={tool.id}>
@@ -322,7 +394,7 @@ export function ParcelEditorDocker({
                                                         size="icon"
                                                         onClick={() => tool.implemented && handleToolClick(tool.id)}
                                                         className="h-10 w-10"
-                                                        disabled={isDisabled}
+                                                        disabled={isDisabled || !tool.implemented}
                                                     >
                                                         <tool.icon className="h-5 w-5" />
                                                     </Button>
@@ -342,7 +414,7 @@ export function ParcelEditorDocker({
                 </div>
                 <div className="flex-1 flex flex-col min-w-0">
                      <Tabs defaultValue={hasData ? "properties" : "import"} value={hasData ? undefined : "import"} className="flex-1 flex flex-col min-h-0">
-                        <div className="border-b p-2">
+                        <div className="border-b p-1.5">
                             <TabsList className="grid w-full grid-cols-4 h-9">
                                 <TabsTrigger value="import">Import</TabsTrigger>
                                 <TabsTrigger value="properties" disabled={!hasData}>Properties</TabsTrigger>
@@ -358,7 +430,7 @@ export function ParcelEditorDocker({
                              <PropertiesPanel feature={selectedFeature} parcelsCount={allFeatures.length} homesCount={homesCount} onDeleteClick={onDeleteSelected} />
                         </TabsContent>
                         <TabsContent value="table" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
-                             <AttributeTable features={allFeatures} selectedId={selectedFeature?.id} onRowClick={onFeatureSelect} />
+                             <AttributeTable features={sortedFeatures} selectedId={selectedFeature?.id} onRowClick={onFeatureSelect} sortConfig={sortConfig} requestSort={requestSort} />
                         </TabsContent>
                         <TabsContent value="export" className="flex-1 min-h-0 -mt-0 data-[state=inactive]:hidden">
                              <ExportPanel hasData={hasData} onExportGeoJSON={onExportGeoJSON} />
