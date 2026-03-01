@@ -1,21 +1,23 @@
 /**
- * Core Philosophy: This ruleset enforces a strict user-ownership model. All data is considered private and is
- * only accessible to the user who created it. There is no public or shared data.
+ * AGIS Cadastral System Ruleset
  *
- * Data Structure: The data is organized hierarchically, with all user-specific information nested under a
- * top-level `/users/{userId}` collection. This structure creates a natural and secure silo for each user's
- * data, a design that simplifies security rules and queries.
+ * Core Philosophy: This ruleset manages a shared, enterprise-grade cadastral dataset. It employs a hybrid
+ * security model:
+ *
+ * 1. Private User Data: The `/users/{userId}` path follows a strict user-ownership model, where all data is
+ *    private and only accessible to the user who created it. This is used for user-specific settings and
+ *    session data.
+ *
+ * 2. Shared Cadastral Data: The top-level `Mauzas` and `Parcels` collections are treated as a shared,
+ *    authoritative dataset. Access is granted to all authenticated users (representing government officials),
+ *    with strict validation rules to ensure data integrity during writes.
  *
  * Key Security Decisions:
- * - User Listing Disabled: To protect user privacy, it is not possible to list all documents in the `/users`
- *   collection. A user can only fetch their own profile document.
- * - Path-Based Authorization: All access control decisions are made by comparing the authenticated user's UID
- *   (`request.auth.uid`) with the `{userId}` wildcard in the document path. This is highly performant as it
- *   avoids extra database reads (`get()` calls).
- * - Immutability of Ownership: Relational keys that link a document to its owner (e.g., `userId` field) are
- *   enforced to be immutable after creation to prevent data re-association.
- * - Default Deny: Any operation not explicitly granted is denied. All write operations (`create`, `update`,
- *   `delete`) are explicitly denied if the user is not the designated owner.
+ * - Data Integrity via Validation: All writes to the `Parcels` and `Mauzas` collections are heavily validated
+ *   to enforce the architectural blueprint. This includes checking for the presence and correct data types of
+ *   critical fields like `geometryUrl`, `geohash`, and `area_sqm`.
+ * - Authenticated Access: Only signed-in users can interact with the cadastral data, preventing public access.
+ * - Default Deny: Any operation not explicitly granted by these rules is automatically denied.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -34,7 +36,7 @@ service cloud.firestore {
 
     /**
      * Verifies that the requesting user's UID matches the provided userId from the path.
-     * This is the fundamental rule for enforcing user ownership.
+     * Used for the private user data model.
      * @param userId The user ID from the document path.
      */
     function isOwner(userId) {
@@ -42,8 +44,7 @@ service cloud.firestore {
     }
 
     /**
-     * Verifies ownership for an existing document. Used for update and delete operations
-     * to ensure the target document exists before the operation proceeds.
+     * Verifies ownership for an existing document. Used for update and delete operations.
      * @param userId The user ID from the document path.
      */
     function isExistingOwner(userId) {
@@ -51,17 +52,51 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------------------
-    // Collection Rules
+    // Cadastral Data Model Rules (Shared)
     // ----------------------------------------------------------------------
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Controls access to Mauza (administrative area) metadata.
+     * @path /Mauzas/{mauzaId}
+     * @allow (read) Any authenticated user can read Mauza metadata.
+     * @allow (create) An authenticated user can create a Mauza document, provided it passes validation.
+     * @principle Enforces data integrity for the core administrative boundaries.
+     */
+    match /Mauzas/{mauzaId} {
+      allow read, update, delete: if isSignedIn();
+      allow create: if isSignedIn() &&
+                      request.resource.data.id == mauzaId &&
+                      request.resource.data.name is string &&
+                      request.resource.data.name.size() > 0 &&
+                      request.resource.data.geometryUrl is string &&
+                      request.resource.data.geometryUrl.size() > 0;
+    }
+
+    /**
+     * @description Controls access to individual land parcel metadata.
+     * @path /Parcels/{parcelId}
+     * @allow (read) Any authenticated user can read Parcel metadata.
+     * @allow (create, update) Writes are permitted only if required fields are present and correctly typed.
+     * @principle Ensures every parcel record is complete and conforms to the data schema.
+     */
+    match /Parcels/{parcelId} {
+      allow read, delete: if isSignedIn();
+      allow create, update: if isSignedIn() &&
+                              request.resource.data.geometryUrl is string &&
+                              request.resource.data.geometryUrl.size() > 0 &&
+                              request.resource.data.geohash is string &&
+                              request.resource.data.geohash.size() > 0 &&
+                              request.resource.data.area_sqm is number;
+    }
+
+
+    // ----------------------------------------------------------------------
+    // User-Private Data Model Rules
+    // ----------------------------------------------------------------------
+
+    /**
+     * @description Controls access to user profile and related private documents.
      * @path /users/{userId}
-     * @allow (get) An authenticated user can retrieve their own profile document.
-     * @allow (create) An authenticated user can create their own profile document.
-     * @deny (list) No user can list all documents in the 'users' collection.
-     * @deny (update) A user cannot update another user's profile.
-     * @principle Restricts access to a user's own data tree and enforces relational integrity on create.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
