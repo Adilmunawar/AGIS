@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Button>
           </div>
         </aside>
-        <main className="flex-1 relative">{children}</main>
+        <main className="flex-1 relative min-h-0">{children}</main>
       </div>
     </GisDataProvider>
   );
