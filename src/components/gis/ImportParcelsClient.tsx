@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, GeoJSON, FeatureGroup } from 'react-leaflet';
-import L, { LatLngBounds } from 'leaflet';
+import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import L from 'leaflet';
 import { useToast } from '@/hooks/use-toast';
-import { ParcelEditorDocker } from './ParcelEditorDocker';
+import { ParcelEditorDocker, type EditorTool } from './ParcelEditorDocker';
 import { useGisData } from '@/context/GisDataContext';
-import { EditControl } from 'react-leaflet-draw';
 import * as turf from '@turf/turf';
 import { MapHeader, type BaseLayer } from './MapHeader';
 
@@ -50,13 +49,16 @@ export default function ImportParcelsClient() {
     importParcels: { boundaryData, parcelsData, homesData, selectedFeatureIds, history, historyIndex }, 
     updateToolState,
     toggleFeatureSelection,
+    undo,
+    redo,
+    deleteSelectedFeatures,
+    mergeSelectedFeatures,
   } = useGisData();
   
   const [isProcessing, setIsProcessing] = useState({ boundary: false, parcels: false, homes: false });
   const workerRef = useRef<Worker | null>(null);
 
-  const [activeTool, setActiveTool] = useState<'select' | 'multi-select'>('select');
-  const featureGroupRef = useRef<L.FeatureGroup>(null);
+  const [activeTool, setActiveTool] = useState<EditorTool>('select');
   const mapRef = useRef<L.Map>(null);
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
 
@@ -74,6 +76,41 @@ export default function ImportParcelsClient() {
     setIsProcessing(prev => ({ ...prev, [layer]: true }));
     toast({ title: `Processing ${layer}...`, description: 'Parsing files in browser memory.' });
     workerRef.current?.postMessage({ files, layer });
+  };
+
+  const handleClearData = () => {
+     updateToolState('importParcels', {
+            boundaryData: null,
+            parcelsData: null,
+            homesData: null,
+            selectedFeatureIds: [],
+        });
+        toast({title: 'Cleared All Layers', description: 'The map and data have been reset.'});
+  };
+
+  const handleExportGeoJSON = () => {
+    if (!parcelsData && !boundaryData) {
+        toast({variant: 'destructive', title: 'No Data to Export', description: 'Please upload at least one layer to export.'});
+        return;
+    }
+    const dataToExport = {
+      type: "FeatureCollection",
+      features: [
+        ...(boundaryData?.features || []),
+        ...(parcelsData?.features || []),
+        ...(homesData?.features || []),
+      ]
+    };
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `AGIS_Export_${new Date().toISOString()}.geojson`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({title: "Export Successful", description: "Combined GeoJSON file has been downloaded."});
   };
   
   useEffect(() => {
@@ -100,7 +137,7 @@ export default function ImportParcelsClient() {
           }
         });
 
-        updateToolState('importParcels', { [dataKey]: geojson }, { manageHistory: true });
+        updateToolState('importParcels', { [dataKey]: geojson });
 
         toast({ title: `${processedLayer.charAt(0).toUpperCase() + processedLayer.slice(1)} Layer Processed`, description: `Found ${geojson.features.length} features.` });
       } else {
@@ -132,37 +169,27 @@ export default function ImportParcelsClient() {
     }
   }, [boundsToFly]);
 
-  // Handler for clicking a feature on the map
   const handleFeatureClick = useCallback((feature: any) => {
       toggleFeatureSelection(feature.id, activeTool === 'multi-select');
   }, [toggleFeatureSelection, activeTool]);
 
-  // Handler for clicking a row in the attribute table
   const handleTableRowClick = useCallback((feature: any) => {
-    // When a table row is clicked, we always want to do a single-selection
     toggleFeatureSelection(feature.id, false);
 
-    // And fly to that feature on the map
     if (mapRef.current && feature && feature.geometry) {
         try {
             const boundingBox = turf.bbox(feature);
-            const leafletBounds = L.latLngBounds(
-                [boundingBox[1], boundingBox[0]], // SW corner
-                [boundingBox[3], boundingBox[2]]  // NE corner
-            );
+            const leafletBounds = L.latLngBounds([boundingBox[1], boundingBox[0]], [boundingBox[3], boundingBox[2]]);
             mapRef.current.flyToBounds(leafletBounds, { padding: [50, 50], maxZoom: 18 });
-        } catch(e) {
-            console.error("Could not fly to feature:", e);
-        }
+        } catch(e) { console.error("Could not fly to feature:", e); }
     }
-  }, [toggleFeatureSelection, mapRef]);
+  }, [toggleFeatureSelection]);
 
   const getFeatureStyle = (feature: any) => {
     const isSelected = selectedFeatureIds.includes(feature.id);
     if (isSelected) {
       return { color: '#fbbf24', weight: 3, fillOpacity: 0.7, fillColor: '#f59e0b' };
     }
-    // Differentiate styles for different layers if needed, e.g., based on properties
     return { color: "#2563eb", weight: 2, fillOpacity: 0.1 };
   }
 
@@ -174,7 +201,7 @@ export default function ImportParcelsClient() {
       <div className="flex-1 h-full relative min-w-0">
         <MapContainer
           ref={mapRef}
-          center={[30.3753, 69.3451]} // Center of Pakistan
+          center={[30.3753, 69.3451]}
           zoom={6}
           style={{ height: '100%', width: '100%', backgroundColor: '#f0f0f0' }}
           zoomControl={false}
@@ -186,38 +213,17 @@ export default function ImportParcelsClient() {
             url={activeLayer.url}
             subdomains={activeLayer.subdomains || ''}
           />
-          <FeatureGroup ref={featureGroupRef}>
-            <EditControl
-              position="topleft"
-              draw={{
-                polygon: true,
-                polyline: false,
-                rectangle: true,
-                circle: false,
-                marker: false,
-                circlemarker: false,
-              }}
-              edit={{
-                edit: true,
-                remove: true,
-              }}
-            />
-          </FeatureGroup>
-          {boundaryData && <GeoJSON key={`boundary-${historyIndex}-${boundaryData.features.length}`} data={boundaryData} style={boundaryStyle} />}
+          {boundaryData && <GeoJSON key={`boundary-${historyIndex}`} data={boundaryData} style={boundaryStyle} />}
           {parcelsData && <GeoJSON 
-            key={`parcels-${historyIndex}-${parcelsData.features.length}-${selectedFeatureIds.join('-')}`}
+            key={`parcels-${historyIndex}-${selectedFeatureIds.join('-')}`}
             data={parcelsData} 
             style={getFeatureStyle}
-            onEachFeature={(feature, layer) => {
-                layer.on({
-                    click: () => handleFeatureClick(feature)
-                });
-            }}
+            onEachFeature={(feature, layer) => layer.on({ click: () => handleFeatureClick(feature) })}
           />}
-          {homesData && <GeoJSON key={`homes-${historyIndex}-${homesData.features.length}`} data={homesData} style={homeStyle} />}
+          {homesData && <GeoJSON key={`homes-${historyIndex}`} data={homesData} style={homeStyle} />}
         </MapContainer>
       </div>
-      <div className="w-[450px] flex-shrink-0 h-full flex flex-col border-l bg-background">
+      <div className="w-[350px] flex-shrink-0 h-full flex flex-col border-l bg-background">
         <ParcelEditorDocker 
             onUpload={handleUpload}
             isProcessing={isProcessing}
