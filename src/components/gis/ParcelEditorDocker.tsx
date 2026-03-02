@@ -138,7 +138,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
             
             toast({
                 title: 'Download Started',
-                description: 'Your layers have been zipped and downloaded.',
+                description: 'Zipped layers are downloading.',
             });
 
         } catch (error) {
@@ -200,7 +200,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
     }, [selectedFeature]);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full w-[350px] overflow-hidden">
             <div className="p-2 border-b flex items-center justify-between shrink-0">
                 <h3 className="font-semibold text-xs text-foreground">Parcel Editor</h3>
             </div>
@@ -259,8 +259,19 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     </div>
                 </TabsContent>
             </Tabs>
+            
+            <div className="shrink-0 border-y p-2 flex items-center gap-2">
+                <Button onClick={handleSaveLocally} className="w-full" variant="outline" disabled={!boundaryData && !parcelsData}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Save Locally
+                </Button>
+                <Button className="w-full" variant="secondary" disabled>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Upload to Cloud
+                </Button>
+            </div>
 
-            <Card className="shrink-0 border-t rounded-t-none border-x-0 border-b-0 max-h-48">
+            <Card className="shrink-0 border-x-0 border-b-0 rounded-none max-h-[14rem]">
                 <CardHeader className="p-1.5 border-b">
                     <CardTitle className="text-[10px] font-bold px-1">
                         {selectedFeatureIds.length > 1 
@@ -288,16 +299,6 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     )}
                 </CardContent>
             </Card>
-            <div className="shrink-0 border-t p-2 flex items-center gap-2">
-                <Button onClick={handleSaveLocally} className="w-full" variant="outline" disabled={!boundaryData && !parcelsData}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Save Locally
-                </Button>
-                <Button className="w-full" variant="secondary" disabled>
-                    <UploadCloud className="mr-2 h-4 w-4" />
-                    Upload to Cloud
-                </Button>
-            </div>
         </div>
     )
 }
