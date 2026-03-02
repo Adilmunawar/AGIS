@@ -206,13 +206,13 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
 
     return (
-        <div className="flex flex-col h-full w-[350px] overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
             <div className="p-2 border-b flex items-center justify-between shrink-0">
                 <h3 className="font-semibold text-xs text-foreground">Parcel Editor</h3>
             </div>
             
-            <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
-                 <div className="border-b p-1.5 bg-background">
+             <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
+                 <div className="border-b p-2 bg-background">
                     <TabsList className="grid w-full grid-cols-2 h-9 p-1 rounded-lg bg-secondary">
                         <TabsTrigger 
                             value="layers" 
@@ -230,7 +230,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     </TabsList>
                 </div>
 
-                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2 data-[state=inactive]:hidden space-y-2">
+                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
                     <FileUploader 
                         layer="boundary" 
                         title="Main Boundary" 
@@ -248,8 +248,8 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     />
                 </TabsContent>
 
-                <TabsContent value="table" className="flex-1 min-h-0 overflow-auto data-[state=inactive]:hidden">
-                    <div className="p-1 h-full">
+                <TabsContent value="table" className="flex-1 min-h-0 overflow-auto p-1">
+                     <div className="h-full">
                         <table className="w-max min-w-full text-[9px] border-collapse">
                             <thead className="sticky top-0 bg-background z-10 shadow-sm">
                                 <tr>
