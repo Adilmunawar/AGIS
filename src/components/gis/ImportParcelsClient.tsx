@@ -185,6 +185,14 @@ export default function ImportParcelsClient() {
     }
   }, [toggleFeatureSelection]);
 
+  const getBoundaryStyle = (feature: any) => {
+    const isSelected = selectedFeatureIds.includes(feature.id);
+    if (isSelected) {
+      return { color: '#fbbf24', weight: 4, fillOpacity: 0.5, fillColor: '#f59e0b' };
+    }
+    return { color: "#dc2626", weight: 3, fill: false };
+  };
+
   const getFeatureStyle = (feature: any) => {
     const isSelected = selectedFeatureIds.includes(feature.id);
     if (isSelected) {
@@ -193,7 +201,6 @@ export default function ImportParcelsClient() {
     return { color: "#2563eb", weight: 2, fillOpacity: 0.1 };
   }
 
-  const boundaryStyle = { color: "#dc2626", weight: 3, fill: false };
   const homeStyle = { color: "#16a34a", weight: 1.5, fillOpacity: 0.6 };
   
   return (
@@ -213,7 +220,12 @@ export default function ImportParcelsClient() {
             url={activeLayer.url}
             subdomains={activeLayer.subdomains || ''}
           />
-          {boundaryData && <GeoJSON key={`boundary-${historyIndex}`} data={boundaryData} style={boundaryStyle} />}
+          {boundaryData && <GeoJSON 
+            key={`boundary-${historyIndex}-${selectedFeatureIds.join('-')}`} 
+            data={boundaryData} 
+            style={getBoundaryStyle}
+            onEachFeature={(feature, layer) => layer.on({ click: () => handleFeatureClick(feature) })}
+          />}
           {parcelsData && <GeoJSON 
             key={`parcels-${historyIndex}-${selectedFeatureIds.join('-')}`}
             data={parcelsData} 

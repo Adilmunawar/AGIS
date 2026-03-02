@@ -159,11 +159,22 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
             features.sort((a, b) => {
                 const aVal = a.properties[sortConfig.key];
                 const bVal = b.properties[sortConfig.key];
+
+                // Handle null or undefined values to prevent crashes
+                if (aVal == null && bVal == null) return 0;
+                if (aVal == null) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (bVal == null) return sortConfig.direction === 'asc' ? 1 : -1;
+                
                 const aNum = Number(aVal);
                 const bNum = Number(bVal);
-                if (!isNaN(aNum) && !isNaN(bNum)) return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+
                 const aStr = String(aVal).toLowerCase();
                 const bStr = String(bVal).toLowerCase();
+
                 if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
@@ -189,8 +200,17 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
     const selectedFeature = useMemo(() => {
         if (selectedFeatureIds.length !== 1) return null;
-        return parcelsData?.features.find((f: any) => f.id === selectedFeatureIds[0]);
-    }, [parcelsData, selectedFeatureIds]);
+        const selectedId = selectedFeatureIds[0];
+        
+        // Search in parcels first
+        let feature = parcelsData?.features.find((f: any) => f.id === selectedId);
+        if (feature) return feature;
+
+        // If not found, search in boundaries
+        feature = boundaryData?.features.find((f: any) => f.id === selectedId);
+        return feature;
+
+    }, [parcelsData, boundaryData, selectedFeatureIds]);
 
     const selectedFeatureDetails = useMemo(() => {
         if (!selectedFeature) return null;
