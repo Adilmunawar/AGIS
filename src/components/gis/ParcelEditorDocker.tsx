@@ -2,18 +2,18 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import * as turf from '@turf/turf'
 import {
-  MousePointerSquare, Trash2, X, Undo, Redo, UploadCloud, File as FileIcon, Loader2, Layers, Table as TableIcon, Wrench, Combine, Ruler, Download
+  UploadCloud,
+  Loader2,
+  Layers,
+  Table as TableIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useToast } from '@/hooks/use-toast'
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-
 
 // A small component to render the preview map for a layer
 const LayerPreviewMap = ({ data, style }: { data: any, style?: any }) => {
@@ -142,8 +142,7 @@ const getVisibleColumns = (features: any[]) => {
   return Array.from(allHeaders);
 };
 
-export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parcelsData, homesData, selectedFeatureIds, onDeleteSelected, onClearData, onFeatureSelect, onExportGeoJSON, activeTool, onToolSelect, onUndo, onRedo, canUndo, canRedo, onMerge }) {
-    const { toast } = useToast();
+export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parcelsData, homesData, selectedFeatureIds, onFeatureSelect }: any) {
     const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
 
     const sortedParcels = useMemo(() => {
@@ -190,20 +189,6 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
         setSortConfig({ key, direction });
     };
 
-    const handleMeasureArea = () => {
-        if (selectedFeatureIds.length !== 1 || !parcelsData) return;
-        const feature = parcelsData.features.find((f: any) => f.id === selectedFeatureIds[0]);
-        if (!feature) return;
-
-        const areaSqm = turf.area(feature);
-        const areaAcres = areaSqm * 0.000247105;
-        
-        toast({
-            title: "Area Measurement",
-            description: `Area: ${areaSqm.toFixed(2)} sq. meters (${areaAcres.toFixed(4)} acres)`
-        })
-    }
-
     const selectedFeature = useMemo(() => {
         if (selectedFeatureIds.length !== 1) return null;
         return parcelsData?.features.find((f: any) => f.id === selectedFeatureIds[0]);
@@ -211,15 +196,19 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
     const selectedFeatureDetails = useMemo(() => {
         if (!selectedFeature) return null;
+        try {
+            const areaSqm = turf.area(selectedFeature);
+            const areaAcres = areaSqm * 0.000247105;
 
-        const areaSqm = turf.area(selectedFeature);
-        const areaAcres = areaSqm * 0.000247105;
+            return {
+                ...selectedFeature.properties,
+                "Area (sq. m)": areaSqm.toFixed(2),
+                "Area (acres)": areaAcres.toFixed(4),
+            };
+        } catch(e) {
+            return selectedFeature.properties;
+        }
 
-        return {
-            ...selectedFeature.properties,
-            "Area (sq. m)": areaSqm.toFixed(2),
-            "Area (acres)": areaAcres.toFixed(4),
-        };
     }, [selectedFeature]);
 
 
@@ -231,10 +220,9 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
             
             <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
                 <div className="border-b px-2">
-                    <TabsList className="grid w-full grid-cols-3 h-8">
+                    <TabsList className="grid w-full grid-cols-2 h-8">
                         <TabsTrigger value="layers" className="text-xs h-6"><Layers className="size-3 mr-1"/>Layers</TabsTrigger>
                         <TabsTrigger value="table" className="text-xs h-6" disabled={!parcelsData}><TableIcon className="size-3 mr-1"/>Table</TabsTrigger>
-                        <TabsTrigger value="tools" className="text-xs h-6" disabled={!parcelsData}><Wrench className="size-3 mr-1"/>Tools</TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -284,19 +272,6 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                                 ))}
                             </tbody>
                         </table>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="tools" className="flex-1 min-h-0 overflow-y-auto p-2 data-[state=inactive]:hidden">
-                    <div className="grid grid-cols-2 gap-1.5">
-                        <Button size="sm" variant={activeTool === 'multi-select' ? 'default' : 'outline'} onClick={() => onToolSelect(activeTool === 'select' ? 'multi-select' : 'select')} className="text-xs h-7"><MousePointerSquare className="mr-1.5 h-3 w-3"/> Multi-Select</Button>
-                        <Button size="sm" variant="outline" onClick={onMerge} disabled={selectedFeatureIds.length < 2} className="text-xs h-7"><Combine className="mr-1.5 h-3 w-3"/> Merge Parcels</Button>
-                        <Button size="sm" variant="outline" onClick={handleMeasureArea} disabled={selectedFeatureIds.length !== 1} className="text-xs h-7"><Ruler className="mr-1.5 h-3 w-3"/> Measure Area</Button>
-                        <Button size="sm" variant="outline" onClick={onExportGeoJSON} disabled={!parcelsData} className="text-xs h-7"><Download className="mr-1.5 h-3 w-3"/> Export GeoJSON</Button>
-                        <Button size="sm" variant="destructive" onClick={onDeleteSelected} disabled={selectedFeatureIds.length === 0} className="text-xs h-7"><Trash2 className="mr-1.5 h-3 w-3"/> Delete Selected</Button>
-                        <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs h-7" onClick={onClearData}><X className="mr-1.5 h-3 w-3"/> Clear All Data</Button>
-                        <Button size="sm" variant="outline" onClick={onUndo} disabled={!canUndo} className="text-xs h-7"><Undo className="mr-1.5 h-3 w-3"/> Undo</Button>
-                        <Button size="sm" variant="outline" onClick={onRedo} disabled={!canRedo} className="text-xs h-7"><Redo className="mr-1.5 h-3 w-3"/> Redo</Button>
                     </div>
                 </TabsContent>
             </Tabs>

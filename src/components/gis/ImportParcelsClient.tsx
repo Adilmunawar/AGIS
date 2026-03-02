@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { MapContainer, TileLayer, GeoJSON, FeatureGroup } from 'react-leaflet';
 import L, { LatLngBounds } from 'leaflet';
 import { useToast } from '@/hooks/use-toast';
-import { ParcelEditorDocker, EditorTool } from './ParcelEditorDocker';
+import { ParcelEditorDocker } from './ParcelEditorDocker';
 import { useGisData } from '@/context/GisDataContext';
 import { EditControl } from 'react-leaflet-draw';
 import * as turf from '@turf/turf';
@@ -49,28 +49,16 @@ export default function ImportParcelsClient() {
   const { 
     importParcels: { boundaryData, parcelsData, homesData, selectedFeatureIds, history, historyIndex }, 
     updateToolState,
-    undo,
-    redo,
-    deleteSelectedFeatures,
-    clearAllLayers,
     toggleFeatureSelection,
-    mergeSelectedFeatures
   } = useGisData();
   
   const [isProcessing, setIsProcessing] = useState({ boundary: false, parcels: false, homes: false });
   const workerRef = useRef<Worker | null>(null);
 
-  const [activeTool, setActiveTool] = useState<EditorTool>('select');
+  const [activeTool, setActiveTool] = useState<'select' | 'multi-select'>('select');
   const featureGroupRef = useRef<L.FeatureGroup>(null);
   const mapRef = useRef<L.Map>(null);
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
-
-  const selectedFeature = useMemo(() => {
-    if (selectedFeatureIds.length !== 1) return null;
-    const selectedId = selectedFeatureIds[0];
-    return parcelsData?.features.find((f: any) => f.id === selectedId) || null;
-  }, [parcelsData, selectedFeatureIds]);
-
 
   const handleUpload = (files: File[], layer: 'boundary' | 'parcels' | 'homes') => {
     if (!files || files.length === 0) return;
@@ -169,20 +157,6 @@ export default function ImportParcelsClient() {
     }
   }, [toggleFeatureSelection, mapRef]);
 
-  const handleExportGeoJSON = () => {
-    if (!parcelsData) return;
-    const blob = new Blob([JSON.stringify(parcelsData)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = "edited_parcels.geojson";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast({ title: 'Export Successful', description: 'Parcels exported to edited_parcels.geojson' });
-  };
-  
   const getFeatureStyle = (feature: any) => {
     const isSelected = selectedFeatureIds.includes(feature.id);
     if (isSelected) {
@@ -251,17 +225,7 @@ export default function ImportParcelsClient() {
             parcelsData={parcelsData}
             homesData={homesData}
             selectedFeatureIds={selectedFeatureIds}
-            onDeleteSelected={deleteSelectedFeatures}
-            onClearData={clearAllLayers}
             onFeatureSelect={handleTableRowClick}
-            onExportGeoJSON={handleExportGeoJSON}
-            activeTool={activeTool}
-            onToolSelect={setActiveTool}
-            onUndo={undo}
-            onRedo={redo}
-            canUndo={historyIndex > 0}
-            canRedo={historyIndex < history.length - 1}
-            onMerge={mergeSelectedFeatures}
         />
       </div>
     </div>
