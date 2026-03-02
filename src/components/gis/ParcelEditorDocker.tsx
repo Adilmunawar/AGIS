@@ -2,10 +2,13 @@
 import React, { useMemo, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import * as turf from '@turf/turf'
+import JSZip from 'jszip'
 import {
-  Layers, Table as TableIcon, UploadCloud, CheckCircle, Loader2, X,
+  Layers, Table as TableIcon, UploadCloud, CheckCircle, Loader2, X, Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -58,7 +61,7 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear }: a
                 </div>
                  <div
                     className={cn(
-                        "flex flex-col items-center justify-center border-2 rounded-lg text-muted-foreground transition-colors h-[100px] overflow-hidden",
+                        "flex flex-col items-center justify-center border-2 rounded-lg text-muted-foreground transition-colors h-[140px] overflow-hidden",
                         isDragging ? "bg-primary/10 border-primary border-dashed" : "bg-background",
                         data ? 'p-0 border-solid border-border' : 'p-4 border-dashed hover:bg-muted/50'
                     )}
@@ -101,6 +104,52 @@ export type EditorTool = 'select' | 'multi-select';
 export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parcelsData, homesData, selectedFeatureIds, onFeatureSelect }: any) {
     const { updateToolState } = useGisData();
     const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
+    const { toast } = useToast();
+
+    const handleSaveLocally = async () => {
+        if (!boundaryData && !parcelsData) {
+            toast({
+                variant: 'destructive',
+                title: 'No Data to Save',
+                description: 'Please upload at least one layer to save.',
+            });
+            return;
+        }
+
+        try {
+            const zip = new JSZip();
+
+            if (boundaryData) {
+                zip.file('boundary.geojson', JSON.stringify(boundaryData));
+            }
+            if (parcelsData) {
+                zip.file('parcels.geojson', JSON.stringify(parcelsData));
+            }
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'AGIS_layers.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            toast({
+                title: 'Download Started',
+                description: 'Your layers have been zipped and downloaded.',
+            });
+
+        } catch (error) {
+            console.error("Error creating zip file:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not create the zip file.',
+            });
+        }
+    }
 
     const sortedParcels = useMemo(() => {
         if (!parcelsData?.features) return [];
@@ -211,7 +260,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                 </TabsContent>
             </Tabs>
 
-            <Card className="shrink-0 border-t rounded-t-none border-x-0 border-b-0 max-h-32">
+            <Card className="shrink-0 border-t rounded-t-none border-x-0 border-b-0 max-h-48">
                 <CardHeader className="p-1.5 border-b">
                     <CardTitle className="text-[10px] font-bold px-1">
                         {selectedFeatureIds.length > 1 
@@ -239,6 +288,16 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                     )}
                 </CardContent>
             </Card>
+            <div className="shrink-0 border-t p-2 flex items-center gap-2">
+                <Button onClick={handleSaveLocally} className="w-full" variant="outline" disabled={!boundaryData && !parcelsData}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Save Locally
+                </Button>
+                <Button className="w-full" variant="secondary" disabled>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Upload to Cloud
+                </Button>
+            </div>
         </div>
     )
 }
