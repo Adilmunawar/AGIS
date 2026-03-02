@@ -10,6 +10,7 @@ import { GisControlBar } from './GisControlBar';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import L from 'leaflet';
 import { useGisData } from '@/context/GisDataContext';
+import MousePositionControl from './MousePositionControl';
 
 function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
   const nodes = new Map<number, number[]>();
@@ -339,6 +340,7 @@ export default function ExtractRoadsClient() {
             runRealtimeExtraction={runRealtimeExtraction}
             handleDownload={handleDownload}
         />
+        <MousePositionControl />
       </MapContainer>
     </div>
   );

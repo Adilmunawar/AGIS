@@ -14,6 +14,7 @@ import { Loader2, Sparkles, Download, Plus, Minus, MousePointer, ShieldAlert, Te
 import { MapHeader, type BaseLayer } from './MapHeader';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useGisData } from '@/context/GisDataContext';
+import MousePositionControl from './MousePositionControl';
 
 const baseLayers: BaseLayer[] = [
     {
@@ -397,6 +398,7 @@ function MapContent() {
             />
         </div>
       )}
+      <MousePositionControl />
     </>
   );
 }

@@ -8,6 +8,7 @@ import { ParcelEditorDocker, type EditorTool } from './ParcelEditorDocker';
 import { useGisData } from '@/context/GisDataContext';
 import * as turf from '@turf/turf';
 import { MapHeader, type BaseLayer } from './MapHeader';
+import MousePositionControl from './MousePositionControl';
 
 // Set up default Leaflet icon path
 if (typeof window !== 'undefined') {
@@ -233,6 +234,7 @@ export default function ImportParcelsClient() {
             onEachFeature={(feature, layer) => layer.on({ click: () => handleFeatureClick(feature) })}
           />}
           {homesData && <GeoJSON key={`homes-${historyIndex}`} data={homesData} style={homeStyle} />}
+          <MousePositionControl />
         </MapContainer>
       </div>
       <div className="w-[350px] flex-shrink-0 h-full flex flex-col border-l bg-background">
