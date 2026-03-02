@@ -57,7 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <GisDataProvider>
       <div className="flex h-screen w-screen overflow-hidden bg-background">
-        <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col">
+        <aside className="w-56 flex-shrink-0 border-r bg-background flex flex-col">
           <div className="p-4 border-b flex-shrink-0">
             <h1 className="text-xl font-bold tracking-tight text-primary">AGIS</h1>
             <p className="text-xs text-muted-foreground">Advanced Geo-Processing</p>
@@ -110,7 +110,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <AvatarImage src={user?.photoURL || ''} />
                     <AvatarFallback><UserIcon size={16}/></AvatarFallback>
                   </Avatar>
-                  <div className="ml-2">
+                  <div className="ml-2 overflow-hidden">
                     <p className="text-sm font-semibold text-foreground truncate group-hover:text-accent-foreground">{user?.displayName || user?.email}</p>
                     <p className="text-xs text-muted-foreground truncate group-hover:text-accent-foreground/80">AGIS User</p>
                   </div>
