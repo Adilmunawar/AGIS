@@ -1,10 +1,8 @@
 'use client'
 import React, { useMemo, useState, useCallback } from 'react'
-import dynamic from 'next/dynamic'
-import * as turf from '@turf/turf'
 import JSZip from 'jszip'
 import {
-  UploadCloud, CheckCircle, Loader2, X, Download, Layers, Table as TableIcon
+  UploadCloud, CheckCircle, Loader2, X, Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -13,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useGisData } from '@/context/GisDataContext'
+import dynamic from 'next/dynamic'
+import * as turf from '@turf/turf'
+import { Layers, Table as TableIcon } from 'lucide-react'
 
 const LayerPreviewMap = dynamic(() => import('./LayerPreviewMap'), { ssr: false });
 
@@ -61,7 +62,7 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear }: a
                 </div>
                  <div
                     className={cn(
-                        "flex flex-col items-center justify-center border-2 rounded-lg text-muted-foreground transition-colors h-[100px] overflow-hidden",
+                        "flex flex-col items-center justify-center border-2 rounded-lg text-muted-foreground transition-colors h-[110px] overflow-hidden",
                         isDragging ? "bg-primary/10 border-primary border-dashed" : "bg-background",
                         data ? 'p-0 border-solid border-border' : 'p-4 border-dashed hover:bg-muted/50'
                     )}
@@ -207,24 +208,24 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
             
              <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
                  <div className="p-2 bg-background/80 backdrop-blur-sm">
-                    <TabsList className="grid w-full grid-cols-2 h-7 bg-muted/60">
+                    <TabsList className="grid w-full grid-cols-2 h-9 bg-muted/60">
                         <TabsTrigger 
                             value="layers" 
                             className="text-xs h-full data-[state=inactive]:hover:bg-muted/50 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm rounded-md"
                         >
-                            <Layers className="size-3 mr-1.5"/>Layers
+                            <Layers className="size-4 mr-1.5"/>Layers
                         </TabsTrigger>
                         <TabsTrigger 
                             value="table" 
                             className="text-xs h-full data-[state=inactive]:hover:bg-muted/50 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm rounded-md"
                             disabled={!parcelsData}
                         >
-                            <TableIcon className="size-3 mr-1.5"/>Table
+                            <TableIcon className="size-4 mr-1.5"/>Table
                         </TabsTrigger>
                     </TabsList>
                 </div>
 
-                <TabsContent value="layers" className="flex-grow p-2 space-y-2 bg-muted/30">
+                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2 bg-muted/30">
                     <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} onClear={handleClearLayer} />
                     <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} onClear={handleClearLayer} />
                 </TabsContent>
@@ -260,14 +261,14 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                 </TabsContent>
             </Tabs>
             
-            <div className="shrink-0 border-y p-2 flex items-center gap-2">
+            <div className="shrink-0 border-y p-2 grid grid-cols-2 gap-2">
                 <Button onClick={handleSaveLocally} className="w-full" variant="outline" disabled={!boundaryData && !parcelsData}>
                     <Download className="mr-2 h-4 w-4" />
                     Save Locally
                 </Button>
                 <Button className="w-full" variant="secondary" disabled>
                     <UploadCloud className="mr-2 h-4 w-4" />
-                    Upload to Database
+                    Upload to Cloud
                 </Button>
             </div>
 
@@ -280,7 +281,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                         }
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="p-2 text-[10px] overflow-y-auto max-h-[7rem]">
+                <CardContent className="p-2 text-[10px] overflow-y-auto max-h-[9.5rem]">
                     {!selectedFeatureDetails ? (
                          <div className="flex items-center justify-center h-full text-muted-foreground text-[10px] pt-4">
                             <p>
