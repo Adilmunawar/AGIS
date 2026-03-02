@@ -173,13 +173,6 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
 
 
     const visibleColumns = useMemo(() => getVisibleColumns(parcelsData?.features || []), [parcelsData]);
-    const selectedRowRef = useRef<HTMLTableRowElement>(null);
-    
-    useEffect(() => {
-        if (selectedRowRef.current) {
-            selectedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    }, [selectedFeatureIds]);
     
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -219,10 +212,21 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
             </div>
             
             <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
-                <div className="border-b px-2">
-                    <TabsList className="grid w-full grid-cols-2 h-8">
-                        <TabsTrigger value="layers" className="text-xs h-6"><Layers className="size-3 mr-1"/>Layers</TabsTrigger>
-                        <TabsTrigger value="table" className="text-xs h-6" disabled={!parcelsData}><TableIcon className="size-3 mr-1"/>Table</TabsTrigger>
+                 <div className="border-b p-1.5 bg-background">
+                    <TabsList className="grid w-full grid-cols-2 h-9 p-1 rounded-lg bg-secondary">
+                        <TabsTrigger 
+                            value="layers" 
+                            className="text-sm h-full rounded-md transition-colors data-[state=inactive]:hover:bg-background/70 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow"
+                        >
+                            <Layers className="size-4 mr-1.5"/>Layers
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="table" 
+                            className="text-sm h-full rounded-md transition-colors data-[state=inactive]:hover:bg-background/70 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow"
+                            disabled={!parcelsData}
+                        >
+                            <TableIcon className="size-4 mr-1.5"/>Table
+                        </TabsTrigger>
                     </TabsList>
                 </div>
 
@@ -263,7 +267,6 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                                 {sortedParcels.map((f: any) => (
                                     <tr
                                         key={f.id}
-                                        ref={selectedFeatureIds.includes(f.id) && selectedFeatureIds.length === 1 && f.id === selectedFeatureIds[0] ? selectedRowRef : null}
                                         onClick={() => onFeatureSelect(f)}
                                         className={cn("cursor-pointer border-b border-border hover:bg-muted/50", selectedFeatureIds.includes(f.id) && "bg-primary/10 hover:bg-primary/20")}
                                     >
