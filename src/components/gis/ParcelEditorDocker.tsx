@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge'
 import { useGisData } from '@/context/GisDataContext'
 import dynamic from 'next/dynamic'
 import * as turf from '@turf/turf'
-import { Layers, Table as TableIcon } from 'lucide-react'
+import { Layers, Table as TableIcon, Database } from 'lucide-react'
+import { UploadMauzaDialog } from './UploadMauzaDialog'
 
 const LayerPreviewMap = dynamic(() => import('./LayerPreviewMap'), { ssr: false });
 
@@ -30,12 +31,15 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear }: a
     return (
         <Card
             className={cn('relative transition-all duration-200 shadow-sm', !data && 'hover:shadow-md', isDragging && 'ring-2 ring-primary')}
-            onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDrop={handleDrop}
-            onClick={() => document.getElementById(`file-input-${layer}`)?.click()}
+            onClick={() => !data && document.getElementById(`file-input-${layer}`)?.click()}
         >
+             <div 
+                className="h-full w-full absolute top-0 left-0 z-10"
+                onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDrop={handleDrop}
+             />
             <input
                 id={`file-input-${layer}`}
                 type="file"
@@ -45,7 +49,7 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear }: a
                 onChange={(e) => e.target.files && onUpload(Array.from(e.target.files), layer)}
                 disabled={isProcessing}
             />
-             <CardContent className="p-2 space-y-2 cursor-pointer">
+             <CardContent className={cn("p-2 space-y-2", !data && "cursor-pointer")}>
                 <div className="flex items-center justify-between px-1">
                      <h4 className="font-semibold text-xs">{title}</h4>
                      {data && (
@@ -106,6 +110,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
     const { updateToolState } = useGisData();
     const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
     const { toast } = useToast();
+    const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
 
     const handleSaveLocally = async () => {
         if (!boundaryData && !parcelsData) {
@@ -202,11 +207,9 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
         if (selectedFeatureIds.length !== 1) return null;
         const selectedId = selectedFeatureIds[0];
         
-        // Search in parcels first
         let feature = parcelsData?.features.find((f: any) => f.id === selectedId);
         if (feature) return feature;
 
-        // If not found, search in boundaries
         feature = boundaryData?.features.find((f: any) => f.id === selectedId);
         return feature;
 
@@ -220,106 +223,123 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
         } catch { return selectedFeature.properties; }
     }, [selectedFeature]);
 
+    const handleUploadConfirm = async (mauzaName: string) => {
+        console.log("Uploading Mauza:", mauzaName);
+        setIsUploadDialogOpen(false);
+        // Here you will call the actual upload service
+        toast({ title: 'Starting Upload...', description: `Preparing ${mauzaName} for database.` });
+        // Example: await uploadMauzaData(mauzaName, boundaryData, parcelsData);
+    };
+
     return (
-        <div className="flex flex-col h-full w-[350px] overflow-hidden">
-            <div className="p-2 border-b flex items-center justify-between shrink-0">
-                <h3 className="font-semibold text-xs text-foreground">Parcel Editor</h3>
-            </div>
-            
-             <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
-                 <div className="p-2 bg-background/80 backdrop-blur-sm">
-                    <TabsList className="grid w-full grid-cols-2 h-9 bg-muted/60">
-                        <TabsTrigger 
-                            value="layers" 
-                            className="text-xs h-full data-[state=inactive]:hover:bg-muted/50 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm rounded-md"
-                        >
-                            <Layers className="size-4 mr-1.5"/>Layers
-                        </TabsTrigger>
-                        <TabsTrigger 
-                            value="table" 
-                            className="text-xs h-full data-[state=inactive]:hover:bg-muted/50 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm rounded-md"
-                            disabled={!parcelsData}
-                        >
-                            <TableIcon className="size-4 mr-1.5"/>Table
-                        </TabsTrigger>
-                    </TabsList>
+        <>
+            <UploadMauzaDialog 
+                isOpen={isUploadDialogOpen}
+                onOpenChange={setIsUploadDialogOpen}
+                onConfirm={handleUploadConfirm}
+                boundaryData={boundaryData}
+                parcelsData={parcelsData}
+            />
+            <div className="flex flex-col h-full w-[350px] overflow-hidden">
+                <div className="p-2 border-b flex items-center justify-between shrink-0">
+                    <h3 className="font-semibold text-xs text-foreground">Parcel Editor</h3>
+                </div>
+                
+                 <Tabs defaultValue="layers" className="flex flex-col flex-1 h-full w-full min-h-0">
+                     <div className="p-2 bg-background/80 backdrop-blur-sm">
+                        <TabsList className="grid w-full grid-cols-2 h-9 bg-muted/60">
+                            <TabsTrigger 
+                                value="layers" 
+                                className="text-xs h-full data-[state=inactive]:hover:bg-muted/50 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm rounded-md"
+                            >
+                                <Layers className="size-4 mr-1.5"/>Layers
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="table" 
+                                className="text-xs h-full data-[state=inactive]:hover:bg-muted/50 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-sm rounded-md"
+                                disabled={!parcelsData}
+                            >
+                                <TableIcon className="size-4 mr-1.5"/>Table
+                            </TabsTrigger>
+                        </TabsList>
+                    </div>
+
+                    <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2 bg-muted/30">
+                        <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} onClear={handleClearLayer} />
+                        <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} onClear={handleClearLayer} />
+                    </TabsContent>
+
+                    <TabsContent value="table" className="flex-1 min-h-0 overflow-auto p-1">
+                         <div className="h-full">
+                            <table className="w-max min-w-full text-[9px] border-collapse">
+                                <thead className="sticky top-0 bg-background z-10 shadow-sm">
+                                    <tr>
+                                        {visibleColumns.map(h => 
+                                            <th key={h} className="p-1 font-semibold text-left border-b truncate min-w-[60px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
+                                                <div className="flex items-center gap-1">
+                                                    {h}
+                                                    {sortConfig?.key === h && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                                                </div>
+                                            </th>
+                                        )}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedParcels.map((f: any) => (
+                                        <tr
+                                            key={f.id}
+                                            onClick={() => onFeatureSelect(f)}
+                                            className={cn("cursor-pointer border-b border-border hover:bg-muted/50", selectedFeatureIds.includes(f.id) && "bg-primary/10 hover:bg-primary/20")}
+                                        >
+                                            {visibleColumns.map(h => <td key={h} className="p-1 truncate max-w-[100px]" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </TabsContent>
+                </Tabs>
+                
+                <div className="shrink-0 border-y p-2 grid grid-cols-2 gap-2">
+                    <Button onClick={handleSaveLocally} className="w-full" variant="outline" disabled={!boundaryData && !parcelsData}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Save Locally
+                    </Button>
+                    <Button onClick={() => setIsUploadDialogOpen(true)} className="w-full" variant="outline" disabled={!parcelsData}>
+                        <Database className="mr-2 h-4 w-4" />
+                        Upload to Cloud
+                    </Button>
                 </div>
 
-                <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2 bg-muted/30">
-                    <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} onClear={handleClearLayer} />
-                    <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} onClear={handleClearLayer} />
-                </TabsContent>
-
-                <TabsContent value="table" className="flex-1 min-h-0 overflow-auto p-1">
-                     <div className="h-full">
-                        <table className="w-max min-w-full text-[9px] border-collapse">
-                            <thead className="sticky top-0 bg-background z-10 shadow-sm">
-                                <tr>
-                                    {visibleColumns.map(h => 
-                                        <th key={h} className="p-1 font-semibold text-left border-b truncate min-w-[60px] cursor-pointer" title={h} onClick={() => requestSort(h)}>
-                                            <div className="flex items-center gap-1">
-                                                {h}
-                                                {sortConfig?.key === h && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                                            </div>
-                                        </th>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sortedParcels.map((f: any) => (
-                                    <tr
-                                        key={f.id}
-                                        onClick={() => onFeatureSelect(f)}
-                                        className={cn("cursor-pointer border-b border-border hover:bg-muted/50", selectedFeatureIds.includes(f.id) && "bg-primary/10 hover:bg-primary/20")}
-                                    >
-                                        {visibleColumns.map(h => <td key={h} className="p-1 truncate max-w-[100px]" title={String(f.properties[h] ?? '')}>{String(f.properties[h] ?? '')}</td>)}
-                                    </tr>
+                <Card className="shrink-0 border-x-0 border-b-0 rounded-none">
+                    <CardHeader className="p-1.5 border-b">
+                        <CardTitle className="text-[10px] font-bold px-1">
+                            {selectedFeatureIds.length > 1 
+                                ? `${selectedFeatureIds.length} Features Selected`
+                                : "Selected Feature Details"
+                            }
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-2 text-[10px] overflow-y-auto max-h-[9.5rem]">
+                        {!selectedFeatureDetails ? (
+                             <div className="flex items-center justify-center h-full text-muted-foreground text-[10px] pt-4">
+                                <p>
+                                    {selectedFeatureIds.length > 1 ? `Click a single feature to see its properties.` : `No feature selected`}
+                                </p>
+                             </div>
+                        ) : (
+                            <div className="space-y-0.5">
+                                {Object.entries(selectedFeatureDetails).map(([key, value]) => (
+                                    <div key={key} className="leading-tight flex">
+                                        <span className="font-semibold text-muted-foreground/90 w-2/5 truncate pr-2">{key}:</span>
+                                        <span className="text-foreground font-medium break-words w-3/5">{String(value)}</span>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </TabsContent>
-            </Tabs>
-            
-            <div className="shrink-0 border-y p-2 grid grid-cols-2 gap-2">
-                <Button onClick={handleSaveLocally} className="w-full" variant="outline" disabled={!boundaryData && !parcelsData}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Save Locally
-                </Button>
-                <Button className="w-full" variant="secondary" disabled>
-                    <UploadCloud className="mr-2 h-4 w-4" />
-                    Upload to Cloud
-                </Button>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
-
-            <Card className="shrink-0 border-x-0 border-b-0 rounded-none">
-                <CardHeader className="p-1.5 border-b">
-                    <CardTitle className="text-[10px] font-bold px-1">
-                        {selectedFeatureIds.length > 1 
-                            ? `${selectedFeatureIds.length} Features Selected`
-                            : "Selected Feature Details"
-                        }
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 text-[10px] overflow-y-auto max-h-[9.5rem]">
-                    {!selectedFeatureDetails ? (
-                         <div className="flex items-center justify-center h-full text-muted-foreground text-[10px] pt-4">
-                            <p>
-                                {selectedFeatureIds.length > 1 ? `Click a single feature to see its properties.` : `No feature selected`}
-                            </p>
-                         </div>
-                    ) : (
-                        <div className="space-y-0.5">
-                            {Object.entries(selectedFeatureDetails).map(([key, value]) => (
-                                <div key={key} className="leading-tight flex">
-                                    <span className="font-semibold text-muted-foreground/90 w-2/5 truncate pr-2">{key}:</span>
-                                    <span className="text-foreground font-medium break-words w-3/5">{String(value)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
+        </>
     )
 }
