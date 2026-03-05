@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import type { MauzaMetadata } from '@/types/gis-schema';
@@ -49,7 +50,9 @@ function MauzaCard({ mauza }: { mauza: MauzaMetadata }) {
             <CardContent>
                 <div className="flex justify-between items-center text-xs text-muted-foreground">
                     <p>Hudbust: <span className="font-semibold">{mauza.hudbust_no}</span></p>
-                    <Button size="sm" variant="outline" className="h-8">View Details</Button>
+                    <Button asChild size="sm" variant="outline" className="h-8">
+                        <Link href={`/dashboard/parcels-database/${mauza.id}`}>View Details</Link>
+                    </Button>
                 </div>
             </CardContent>
         </Card>

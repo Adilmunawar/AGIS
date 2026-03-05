@@ -32,6 +32,11 @@ export interface MauzaMetadata {
    * that contains the detailed boundary geometry for this Mauza.
    */
   geometryUrl: string;
+  /**
+   * The URL pointing to the minified GeoJSON file in Firebase Cloud Storage
+   * that contains the geometry for all parcels within this Mauza.
+   */
+  parcelsGeometryUrl?: string;
   /** The total number of individual parcels recorded within this Mauza. */
   totalParcels: number;
   /** A Firestore timestamp indicating when this Mauza record was created. */

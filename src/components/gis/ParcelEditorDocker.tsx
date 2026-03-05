@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useCallback } from 'react'
 import JSZip from 'jszip'
 import {
-  UploadCloud, CheckCircle, Loader2, X, Download
+  UploadCloud, CheckCircle, Loader2, X, Download, Database
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -13,8 +13,9 @@ import { Badge } from '@/components/ui/badge'
 import { useGisData } from '@/context/GisDataContext'
 import dynamic from 'next/dynamic'
 import * as turf from '@turf/turf'
-import { Layers, Table as TableIcon, Database } from 'lucide-react'
+import { Layers, Table as TableIcon } from 'lucide-react'
 import { UploadMauzaDialog } from './UploadMauzaDialog'
+import { uploadMauzaAndParcels } from '@/firebase/services/mauza-upload'
 
 const LayerPreviewMap = dynamic(() => import('./LayerPreviewMap'), { ssr: false });
 
@@ -106,8 +107,8 @@ const getVisibleColumns = (features: any[]) => {
 
 export type EditorTool = 'select' | 'multi-select';
 
-export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parcelsData, homesData, selectedFeatureIds, onFeatureSelect }: any) {
-    const { updateToolState } = useGisData();
+export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: any) {
+    const { updateToolState, importParcels: { boundaryData, parcelsData, selectedFeatureIds } } = useGisData();
     const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
     const { toast } = useToast();
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -164,8 +165,6 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
             features.sort((a, b) => {
                 const aVal = a.properties[sortConfig.key];
                 const bVal = b.properties[sortConfig.key];
-
-                // Handle null or undefined values to prevent crashes
                 if (aVal == null && bVal == null) return 0;
                 if (aVal == null) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (bVal == null) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -176,7 +175,6 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                 if (!isNaN(aNum) && !isNaN(bNum)) {
                     return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
                 }
-
                 const aStr = String(aVal).toLowerCase();
                 const bStr = String(bVal).toLowerCase();
 
@@ -207,11 +205,12 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
         if (selectedFeatureIds.length !== 1) return null;
         const selectedId = selectedFeatureIds[0];
         
-        let feature = parcelsData?.features.find((f: any) => f.id === selectedId);
-        if (feature) return feature;
+        const allFeatures = [
+            ...(parcelsData?.features || []),
+            ...(boundaryData?.features || [])
+        ];
 
-        feature = boundaryData?.features.find((f: any) => f.id === selectedId);
-        return feature;
+        return allFeatures.find((f: any) => f.id === selectedId) || null;
 
     }, [parcelsData, boundaryData, selectedFeatureIds]);
 
@@ -224,11 +223,18 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
     }, [selectedFeature]);
 
     const handleUploadConfirm = async (mauzaName: string) => {
-        console.log("Uploading Mauza:", mauzaName);
         setIsUploadDialogOpen(false);
-        // Here you will call the actual upload service
-        toast({ title: 'Starting Upload...', description: `Preparing ${mauzaName} for database.` });
-        // Example: await uploadMauzaData(mauzaName, boundaryData, parcelsData);
+        if (!parcelsData && !boundaryData) {
+            toast({ variant: 'destructive', title: 'Upload Failed', description: 'No data to upload.' });
+            return;
+        }
+        toast({ title: 'Upload Starting...', description: `Uploading ${mauzaName} to the database.` });
+        try {
+            await uploadMauzaAndParcels(mauzaName, boundaryData, parcelsData);
+            toast({ title: 'Upload Successful!', description: `${mauzaName} has been saved.` });
+        } catch (error: any) {
+            console.error("Upload failed", error);
+        }
     };
 
     return (
@@ -305,7 +311,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, boundaryData, parce
                         <Download className="mr-2 h-4 w-4" />
                         Save Locally
                     </Button>
-                    <Button onClick={() => setIsUploadDialogOpen(true)} className="w-full" variant="outline" disabled={!parcelsData}>
+                    <Button onClick={() => setIsUploadDialogOpen(true)} className="w-full" variant="outline" disabled={!parcelsData && !boundaryData}>
                         <Database className="mr-2 h-4 w-4" />
                         Upload to Cloud
                     </Button>
