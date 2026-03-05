@@ -59,11 +59,12 @@ service cloud.firestore {
      * @description Controls access to Mauza (administrative area) metadata.
      * @path /Mauzas/{mauzaId}
      * @allow (read) Any authenticated user can read Mauza metadata.
+     * @allow (list) Any authenticated user can query the Mauzas collection.
      * @allow (create) An authenticated user can create a Mauza document, provided it passes validation.
      * @principle Enforces data integrity for the core administrative boundaries.
      */
     match /Mauzas/{mauzaId} {
-      allow read, update, delete: if isSignedIn();
+      allow get, list, update, delete: if isSignedIn();
       allow create: if isSignedIn() &&
                       request.resource.data.id == mauzaId &&
                       request.resource.data.name is string &&
