@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Loader2, Server, Sparkles, Package, FolderInput, Database } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Loader2, Server, Sparkles, Package, FolderInput, Database, Satellite } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -23,6 +23,7 @@ const sidebarNavItems = [
   { href: '/dashboard/nano-vision', label: 'Nano Vision', icon: Sparkles },
   { href: '/dashboard/import-parcels', label: 'Import Parcels', icon: FolderInput },
   { href: '/dashboard/parcels-database', label: 'Parcels Database', icon: Database },
+  { href: '/dashboard/sentinel-vision', label: 'Sentinel Vision', icon: Satellite },
 ];
 
 const secondaryNavItems = [
