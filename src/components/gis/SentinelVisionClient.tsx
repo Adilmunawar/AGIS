@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { MapContainer, TileLayer, WMSTileLayer, GeoJSON, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, WMSTileLayer, GeoJSON, Popup } from 'react-leaflet';
 import L, { LatLng } from 'leaflet';
 import { format } from 'date-fns';
-import * as turf from '@turf/turf';
 
 import { useGisData } from '@/context/GisDataContext';
 import { cn } from '@/lib/utils';
@@ -18,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Satellite, Calendar as CalendarIcon, GitBranch, Cloudy, Info, Loader2, BarChart, Droplets, Wheat } from 'lucide-react';
+import { Satellite, Calendar as CalendarIcon, Info, Loader2, BarChart, Droplets, Wheat } from 'lucide-react';
 
 // --- MOCK API & TYPES ---
 interface AnalysisData {
@@ -102,35 +101,6 @@ const AnalysisPopupContent = ({ featureId }: { featureId: string }) => {
   );
 };
 
-
-// --- MAP CLICK HANDLER COMPONENT ---
-const MapClickHandler = ({ onFeatureClick }: { onFeatureClick: (latlng: LatLng, feature: any) => void }) => {
-  const { importParcels: { parcelsData } } = useGisData();
-  const map = useMap();
-
-  useMapEvents({
-    click(e) {
-      if (!parcelsData?.features) return;
-      
-      const point = turf.point([e.latlng.lng, e.latlng.lat]);
-      let foundFeature = null;
-
-      for (const feature of parcelsData.features) {
-        if (feature.geometry && turf.booleanPointInPolygon(point, feature as any)) {
-          foundFeature = feature;
-          break;
-        }
-      }
-
-      if (foundFeature) {
-        onFeatureClick(e.latlng, foundFeature);
-      }
-    },
-  });
-
-  return null;
-};
-
 // --- MAIN CLIENT COMPONENT ---
 export default function SentinelVisionClient() {
   const [mapDate, setMapDate] = useState<Date>(new Date());
@@ -145,9 +115,19 @@ export default function SentinelVisionClient() {
     return `${formattedDate}/${formattedDate}`;
   }, [mapDate]);
 
-  const handleFeatureClick = useCallback((latlng: LatLng, feature: any) => {
-    setPopup({ latlng, featureId: feature.id || `feature-${Date.now()}` });
+  const handleFeatureClick = useCallback((e: L.LeafletMouseEvent, feature: any) => {
+    // Stop the event from propagating to the map, which might close other popups
+    L.DomEvent.stopPropagation(e);
+    // Set the popup state with the clicked location and the feature's unique ID
+    setPopup({ latlng: e.latlng, featureId: feature.id || `feature-${Date.now()}` });
   }, []);
+
+  // This function is passed to the GeoJSON component to attach event handlers to each feature
+  const onEachFeature = (feature: any, layer: L.Layer) => {
+    layer.on({
+      click: (e: L.LeafletMouseEvent) => handleFeatureClick(e, feature),
+    });
+  };
 
   const parcelStyle = {
     fillColor: "hsl(var(--primary))",
@@ -217,7 +197,7 @@ export default function SentinelVisionClient() {
             <div className="space-y-2 pt-2">
               <Label>Satellite Layer Opacity</Label>
               <Slider
-                defaultValue={[wmsOpacity * 100]}
+                value={[wmsOpacity * 100]} // Use `value` to make it a controlled component
                 max={100}
                 step={1}
                 onValueChange={(value) => setWmsOpacity(value[0] / 100)}
@@ -255,10 +235,14 @@ export default function SentinelVisionClient() {
               zIndex={10}
             />
 
-            {parcelsData && <GeoJSON data={parcelsData} style={parcelStyle} />}
+            {parcelsData && (
+                <GeoJSON 
+                    data={parcelsData} 
+                    style={parcelStyle} 
+                    onEachFeature={onEachFeature} 
+                />
+            )}
             
-            <MapClickHandler onFeatureClick={handleFeatureClick} />
-
             {popup && (
               <Popup position={popup.latlng} onOpenChange={() => setPopup(null)}>
                 <AnalysisPopupContent featureId={popup.featureId} />
