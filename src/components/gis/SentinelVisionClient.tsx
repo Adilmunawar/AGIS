@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer, GeoJSON, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L, { LatLng } from 'leaflet';
 import { format } from 'date-fns';
