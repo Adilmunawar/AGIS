@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
 
+// 🌟 THE FIX: We dynamically import the map and force ssr: false
 const SentinelVisionMap = dynamic(
   () => import('@/components/gis/SentinelVisionClient'),
   { 
@@ -18,7 +19,8 @@ const SentinelVisionMap = dynamic(
 
 export default function SentinelVisionPage() {
   return (
-    <div className="h-full w-full overflow-hidden">
+    // 🌟 THE FIX: 'relative' acts as the anchor for the absolute map
+    <div className="relative h-full w-full overflow-hidden">
       <SentinelVisionMap />
     </div>
   );

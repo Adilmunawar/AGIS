@@ -1,11 +1,21 @@
 import ee from '@google/earthengine';
 
+// 🌟 THE FIX: Prevent Next.js from initializing Earth Engine twice during Hot Reloads!
+let isInitialized = false;
+
 // 1. Authenticate and Initialize GEE (Wrapped in a Promise)
 export const initGEE = async (): Promise<void> => {
+  if (isInitialized) return Promise.resolve(); // Skip if already running
+
   return new Promise((resolve, reject) => {
+    // 🌟 THE FIX: Bulletproof Private Key parsing. 
+    // Next.js sometimes parses \n automatically, sometimes it doesn't. This handles both safely.
+    const rawKey = process.env.EE_PRIVATE_KEY || '';
+    const privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
+
     const credentials = {
       client_email: process.env.EE_CLIENT_EMAIL,
-      private_key: process.env.EE_PRIVATE_KEY?.replace(/\\n/g, '\n'), // Fix newline formatting
+      private_key: privateKey,
     };
 
     if (!credentials.client_email || !credentials.private_key) {
@@ -13,7 +23,10 @@ export const initGEE = async (): Promise<void> => {
     }
 
     ee.data.authenticateViaPrivateKey(credentials, () => {
-      ee.initialize(null, null, () => resolve(), (err: any) => reject(err));
+      ee.initialize(null, null, () => {
+        isInitialized = true;
+        resolve();
+      }, (err: any) => reject(err));
     }, (err: any) => reject(err));
   });
 };

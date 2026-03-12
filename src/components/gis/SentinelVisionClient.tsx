@@ -77,24 +77,23 @@ export default function SentinelVisionClient() {
   };
 
   return (
-    <div className="h-full w-full flex bg-muted/20">
-      <aside className="w-80 h-full flex-shrink-0 p-4 flex flex-col gap-4 overflow-y-auto z-10">
-        <Card className="shadow-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-3">
-              <Layers className="h-6 w-6 text-primary" />
-              Enterprise Layers
+    // 🌟 THE FIX: 'absolute inset-0' locks the container to exactly the bounds of the page
+    <div className="absolute inset-0 flex bg-background overflow-hidden">
+      
+      {/* --- Sidebar Configuration --- */}
+      {/* 🌟 THE FIX: z-[1000] ensures Leaflet doesn't render over the sidebar */}
+      <aside className="w-80 h-full flex-shrink-0 p-4 flex flex-col gap-4 overflow-y-auto z-[1000] bg-card border-r shadow-lg relative">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" />
+              Enterprise Data Layers
             </CardTitle>
-            <CardDescription>Toggle on-demand satellite analysis from Google Earth Engine.</CardDescription>
+            <CardDescription>Toggle on-demand satellite analysis.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isFetchingTiles ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between">
-                    <Skeleton className="h-5 w-40" />
-                    <Skeleton className="h-6 w-11 rounded-full" />
-                </div>
-              ))
+              <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="animate-spin h-4 w-4"/> Booting AI Engine...</div>
             ) : (
               AVAILABLE_LAYERS.map(layer => (
                 <div key={layer.id} className="flex items-center justify-between">
@@ -165,25 +164,27 @@ export default function SentinelVisionClient() {
         </Card>
       </aside>
 
-      <main className="flex-1 h-full p-4 pl-0">
-         <div className="h-full w-full rounded-lg overflow-hidden relative shadow-lg">
-            <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
-            <TileLayer attribution='&copy; Google' url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" />
-            {Object.keys(activeLayers).map(layerId => (
-                activeLayers[layerId] && tileUrls[layerId] ? (
-                <TileLayer key={layerId} url={tileUrls[layerId]} opacity={0.8} zIndex={10} />
-                ) : null
-            ))}
-            <FeatureGroup>
-                <EditControl
-                position="topleft"
-                onCreated={onPolygonDrawn}
-                draw={{ rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false, polygon: { allowIntersection: false, shapeOptions: { color: '#00ff00', weight: 3, fillOpacity: 0.2 } } }}
-                edit={{ remove: false, edit: false }}
-                />
-            </FeatureGroup>
-            </MapContainer>
-        </div>
+      {/* --- Main Map Area --- */}
+      <main className="flex-1 h-full relative z-0">
+        <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
+          
+          <TileLayer attribution='&copy; Google' url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" />
+          
+          {Object.keys(activeLayers).map(layerId => (
+            activeLayers[layerId] && tileUrls[layerId] ? (
+              <TileLayer key={layerId} url={tileUrls[layerId]} opacity={0.8} zIndex={10} />
+            ) : null
+          ))}
+          
+          <FeatureGroup>
+            <EditControl
+              position="topleft"
+              onCreated={onPolygonDrawn}
+              draw={{ rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false, polygon: { allowIntersection: false, shapeOptions: { color: '#00ff00', weight: 3, fillOpacity: 0.2 } } }}
+              edit={{ remove: false, edit: false }}
+            />
+          </FeatureGroup>
+        </MapContainer>
       </main>
     </div>
   );
