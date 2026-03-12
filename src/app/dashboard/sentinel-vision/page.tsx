@@ -1,24 +1,25 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
 
-const SentinelVisionPage = dynamic(
+const SentinelVisionMap = dynamic(
   () => import('@/components/gis/SentinelVisionClient'),
-  {
-    ssr: false,
+  { 
+    ssr: false, 
     loading: () => (
-        <div className="flex h-full w-full bg-background">
-            <div className="w-80 h-full p-4 flex flex-col gap-4">
-                <Skeleton className="w-full h-48" />
-                <Skeleton className="w-full flex-1" />
-            </div>
-            <div className="flex-1 h-full relative">
-                <Skeleton className="w-full h-full" />
-            </div>
-        </div>
-    ),
+      <div className="h-full w-full flex flex-col items-center justify-center bg-[#1a1a1a] text-white">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <p>Initializing Earth Engine Interface...</p>
+      </div>
+    )
   }
 );
 
-export default SentinelVisionPage;
+export default function SentinelVisionPage() {
+  return (
+    <div className="h-full w-full overflow-hidden">
+      <SentinelVisionMap />
+    </div>
+  );
+}
