@@ -1,268 +1,188 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { MapContainer, TileLayer, WMSTileLayer, GeoJSON, Popup } from 'react-leaflet';
-import L, { LatLng } from 'leaflet';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, FeatureGroup } from 'react-leaflet';
+import { EditControl } from 'react-leaflet-draw';
 
-import { useGisData } from '@/context/GisDataContext';
-import { cn } from '@/lib/utils';
-import { MapLegends } from './MapLegends';
-
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Satellite, Calendar as CalendarIcon, Info, Loader2, BarChart, Droplets, Wheat } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat } from 'lucide-react';
 
-// --- MOCK API & TYPES ---
-interface AnalysisData {
-  crop: string;
-  ndvi: string;
-  moisture: string;
-}
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw/dist/leaflet.draw.css';
 
-const mockFetchAnalysisData = async (featureId: string): Promise<AnalysisData> => {
-  console.log(`Fetching analysis for feature: ${featureId}`);
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  // In a real app, you might have different results based on featureId
-  return {
-    crop: 'Wheat',
-    ndvi: '0.82 - Excellent',
-    moisture: '0.25 m³/m³'
-  };
-};
-
-const sentinelBands = [
-  { value: '1_TRUE_COLOR', label: 'True Color (RGB)', description: 'Natural view, as seen by the human eye.' },
-  { value: '2_FALSE_COLOR', label: 'False Color (Infrared)', description: 'Highlights vegetation in shades of red.' },
-  { value: '3_NDVI', label: 'NDVI (Vegetation Index)', description: 'Measures crop health and vigor.' },
-  { value: '4_NDMI', label: 'NDMI (Moisture Index)', description: 'Indicates water stress in soil and plants.' },
+const AVAILABLE_LAYERS = [
+  { id: 'classification', name: '🌾 AI Crop Classification' },
+  { id: 's2_true_color', name: '📸 Live Sentinel-2 Photo' },
+  { id: 'ndvi', name: '🌿 Greenness / Health (NDVI)' },
+  { id: 'ndmi', name: '💧 Leaf Moisture (NDMI)' },
+  { id: 'ndre', name: '🧪 Nitrogen Content (NDRE)' },
+  { id: 'bsi', name: '🟫 Bare Soil / Ploughed (BSI)' },
+  { id: 'nbr', name: '🔥 Stubble Burning (NBR)' },
 ];
 
-// --- ANALYSIS POPUP COMPONENT ---
-const AnalysisPopupContent = ({ featureId }: { featureId: string }) => {
-  const [data, setData] = useState<AnalysisData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function SentinelVisionClient() {
+  const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
+  const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ classification: true });
+  const [scorecard, setScorecard] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isFetchingTiles, setIsFetchingTiles] = useState(true);
 
+  // Calls the INTERNAL Next.js API
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
+    const fetchTiles = async () => {
       try {
-        const result = await mockFetchAnalysisData(featureId);
-        setData(result);
-      } catch (err) {
-        setError('Failed to fetch analysis data.');
+        const res = await fetch(`/api/gee/tiles`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          setTileUrls(data.tiles);
+        }
+      } catch (error) {
+        console.error("Failed to fetch GEE Tiles:", error);
       } finally {
-        setLoading(false);
+        setIsFetchingTiles(false);
       }
     };
-    fetchData();
-  }, [featureId]);
-
-  if (loading) {
-    return <div className="flex items-center justify-center p-4 w-48"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
-  }
-
-  if (error || !data) {
-    return <div className="p-4 text-destructive">{error || 'No data available.'}</div>;
-  }
-
-  return (
-    <div className="w-48">
-      <div className="flex items-center gap-3 border-b pb-2 mb-2">
-        <Wheat className="h-5 w-5 text-amber-600" />
-        <div>
-            <p className="text-xs text-muted-foreground">Crop Type</p>
-            <p className="font-semibold">{data.crop}</p>
-        </div>
-      </div>
-       <div className="flex items-center gap-3 border-b pb-2 mb-2">
-        <BarChart className="h-5 w-5 text-green-600" />
-        <div>
-            <p className="text-xs text-muted-foreground">NDVI Health</p>
-            <p className="font-semibold">{data.ndvi}</p>
-        </div>
-      </div>
-       <div className="flex items-center gap-3">
-        <Droplets className="h-5 w-5 text-blue-600" />
-        <div>
-            <p className="text-xs text-muted-foreground">Moisture</p>
-            <p className="font-semibold">{data.moisture}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- MAIN CLIENT COMPONENT ---
-export default function SentinelVisionClient() {
-  const [mapDate, setMapDate] = useState<Date>(new Date());
-  const [selectedBand, setSelectedBand] = useState<string>(sentinelBands[0].value);
-  const [wmsOpacity, setWmsOpacity] = useState<number>(0.7);
-  const [popup, setPopup] = useState<{ latlng: LatLng, featureId: string } | null>(null);
-
-  const { importParcels: { parcelsData } } = useGisData();
-  
-  const wmsTime = useMemo(() => {
-    const formattedDate = format(mapDate, 'yyyy-MM-dd');
-    return `${formattedDate}/${formattedDate}`;
-  }, [mapDate]);
-
-  const handleFeatureClick = useCallback((e: L.LeafletMouseEvent, feature: any) => {
-    // Stop the event from propagating to the map, which might close other popups
-    L.DomEvent.stopPropagation(e);
-    // Set the popup state with the clicked location and the feature's unique ID
-    setPopup({ latlng: e.latlng, featureId: feature.id || `feature-${Date.now()}` });
+    fetchTiles();
   }, []);
 
-  // This function is passed to the GeoJSON component to attach event handlers to each feature
-  const onEachFeature = (feature: any, layer: L.Layer) => {
-    layer.on({
-      click: (e: L.LeafletMouseEvent) => handleFeatureClick(e, feature),
-    });
+  const toggleLayer = (layerId: string) => {
+    setActiveLayers(prev => ({ ...prev, [layerId]: !prev[layerId] }));
   };
 
-  const parcelStyle = {
-    fillColor: "hsl(var(--primary))",
-    fillOpacity: 0.1,
-    color: "hsl(var(--primary))",
-    weight: 2,
+  // Calls the INTERNAL Next.js Analytics API
+  const onPolygonDrawn = async (e: any) => {
+    const layer = e.layer;
+    const geoJson = layer.toGeoJSON();
+    
+    setIsAnalyzing(true);
+    setScorecard(null);
+    try {
+      const res = await fetch(`/api/gee/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ geometry: geoJson.geometry })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setScorecard(data.scorecard);
+      }
+    } catch (error) {
+      console.error("Analysis failed:", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
     <div className="h-full w-full flex bg-muted/20">
-      {/* --- Sidebar --- */}
-      <aside className="w-80 h-full flex-shrink-0 p-4">
-        <Card className="h-full w-full flex flex-col shadow-lg border-border/80">
-          <CardHeader className="border-b">
-            <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 border">
-                    <Satellite className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                    <CardTitle>Sentinel Vision</CardTitle>
-                    <CardDescription>Remote farm monitoring</CardDescription>
-                </div>
-            </div>
+      <aside className="w-80 h-full flex-shrink-0 p-4 flex flex-col gap-4 overflow-y-auto z-10">
+        <Card className="shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3">
+              <Layers className="h-6 w-6 text-primary" />
+              Enterprise Layers
+            </CardTitle>
+            <CardDescription>Toggle on-demand satellite analysis from Google Earth Engine.</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 p-4 space-y-6 overflow-y-auto">
-            {/* Date Picker */}
-            <div className="space-y-2">
-              <Label htmlFor="date-picker">Imaging Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date-picker"
-                    variant={"outline"}
-                    className={cn("w-full justify-start text-left font-normal", !mapDate && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {mapDate ? format(mapDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={mapDate} onSelect={(d) => d && setMapDate(d)} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <CardContent className="space-y-4">
+            {isFetchingTiles ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-6 w-11 rounded-full" />
+                </div>
+              ))
+            ) : (
+              AVAILABLE_LAYERS.map(layer => (
+                <div key={layer.id} className="flex items-center justify-between">
+                  <Label htmlFor={layer.id} className="cursor-pointer text-sm font-medium">{layer.name}</Label>
+                  <Switch 
+                    id={layer.id} 
+                    checked={activeLayers[layer.id] || false} 
+                    onCheckedChange={() => toggleLayer(layer.id)} 
+                  />
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
 
-            {/* Band Selector */}
-            <div className="space-y-2">
-              <Label>Spectral Band</Label>
-              <Select value={selectedBand} onValueChange={setSelectedBand}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a band" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sentinelBands.map((band) => (
-                    <SelectItem key={band.value} value={band.value}>
-                        <div className="flex flex-col">
-                            <span className="font-medium">{band.label}</span>
-                            <span className="text-xs text-muted-foreground">{band.description}</span>
-                        </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Opacity Slider */}
-            <div className="space-y-2 pt-2">
-              <Label>Satellite Layer Opacity</Label>
-              <Slider
-                value={[wmsOpacity * 100]} // Use `value` to make it a controlled component
-                max={100}
-                step={1}
-                onValueChange={(value) => setWmsOpacity(value[0] / 100)}
-              />
-            </div>
+        <Card className="flex-1 flex flex-col shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3">
+              <Activity className="h-6 w-6 text-primary" />
+              Farm Scorecard
+            </CardTitle>
+            <CardDescription>Draw a polygon to run spatial analysis.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col">
+            {isAnalyzing ? (
+              <div className="flex flex-col flex-1 items-center justify-center py-8 text-muted-foreground space-y-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="font-semibold text-primary">Running AI Analysis...</p>
+                <p className="text-xs text-center">Processing satellite imagery for your selected area.</p>
+              </div>
+            ) : scorecard ? (
+              <div className="space-y-3">
+                <div className="bg-primary/10 p-3 rounded-lg border border-primary/20 text-center">
+                  <p className="text-sm font-semibold text-primary">Calculated Area</p>
+                  <p className="text-2xl font-bold">{scorecard.area_acres.toLocaleString()} Acres</p>
+                </div>
+                <div className="border p-3 rounded-lg">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Primary Classification</p>
+                    <p className="font-bold text-lg flex items-center gap-2">🌾 {scorecard.primary_crop}</p>
+                  </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="border p-2 rounded-md">
+                    <p className="text-xs text-muted-foreground">Health (NDVI)</p>
+                    <p className="font-semibold flex items-center gap-1.5 mt-1"><Activity className="h-4 w-4 text-green-500"/> {scorecard.avg_ndvi}</p>
+                  </div>
+                  <div className="border p-2 rounded-md">
+                    <p className="text-xs text-muted-foreground">Moisture (NDMI)</p>
+                    <p className="font-semibold flex items-center gap-1.5 mt-1"><Droplets className="h-4 w-4 text-blue-500"/> {scorecard.avg_ndmi}</p>
+                  </div>
+                  <div className="border p-2 rounded-md">
+                    <p className="text-xs text-muted-foreground">Nitrogen (NDRE)</p>
+                    <p className="font-semibold flex items-center gap-1.5 mt-1"><FlaskConical className="h-4 w-4 text-amber-500"/> {scorecard.avg_ndre}</p>
+                  </div>
+                  <div className="border p-2 rounded-md">
+                    <p className="text-xs text-muted-foreground">Burn Scar (NBR)</p>
+                    <p className="font-semibold flex items-center gap-1.5 mt-1"><Flame className="h-4 w-4 text-red-500"/> {scorecard.burn_damage}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 flex-1 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/30">
+                <MapIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="font-semibold">Draw a farm polygon</p>
+                <p className="text-xs mt-1">Use the toolbar on the map to outline an area.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </aside>
 
-      {/* --- Map Area --- */}
       <main className="flex-1 h-full p-4 pl-0">
-        <div className="h-full w-full rounded-lg overflow-hidden relative shadow-lg">
-          <MapContainer
-            center={[31.46, 74.38]}
-            zoom={13}
-            zoomControl={false}
-            style={{ height: '100%', width: '100%', backgroundColor: '#f0f0f0' }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.google.com/permissions">Google</a>'
-              url="https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}"
-              subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-            />
-            
-            <WMSTileLayer
-              key={`${selectedBand}-${wmsTime}`}
-              url="https://sh.dataspace.copernicus.eu/ogc/wms/8e33f681-f981-435a-94c7-55e803fb0592"
-              params={{
-                layers: selectedBand,
-                format: 'image/png',
-                transparent: true,
-                time: wmsTime,
-              }}
-              opacity={wmsOpacity}
-              zIndex={10}
-            />
-
-            {parcelsData && (
-                <GeoJSON 
-                    data={parcelsData} 
-                    style={parcelStyle} 
-                    onEachFeature={onEachFeature} 
+         <div className="h-full w-full rounded-lg overflow-hidden relative shadow-lg">
+            <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
+            <TileLayer attribution='&copy; Google' url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" />
+            {Object.keys(activeLayers).map(layerId => (
+                activeLayers[layerId] && tileUrls[layerId] ? (
+                <TileLayer key={layerId} url={tileUrls[layerId]} opacity={0.8} zIndex={10} />
+                ) : null
+            ))}
+            <FeatureGroup>
+                <EditControl
+                position="topleft"
+                onCreated={onPolygonDrawn}
+                draw={{ rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false, polygon: { allowIntersection: false, shapeOptions: { color: '#00ff00', weight: 3, fillOpacity: 0.2 } } }}
+                edit={{ remove: false, edit: false }}
                 />
-            )}
-            
-            {popup && (
-              <Popup position={popup.latlng} onOpenChange={() => setPopup(null)}>
-                <AnalysisPopupContent featureId={popup.featureId} />
-              </Popup>
-            )}
-          </MapContainer>
-          
-          {!parcelsData || parcelsData.features.length === 0 ? (
-             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000]">
-                <Alert variant="destructive" className="bg-background/80 backdrop-blur-md">
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>No Parcel Data</AlertTitle>
-                    <AlertDescription>
-                        Upload a shapefile in the 'Import Parcels' tab to see farm boundaries.
-                    </AlertDescription>
-                </Alert>
-            </div>
-          ) : null}
-
-          <MapLegends currentBand={selectedBand} />
+            </FeatureGroup>
+            </MapContainer>
         </div>
       </main>
     </div>

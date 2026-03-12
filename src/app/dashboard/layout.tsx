@@ -23,7 +23,7 @@ const sidebarNavItems = [
   { href: '/dashboard/nano-vision', label: 'Nano Vision', icon: Sparkles },
   { href: '/dashboard/import-parcels', label: 'Import Parcels', icon: FolderInput },
   { href: '/dashboard/parcels-database', label: 'Parcels Database', icon: Database },
-  { href: '/dashboard/sentinel-vision', label: 'Sentinel Vision', icon: Satellite },
+  { href: '/dashboard/sentinel-vision', label: 'Zaraat Dost AI', icon: Sparkles },
 ];
 
 const secondaryNavItems = [
