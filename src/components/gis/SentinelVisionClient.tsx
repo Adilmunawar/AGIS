@@ -31,31 +31,32 @@ const AVAILABLE_LAYERS = [
 ];
 
 const ScorecardPopup = ({ data }: { data: any }) => (
-    <div className="w-64">
-        <div className="bg-primary/10 p-2.5 rounded-lg border border-primary/20 text-center mb-3">
-            <p className="text-xs font-semibold text-primary/80">Calculated Area</p>
-            <p className="text-xl font-bold text-primary">{data.area_acres.toLocaleString()} Acres</p>
+    <div className="w-60">
+        <div className="flex items-center justify-between mb-2">
+            <div>
+                <p className="font-bold text-lg text-primary">{data.area_acres.toLocaleString()} Acres</p>
+                <p className="text-xs font-semibold text-muted-foreground -mt-1">{data.primary_crop}</p>
+            </div>
+            <div className="p-2 rounded-full bg-primary/10">
+                <Wheat className="h-5 w-5 text-primary" />
+            </div>
         </div>
-        <div className="border p-2 rounded-lg mb-2">
-            <p className="text-xs font-medium text-muted-foreground">Primary Classification</p>
-            <p className="font-bold text-base flex items-center gap-2"><Wheat className="h-4 w-4 text-amber-600"/> {data.primary_crop}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="border p-1.5 rounded-md">
-                <p className="text-muted-foreground">Health</p>
-                <p className="font-semibold flex items-center gap-1.5"><Activity className="h-3 w-3 text-green-500"/> {data.avg_ndvi}</p>
+        <div className="grid grid-cols-2 gap-1.5 text-xs">
+            <div className="bg-muted/50 p-1.5 rounded-md">
+                <p className="text-muted-foreground text-[10px]">Health (NDVI)</p>
+                <p className="font-semibold flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.avg_ndvi}</p>
             </div>
-            <div className="border p-1.5 rounded-md">
-                <p className="text-muted-foreground">Moisture</p>
-                <p className="font-semibold flex items-center gap-1.5"><Droplets className="h-3 w-3 text-blue-500"/> {data.avg_ndmi}</p>
+            <div className="bg-muted/50 p-1.5 rounded-md">
+                <p className="text-muted-foreground text-[10px]">Moisture (NDMI)</p>
+                <p className="font-semibold flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500"/> {data.avg_ndmi}</p>
             </div>
-            <div className="border p-1.5 rounded-md">
-                <p className="text-muted-foreground">Nitrogen</p>
-                <p className="font-semibold flex items-center gap-1.5"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.avg_ndre}</p>
+            <div className="bg-muted/50 p-1.5 rounded-md">
+                <p className="text-muted-foreground text-[10px]">Nitrogen (NDRE)</p>
+                <p className="font-semibold flex items-center gap-1"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.avg_ndre}</p>
             </div>
-            <div className="border p-1.5 rounded-md">
-                <p className="text-muted-foreground">Burn Scar</p>
-                <p className="font-semibold flex items-center gap-1.5"><Flame className="h-3 w-3 text-red-500"/> {data.burn_damage}</p>
+            <div className="bg-muted/50 p-1.5 rounded-md">
+                <p className="text-muted-foreground text-[10px]">Burn Scar (NBR)</p>
+                <p className="font-semibold flex items-center gap-1"><Flame className="h-3 w-3 text-red-500"/> {data.burn_damage}</p>
             </div>
         </div>
     </div>
