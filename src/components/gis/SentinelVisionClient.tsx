@@ -48,7 +48,7 @@ export default function SentinelVisionClient() {
         } else {
           throw new Error(data.error || "API did not return a success status.");
         }
-      } catch (error: any) => {
+      } catch (error: any) {
         console.error("Failed to fetch GEE Tiles:", error);
       } finally {
         setIsFetchingTiles(false);
