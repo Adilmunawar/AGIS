@@ -1,35 +1,47 @@
 import ee from '@google/earthengine';
 
-// 🌟 THE FIX: Prevent Next.js from initializing Earth Engine twice during Hot Reloads!
+// Prevent Next.js from initializing Earth Engine twice during Hot Reloads
 let isInitialized = false;
 
-// 1. Authenticate and Initialize GEE (Wrapped in a Promise)
+// 1. Authenticate and Initialize GEE using the Base64 Key
 export const initGEE = async (): Promise<void> => {
-  if (isInitialized) return Promise.resolve(); // Skip if already running
+  if (isInitialized) return Promise.resolve();
 
   return new Promise((resolve, reject) => {
-    // 🌟 THE FIX: Bulletproof Private Key parsing. 
-    // Next.js sometimes parses \n automatically, sometimes it doesn't. This handles both safely.
-    const rawKey = process.env.EE_PRIVATE_KEY || '';
-    const privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
+    try {
+      // Grab the Base64 string from your environment
+      const base64Key = process.env.EE_BASE64_KEY;
+      
+      if (!base64Key) {
+        throw new Error("EE_BASE64_KEY is missing from your .env.local file! The AI Engine cannot boot without credentials.");
+      }
 
-    const credentials = {
-      client_email: process.env.EE_CLIENT_EMAIL,
-      private_key: privateKey,
-    };
+      // Decode the Base64 string back into a standard JSON object natively in memory
+      const decodedString = Buffer.from(base64Key, 'base64').toString('utf-8');
+      const credentials = JSON.parse(decodedString);
 
-    if (!credentials.client_email || !credentials.private_key) {
-        return reject("Service account credentials not found in environment variables.");
+      console.log("🔐 Authenticating with Google Earth Engine Base64 Key...");
+
+      ee.data.authenticateViaPrivateKey(credentials, () => {
+        ee.initialize(null, null, () => {
+          isInitialized = true;
+          console.log("✅ Earth Engine Initialized Successfully!");
+          resolve();
+        }, (err: any) => {
+          console.error("❌ GEE Init Error:", err);
+          reject(err);
+        });
+      }, (err: any) => {
+        console.error("❌ GEE Auth Error:", err);
+        reject(err);
+      });
+    } catch (error) {
+      console.error("❌ Base64 Decoding or Auth Failed:", error);
+      reject(error);
     }
-
-    ee.data.authenticateViaPrivateKey(credentials, () => {
-      ee.initialize(null, null, () => {
-        isInitialized = true;
-        resolve();
-      }, (err: any) => reject(err));
-    }, (err: any) => reject(err));
   });
 };
+
 
 // 2. The Core Zaraat Dost AI Math (Translated from Python to JS)
 export const getZaraatDostLayers = () => {
