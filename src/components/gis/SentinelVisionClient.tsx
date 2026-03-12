@@ -8,22 +8,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Wind, Waves } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Waves } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
 const AVAILABLE_LAYERS = [
-  { id: 'classification', name: '🌾 AI Crop Classification' },
-  { id: 's2_true_color', name: '📸 Live Sentinel-2 Photo' },
-  { id: 'ndvi', name: '🌿 Greenness / Health (NDVI)' },
-  { id: 'ndmi', name: '💧 Leaf Moisture (NDMI)' },
-  { id: 'ndre', name: '🧪 Nitrogen Content (NDRE)' },
-  { id: 'ndwi', name: '🌊 Flood / Water Risk (NDWI)' },
-  { id: 'bsi', name: '🟫 Bare Soil / Ploughed (BSI)' },
-  { id: 'nbr', name: '🔥 Stubble Burning (NBR)' },
-  { id: 'ndci', name: '🦠 Toxic Algae in Water (NDCI)' },
-  { id: 'ndsi', name: '❄️ Frost & Snow Cover (NDSI)' },
+  { id: 'classification', name: 'AI Crop Classification', icon: Wheat },
+  { id: 's2_true_color', name: 'Live Sentinel-2 Photo', icon: MapIcon },
+  { id: 'ndvi', name: 'Greenness / Health (NDVI)', icon: Activity },
+  { id: 'ndmi', name: 'Leaf Moisture (NDMI)', icon: Droplets },
+  { id: 'ndre', name: 'Nitrogen Content (NDRE)', icon: FlaskConical },
+  { id: 'ndwi', name: 'Flood / Water Risk (NDWI)', icon: Waves },
+  { id: 'bsi', name: 'Bare Soil / Ploughed (BSI)', icon: '🟫' },
+  { id: 'nbr', name: 'Stubble Burning (NBR)', icon: Flame },
+  { id: 'ndci', name: 'Toxic Algae in Water (NDCI)', icon: '🦠' },
+  { id: 'ndsi', name: 'Frost & Snow Cover (NDSI)', icon: Snowflake },
 ];
 
 export default function SentinelVisionClient() {
@@ -85,95 +86,116 @@ export default function SentinelVisionClient() {
     }
   };
 
+  const LayerToggle = ({ layer }: { layer: typeof AVAILABLE_LAYERS[0] }) => (
+    <div className="flex items-center justify-between p-2 rounded-md hover:bg-accent/50 transition-colors">
+        <Label htmlFor={layer.id} className="flex items-center gap-3 cursor-pointer text-sm font-medium">
+            {typeof layer.icon === 'string' ? (
+                <span className="text-lg">{layer.icon}</span>
+            ) : (
+                <layer.icon className="h-5 w-5 text-muted-foreground" />
+            )}
+            {layer.name}
+        </Label>
+        <Switch 
+            id={layer.id} 
+            checked={activeLayers[layer.id] || false} 
+            onCheckedChange={() => toggleLayer(layer.id)} 
+        />
+    </div>
+  );
+
   return (
-    // 🌟 THE FIX: 'absolute inset-0' locks the container to exactly the bounds of the page
     <div className="absolute inset-0 flex bg-background overflow-hidden">
       
-      {/* --- Sidebar Configuration --- */}
-      {/* 🌟 THE FIX: z-[1000] ensures Leaflet doesn't render over the sidebar */}
-      <aside className="w-80 h-full flex-shrink-0 p-4 flex flex-col gap-4 overflow-y-auto z-[1000] bg-card border-r shadow-lg relative">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-primary" />
-              Enterprise Data Layers
-            </CardTitle>
-            <CardDescription>Toggle on-demand satellite analysis.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isFetchingTiles ? (
-              <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="animate-spin h-4 w-4"/> Booting AI Engine...</div>
-            ) : (
-              AVAILABLE_LAYERS.map(layer => (
-                <div key={layer.id} className="flex items-center justify-between">
-                  <Label htmlFor={layer.id} className="cursor-pointer text-sm font-medium">{layer.name}</Label>
-                  <Switch 
-                    id={layer.id} 
-                    checked={activeLayers[layer.id] || false} 
-                    onCheckedChange={() => toggleLayer(layer.id)} 
-                  />
+      <aside className="w-80 h-full flex-shrink-0 p-4 flex flex-col gap-4 z-[1000] bg-card border-r shadow-lg">
+        <div className="flex-1 flex flex-col min-h-0">
+          <Card className="flex flex-col flex-1 min-h-0">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Layers className="h-5 w-5 text-primary" />
+                Enterprise Data Layers
+              </CardTitle>
+              <CardDescription>Toggle on-demand satellite analysis.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-2 flex-1 min-h-0">
+              <ScrollArea className="h-full">
+                <div className="space-y-1 pr-2">
+                  {isFetchingTiles ? (
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-2">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-5 w-5 rounded-full" />
+                          <Skeleton className="h-4 w-40" />
+                        </div>
+                        <Skeleton className="h-6 w-11 rounded-full" />
+                      </div>
+                    ))
+                  ) : (
+                    AVAILABLE_LAYERS.map(layer => <LayerToggle key={layer.id} layer={layer} />)
+                  )}
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="flex-1 flex flex-col shadow-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-3">
-              <Activity className="h-6 w-6 text-primary" />
-              Farm Scorecard
-            </CardTitle>
-            <CardDescription>Draw a polygon to run spatial analysis.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            {isAnalyzing ? (
-              <div className="flex flex-col flex-1 items-center justify-center py-8 text-muted-foreground space-y-3">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="font-semibold text-primary">Running AI Analysis...</p>
-                <p className="text-xs text-center">Processing satellite imagery for your selected area.</p>
-              </div>
-            ) : scorecard ? (
-              <div className="space-y-3">
-                <div className="bg-primary/10 p-3 rounded-lg border border-primary/20 text-center">
-                  <p className="text-sm font-semibold text-primary">Calculated Area</p>
-                  <p className="text-2xl font-bold">{scorecard.area_acres.toLocaleString()} Acres</p>
+        <div className="flex-shrink-0">
+            <Card className="shadow-lg">
+            <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3">
+                <Activity className="h-6 w-6 text-primary" />
+                Farm Scorecard
+                </CardTitle>
+                <CardDescription>Draw a polygon to run spatial analysis.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col">
+                {isAnalyzing ? (
+                <div className="flex flex-col flex-1 items-center justify-center py-8 text-muted-foreground space-y-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="font-semibold text-primary">Running AI Analysis...</p>
+                    <p className="text-xs text-center">Processing satellite imagery for your selected area.</p>
                 </div>
-                <div className="border p-3 rounded-lg">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Primary Classification</p>
-                    <p className="font-bold text-lg flex items-center gap-2"><Wheat className="h-5 w-5 text-amber-600"/> {scorecard.primary_crop}</p>
-                  </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="border p-2 rounded-md">
-                    <p className="text-xs text-muted-foreground">Health (NDVI)</p>
-                    <p className="font-semibold flex items-center gap-1.5 mt-1"><Activity className="h-4 w-4 text-green-500"/> {scorecard.avg_ndvi}</p>
-                  </div>
-                  <div className="border p-2 rounded-md">
-                    <p className="text-xs text-muted-foreground">Moisture (NDMI)</p>
-                    <p className="font-semibold flex items-center gap-1.5 mt-1"><Droplets className="h-4 w-4 text-blue-500"/> {scorecard.avg_ndmi}</p>
-                  </div>
-                  <div className="border p-2 rounded-md">
-                    <p className="text-xs text-muted-foreground">Nitrogen (NDRE)</p>
-                    <p className="font-semibold flex items-center gap-1.5 mt-1"><FlaskConical className="h-4 w-4 text-amber-500"/> {scorecard.avg_ndre}</p>
-                  </div>
-                  <div className="border p-2 rounded-md">
-                    <p className="text-xs text-muted-foreground">Burn Scar (NBR)</p>
-                    <p className="font-semibold flex items-center gap-1.5 mt-1"><Flame className="h-4 w-4 text-red-500"/> {scorecard.burn_damage}</p>
-                  </div>
+                ) : scorecard ? (
+                <div className="space-y-3">
+                    <div className="bg-primary/10 p-3 rounded-lg border border-primary/20 text-center">
+                    <p className="text-sm font-semibold text-primary">Calculated Area</p>
+                    <p className="text-2xl font-bold">{scorecard.area_acres.toLocaleString()} Acres</p>
+                    </div>
+                    <div className="border p-3 rounded-lg">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Primary Classification</p>
+                        <p className="font-bold text-lg flex items-center gap-2"><Wheat className="h-5 w-5 text-amber-600"/> {scorecard.primary_crop}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                    <div className="border p-2 rounded-md">
+                        <p className="text-xs text-muted-foreground">Health (NDVI)</p>
+                        <p className="font-semibold flex items-center gap-1.5 mt-1"><Activity className="h-4 w-4 text-green-500"/> {scorecard.avg_ndvi}</p>
+                    </div>
+                    <div className="border p-2 rounded-md">
+                        <p className="text-xs text-muted-foreground">Moisture (NDMI)</p>
+                        <p className="font-semibold flex items-center gap-1.5 mt-1"><Droplets className="h-4 w-4 text-blue-500"/> {scorecard.avg_ndmi}</p>
+                    </div>
+                    <div className="border p-2 rounded-md">
+                        <p className="text-xs text-muted-foreground">Nitrogen (NDRE)</p>
+                        <p className="font-semibold flex items-center gap-1.5 mt-1"><FlaskConical className="h-4 w-4 text-amber-500"/> {scorecard.avg_ndre}</p>
+                    </div>
+                    <div className="border p-2 rounded-md">
+                        <p className="text-xs text-muted-foreground">Burn Scar (NBR)</p>
+                        <p className="font-semibold flex items-center gap-1.5 mt-1"><Flame className="h-4 w-4 text-red-500"/> {scorecard.burn_damage}</p>
+                    </div>
+                    </div>
                 </div>
-              </div>
-            ) : (
-              <div className="py-8 flex-1 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/30">
-                <MapIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="font-semibold">Draw a farm polygon</p>
-                <p className="text-xs mt-1">Use the toolbar on the map to outline an area.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                <div className="py-8 flex-1 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/30">
+                    <MapIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="font-semibold">Draw a farm polygon</p>
+                    <p className="text-xs mt-1">Use the toolbar on the map to outline an area.</p>
+                </div>
+                )}
+            </CardContent>
+            </Card>
+        </div>
       </aside>
 
-      {/* --- Main Map Area --- */}
       <main className="flex-1 h-full relative z-0">
         <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
           

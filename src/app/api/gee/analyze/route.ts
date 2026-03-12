@@ -5,7 +5,7 @@ import { initGEE, getZaraatDostLayers } from '@/lib/geeCore';
 export async function POST(req: Request) {
   try {
     const { geometry } = await req.json();
-    if (!geometry) return NextResponse.json({ error: "No geometry" }, { status: 400 });
+    if (!geometry) return NextResponse.json({ error: "No geometry provided in the request body." }, { status: 400 });
 
     await initGEE();
     const geom = ee.Geometry(geometry);
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error("GEE Analysis Error:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("GEE Analysis Error:", error.message || error);
+    return NextResponse.json({ error: `GEE analysis failed on the server: ${error.message}` }, { status: 500 });
   }
 }
