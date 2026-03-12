@@ -53,7 +53,7 @@ export const getZaraatDostLayers = () => {
   const bsi = s2_live.expression('((B11 + B4) - (B8 + B2)) / ((B11 + B4) + (B8 + B2) + 0.00001)', {
     'B11': s2_live.select('B11'), 'B4': s2_live.select('B4'),
     'B8': s2_live.select('B8'),   'B2': s2_live.select('B2')
-  });
+  }).rename('BSI');
 
   const nbr = s2_live.normalizedDifference(['B8A', 'B12']).rename('NBR');
   const ndci = s2_live.normalizedDifference(['B5', 'B4']).rename('NDCI');

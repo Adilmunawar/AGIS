@@ -35,11 +35,17 @@ export default function SentinelVisionClient() {
     const fetchTiles = async () => {
       try {
         const res = await fetch(`/api/gee/tiles`);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({error: "Failed to parse API error response"}));
+          throw new Error(errorData.error || `API responded with status ${res.status}`);
+        }
         const data = await res.json();
         if (data.status === 'success') {
           setTileUrls(data.tiles);
+        } else {
+          throw new Error(data.error || "API did not return a success status.");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch GEE Tiles:", error);
       } finally {
         setIsFetchingTiles(false);
@@ -132,7 +138,7 @@ export default function SentinelVisionClient() {
                 </div>
                 <div className="border p-3 rounded-lg">
                     <p className="text-sm font-medium text-muted-foreground mb-2">Primary Classification</p>
-                    <p className="font-bold text-lg flex items-center gap-2">🌾 {scorecard.primary_crop}</p>
+                    <p className="font-bold text-lg flex items-center gap-2"><Wheat className="h-5 w-5 text-amber-600"/> {scorecard.primary_crop}</p>
                   </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="border p-2 rounded-md">
@@ -170,9 +176,9 @@ export default function SentinelVisionClient() {
           
           <TileLayer attribution='&copy; Google' url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" />
           
-          {Object.keys(activeLayers).map(layerId => (
-            activeLayers[layerId] && tileUrls[layerId] ? (
-              <TileLayer key={layerId} url={tileUrls[layerId]} opacity={0.8} zIndex={10} />
+          {AVAILABLE_LAYERS.map((layer) => (
+            activeLayers[layer.id] && tileUrls[layer.id] ? (
+              <TileLayer key={layer.id} url={tileUrls[layer.id]} opacity={0.8} zIndex={10} />
             ) : null
           ))}
           
