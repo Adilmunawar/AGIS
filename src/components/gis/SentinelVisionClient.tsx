@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Wind, Waves } from 'lucide-react';
 
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -19,8 +19,11 @@ const AVAILABLE_LAYERS = [
   { id: 'ndvi', name: '🌿 Greenness / Health (NDVI)' },
   { id: 'ndmi', name: '💧 Leaf Moisture (NDMI)' },
   { id: 'ndre', name: '🧪 Nitrogen Content (NDRE)' },
+  { id: 'ndwi', name: '🌊 Flood / Water Risk (NDWI)' },
   { id: 'bsi', name: '🟫 Bare Soil / Ploughed (BSI)' },
   { id: 'nbr', name: '🔥 Stubble Burning (NBR)' },
+  { id: 'ndci', name: '🦠 Toxic Algae in Water (NDCI)' },
+  { id: 'ndsi', name: '❄️ Frost & Snow Cover (NDSI)' },
 ];
 
 export default function SentinelVisionClient() {
@@ -45,7 +48,7 @@ export default function SentinelVisionClient() {
         } else {
           throw new Error(data.error || "API did not return a success status.");
         }
-      } catch (error: any) {
+      } catch (error: any) => {
         console.error("Failed to fetch GEE Tiles:", error);
       } finally {
         setIsFetchingTiles(false);
@@ -75,7 +78,7 @@ export default function SentinelVisionClient() {
       if (data.status === 'success') {
         setScorecard(data.scorecard);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Analysis failed:", error);
     } finally {
       setIsAnalyzing(false);
