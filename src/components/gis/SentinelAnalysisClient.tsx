@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import L, { type LatLng } from 'leaflet';
-import { MapContainer, TileLayer, FeatureGroup, useMap, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, useMap } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
@@ -63,10 +63,10 @@ const Scorecard = ({ data }: { data: any }) => (
 const ChartTooltipContent = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-background/80 backdrop-blur-sm p-2 border border-border/50 rounded-lg shadow-lg">
-                <p className="label font-semibold text-foreground">{`${label}`}</p>
-                {payload.map((p: any) => (
-                    <p key={p.name} style={{ color: p.color }} className="text-sm">
+            <div className="bg-background/90 backdrop-blur-sm p-2 border border-border/50 rounded-lg shadow-lg">
+                <p className="label font-semibold text-foreground mb-1">{`${label}`}</p>
+                {payload.map((p: any, i: number) => (
+                    <p key={i} style={{ color: p.stroke }} className="text-sm font-medium">
                         {`${p.name}: ${p.value.toFixed(3)}`}
                     </p>
                 ))}
@@ -77,16 +77,24 @@ const ChartTooltipContent = ({ active, payload, label }: any) => {
 };
 
 
-const MapContent = ({ onPolygonDrawn, analysisData, setAnalysisData }: any) => {
+const MapContent = ({ onPolygonDrawn, setAnalysisData }: any) => {
     const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true });
     const featureGroupRef = useRef<L.FeatureGroup>(null);
+    const [isFetchingTiles, setIsFetchingTiles] = useState(true);
 
     useEffect(() => {
         const fetchTiles = async () => {
-            const res = await fetch(`/api/gee/tiles`);
-            const data = await res.json();
-            if (data.status === 'success') setTileUrls(data.tiles);
+            setIsFetchingTiles(true);
+            try {
+                const res = await fetch(`/api/gee/tiles`);
+                const data = await res.json();
+                if (data.status === 'success') setTileUrls(data.tiles);
+            } catch (error) {
+                console.error("Failed to fetch GEE Tiles:", error);
+            } finally {
+                setIsFetchingTiles(false);
+            }
         };
         fetchTiles();
     }, []);
@@ -95,6 +103,10 @@ const MapContent = ({ onPolygonDrawn, analysisData, setAnalysisData }: any) => {
         featureGroupRef.current?.clearLayers();
         setAnalysisData(null);
     }, [setAnalysisData]);
+
+    const toggleLayer = (layerId: string) => {
+        setActiveLayers(prev => ({ ...prev, [layerId]: !prev[layerId] }));
+    };
 
     const activeBand = Object.keys(activeLayers).find(key => key !== 's2_true_color' && activeLayers[key]);
 
@@ -106,6 +118,43 @@ const MapContent = ({ onPolygonDrawn, analysisData, setAnalysisData }: any) => {
                     <TileLayer key={layer.id} url={tileUrls[layer.id]} opacity={0.8} zIndex={10} />
                 ) : null
             ))}
+            <div className="absolute top-4 right-4 z-[1000] w-72">
+                <Card className="bg-card/80 backdrop-blur-md shadow-2xl border-border/50">
+                    <CardHeader className="p-3 border-b border-border/50">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Layers className="h-5 w-5 text-primary" />
+                            Data Layers
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-1">
+                    <ScrollArea className="h-64">
+                        <div className="space-y-1 p-1">
+                        {isFetchingTiles ? (
+                            Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="flex items-center justify-between p-2.5">
+                                <div className="flex items-center gap-3">
+                                <Skeleton className="h-5 w-5 rounded-full" />
+                                <Skeleton className="h-4 w-32" />
+                                </div>
+                                <Skeleton className="h-6 w-11 rounded-full" />
+                            </div>
+                            ))
+                        ) : (
+                            AVAILABLE_LAYERS.map(layer => (
+                                <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label htmlFor={layer.id} className="flex items-center gap-3 cursor-pointer text-sm font-medium">
+                                        <layer.icon className="h-5 w-5 text-muted-foreground" />
+                                        {layer.name}
+                                    </Label>
+                                    <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
+                                </div>
+                            ))
+                        )}
+                        </div>
+                    </ScrollArea>
+                    </CardContent>
+                </Card>
+            </div>
             <div className="absolute top-4 left-4 z-[1000]"><LocationSearch /></div>
             <MapLegends currentBand={activeBand} />
             <FeatureGroup ref={featureGroupRef}>
@@ -117,11 +166,6 @@ const MapContent = ({ onPolygonDrawn, analysisData, setAnalysisData }: any) => {
                     edit={{ remove: true, edit: false }}
                 />
             </FeatureGroup>
-            {analysisData?.scorecard && (
-                <Popup position={analysisData.scorecardPosition} autoClose={false} closeOnClick={false} closeButton={false}>
-                    <Scorecard data={analysisData.scorecard} />
-                </Popup>
-            )}
         </>
     );
 };
@@ -160,8 +204,7 @@ export default function SentinelAnalysisClient() {
             if (!res.ok) throw new Error('Analysis request failed');
             const data = await res.json();
             if (data.status === 'success') {
-                const center = L.geoJSON(geometry).getBounds().getCenter();
-                setAnalysisData({ ...data, scorecardPosition: center, drawnGeometry: geometry });
+                setAnalysisData({ ...data, drawnGeometry: geometry });
             } else {
                 throw new Error(data.error || 'Analysis failed on server.');
             }
@@ -205,7 +248,7 @@ export default function SentinelAnalysisClient() {
         <div className="flex h-full w-full bg-background overflow-hidden">
             <div className="flex-1 relative">
                 <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
-                    <MapContent onPolygonDrawn={onPolygonDrawn} analysisData={analysisData} setAnalysisData={setAnalysisData} />
+                    <MapContent onPolygonDrawn={onPolygonDrawn} setAnalysisData={setAnalysisData} />
                 </MapContainer>
                 {isAnalyzing && (
                     <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-[1001]">
@@ -247,7 +290,7 @@ export default function SentinelAnalysisClient() {
                             </CardContent>
                         </Card>
 
-                        {analysisData && (
+                        {analysisData && analysisData.scorecard ? (
                              <Card>
                                 <CardHeader className="p-3">
                                     <CardTitle className="text-sm">Scorecard</CardTitle>
@@ -256,7 +299,21 @@ export default function SentinelAnalysisClient() {
                                     <Scorecard data={analysisData.scorecard} />
                                 </CardContent>
                             </Card>
-                        )}
+                        ) : isAnalyzing ? (
+                            <Card>
+                                <CardHeader className="p-3"><CardTitle className="text-sm">Scorecard</CardTitle></CardHeader>
+                                <CardContent className="p-3 space-y-2">
+                                    <Skeleton className="h-6 w-1/2" />
+                                    <Skeleton className="h-4 w-1/3" />
+                                    <div className="grid grid-cols-2 gap-2 pt-2">
+                                        <Skeleton className="h-12 w-full" />
+                                        <Skeleton className="h-12 w-full" />
+                                        <Skeleton className="h-12 w-full" />
+                                        <Skeleton className="h-12 w-full" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : null}
                     </div>
                 </ScrollArea>
 
@@ -268,14 +325,14 @@ export default function SentinelAnalysisClient() {
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false}/>
                                 <XAxis dataKey="date" hide />
                                 <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} axisLine={false} tickLine={false} />
-                                <Tooltip content={<ChartTooltipContent />} />
-                                <Line type="monotone" dataKey="ndvi" name="Health (NDVI)" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                                {compare && <Line type="monotone" dataKey="ghost_ndvi" name="Health (YoY)" stroke="hsl(var(--primary))" strokeWidth={2} strokeDasharray="3 3" dot={false} opacity={0.4} />}
+                                <Tooltip content={<ChartTooltipContent />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}/>
+                                <Line type="monotone" dataKey="ndvi" name="Health (NDVI)" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
+                                {compare && analysisData.ghostTimeline && <Line type="monotone" dataKey="ghost_ndvi" name="Health (YoY)" stroke="hsl(var(--chart-2))" strokeWidth={2} strokeDasharray="5 5" dot={false} />}
                                 {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="red" strokeWidth={1.5} />}
                             </LineChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground bg-background rounded-md">
                             <p>{isAnalyzing ? 'Loading chart data...' : 'Draw a polygon to view timeline'}</p>
                         </div>
                     )}
