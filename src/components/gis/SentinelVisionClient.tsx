@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Waves, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapLegends } from './MapLegends';
+import { LocationSearch } from './LocationSearch';
 
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -117,6 +118,10 @@ export default function SentinelVisionClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ geometry: geoJson.geometry })
       });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({error: "Failed to parse API error response"}));
+        throw new Error(errorData.error || `API responded with status ${res.status}`);
+      }
       const data = await res.json();
       if (data.status === 'success') {
         setScorecard({ data: data.scorecard, position: center });
@@ -144,6 +149,48 @@ export default function SentinelVisionClient() {
                 ) : null
             ))}
             
+            <div className="absolute top-4 left-4 z-[1000]">
+              <LocationSearch />
+            </div>
+
+            <Card className="absolute top-4 right-4 z-[1000] w-72 bg-card/80 backdrop-blur-md shadow-2xl border-border/50">
+                <CardHeader className="p-3 border-b border-border/50">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Layers className="h-5 w-5 text-primary" />
+                        Data Layers
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-1">
+                  <ScrollArea className="h-80">
+                    <div className="space-y-1 p-1">
+                      {isFetchingTiles ? (
+                        Array.from({ length: 8 }).map((_, i) => (
+                          <div key={i} className="flex items-center justify-between p-2.5">
+                            <div className="flex items-center gap-3">
+                              <Skeleton className="h-5 w-5 rounded-full" />
+                              <Skeleton className="h-4 w-40" />
+                            </div>
+                            <Skeleton className="h-6 w-11 rounded-full" />
+                          </div>
+                        ))
+                      ) : (
+                        AVAILABLE_LAYERS.map(layer => (
+                            <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent/50 transition-colors">
+                                <Label htmlFor={layer.id} className="flex items-center gap-3 cursor-pointer text-sm font-medium">
+                                    <layer.icon className="h-5 w-5 text-muted-foreground" />
+                                    {layer.name}
+                                </Label>
+                                <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
+                            </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+            </Card>
+
+            <MapLegends currentBand={activeBand} />
+
             <FeatureGroup ref={featureGroupRef}>
                 <EditControl
                     position="topleft"
@@ -165,48 +212,11 @@ export default function SentinelVisionClient() {
                 </div>
             )}
             {scorecard && !isAnalyzing && (
-                <Popup position={scorecard.position}>
+                <Popup position={scorecard.position} autoClose={false} closeOnClick={false} closeButton={false}>
                     <ScorecardPopup data={scorecard.data} />
                 </Popup>
             )}
         </MapContainer>
-
-        <Card className="absolute top-4 right-4 z-[1000] w-72 bg-card/80 backdrop-blur-md shadow-2xl border-border/50">
-            <CardHeader className="p-3 border-b border-border/50">
-                <CardTitle className="flex items-center gap-2 text-base">
-                    <Layers className="h-5 w-5 text-primary" />
-                    Data Layers
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="p-1">
-              <ScrollArea className="h-80">
-                <div className="space-y-1 p-1">
-                  {isFetchingTiles ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className="flex items-center justify-between p-2.5">
-                        <div className="flex items-center gap-3">
-                          <Skeleton className="h-5 w-5 rounded-full" />
-                          <Skeleton className="h-4 w-40" />
-                        </div>
-                        <Skeleton className="h-6 w-11 rounded-full" />
-                      </div>
-                    ))
-                  ) : (
-                    AVAILABLE_LAYERS.map(layer => (
-                        <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent/50 transition-colors">
-                            <Label htmlFor={layer.id} className="flex items-center gap-3 cursor-pointer text-sm font-medium">
-                                <layer.icon className="h-5 w-5 text-muted-foreground" />
-                                {layer.name}
-                            </Label>
-                            <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
-                        </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-        </Card>
-        <MapLegends currentBand={activeBand} />
     </div>
   );
 }
