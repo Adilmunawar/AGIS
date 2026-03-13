@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import L, { type LatLng } from 'leaflet';
-import { MapContainer, TileLayer, FeatureGroup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, useMap, Popup } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Waves, Play, Pause, BarChart3, CalendarDays } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { MapLegends } from './MapLegends';
@@ -26,7 +26,6 @@ const AVAILABLE_LAYERS = [
   { id: 'ndvi', name: 'Greenness / Health (NDVI)', icon: Activity },
   { id: 'ndmi', name: 'Leaf Moisture (NDMI)', icon: Droplets },
   { id: 'ndre', name: 'Nitrogen Content (NDRE)', icon: FlaskConical },
-  { id: 'ndwi', name: 'Flood / Water Risk (NDWI)', icon: Waves },
   { id: 'bsi', name: 'Bare Soil / Ploughed (BSI)', icon: () => <span className="text-lg">🟫</span> },
   { id: 'nbr', name: 'Stubble Burning (NBR)', icon: Flame },
 ];
@@ -41,19 +40,19 @@ const Scorecard = ({ data }: { data: any }) => (
             <div className="grid grid-cols-2 gap-1 text-xs">
                 <div className="bg-muted/50 p-1.5 rounded">
                     <p className="text-muted-foreground text-[10px]">Health (NDVI)</p>
-                    <p className="font-semibold flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.avg_ndvi}</p>
+                    <p className="font-semibold flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.avg_ndvi?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-1.5 rounded">
                     <p className="text-muted-foreground text-[10px]">Moisture (NDMI)</p>
-                    <p className="font-semibold flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500"/> {data.avg_ndmi}</p>
+                    <p className="font-semibold flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500"/> {data.avg_ndmi?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-1.5 rounded">
                     <p className="text-muted-foreground text-[10px]">Nitrogen (NDRE)</p>
-                    <p className="font-semibold flex items-center gap-1"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.avg_ndre}</p>
+                    <p className="font-semibold flex items-center gap-1"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.avg_ndre?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-1.5 rounded">
                     <p className="text-muted-foreground text-[10px]">Burn Scar (NBR)</p>
-                    <p className="font-semibold flex items-center gap-1"><Flame className="h-3 w-3 text-red-500"/> {data.burn_damage}</p>
+                    <p className="font-semibold flex items-center gap-1"><Flame className="h-3 w-3 text-red-500"/> {data.burn_damage?.toFixed(2) ?? '...'}</p>
                 </div>
             </div>
         </CardContent>
@@ -76,8 +75,44 @@ const ChartTooltipContent = ({ active, payload, label }: any) => {
     return null;
 };
 
+const CompactDynamicScorecard = ({ data, staticData }: { data: any, staticData: any }) => {
+    if (!data || !staticData) return null;
 
-const MapContent = ({ onPolygonDrawn, setAnalysisData }: any) => {
+    return (
+        <div className="w-60">
+            <div className="flex items-center justify-between mb-2">
+                <div>
+                    <p className="font-bold text-lg text-primary">{staticData.area_acres?.toLocaleString() || ''} Acres</p>
+                    <p className="text-xs font-semibold text-muted-foreground -mt-1">{data.date || staticData.primary_crop}</p>
+                </div>
+                <div className="p-2 rounded-full bg-primary/10">
+                    <Calendar className="h-5 w-5 text-primary" />
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 text-xs">
+                <div className="bg-muted/50 p-1.5 rounded-md">
+                    <p className="text-muted-foreground text-[10px]">Health (NDVI)</p>
+                    <p className="font-semibold flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.ndvi?.toFixed(2) ?? '...'}</p>
+                </div>
+                <div className="bg-muted/50 p-1.5 rounded-md">
+                    <p className="text-muted-foreground text-[10px]">Moisture (NDMI)</p>
+                    <p className="font-semibold flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500"/> {data.ndmi?.toFixed(2) ?? '...'}</p>
+                </div>
+                <div className="bg-muted/50 p-1.5 rounded-md">
+                    <p className="text-muted-foreground text-[10px]">Nitrogen (NDRE)</p>
+                    <p className="font-semibold flex items-center gap-1"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.ndre?.toFixed(2) ?? '...'}</p>
+                </div>
+                <div className="bg-muted/50 p-1.5 rounded-md">
+                    <p className="text-muted-foreground text-[10px]">Burn Scar (NBR)</p>
+                    <p className="font-semibold flex items-center gap-1"><Flame className="h-3 w-3 text-red-500"/> {data.nbr?.toFixed(2) ?? '...'}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const MapContent = ({ onPolygonDrawn, setAnalysisData, analysisData, activeTimelinePoint }: any) => {
     const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true });
     const featureGroupRef = useRef<L.FeatureGroup>(null);
@@ -166,6 +201,11 @@ const MapContent = ({ onPolygonDrawn, setAnalysisData }: any) => {
                     edit={{ remove: true, edit: false }}
                 />
             </FeatureGroup>
+            {analysisData?.polygonCenter && (
+                 <Popup position={analysisData.polygonCenter} autoClose={false} closeOnClick={false} closeButton={false}>
+                    <CompactDynamicScorecard data={activeTimelinePoint} staticData={analysisData.scorecard} />
+                </Popup>
+            )}
         </>
     );
 };
@@ -204,7 +244,8 @@ export default function SentinelAnalysisClient() {
             if (!res.ok) throw new Error('Analysis request failed');
             const data = await res.json();
             if (data.status === 'success') {
-                setAnalysisData({ ...data, drawnGeometry: geometry });
+                const center = L.geoJSON(geometry).getBounds().getCenter();
+                setAnalysisData({ ...data, drawnGeometry: geometry, polygonCenter: center });
             } else {
                 throw new Error(data.error || 'Analysis failed on server.');
             }
@@ -236,6 +277,7 @@ export default function SentinelAnalysisClient() {
     };
 
     const activeTimelinePoint = useMemo(() => analysisData?.timeline?.[currentIndex] || {}, [analysisData, currentIndex]);
+    
     const chartData = useMemo(() => {
         if (!analysisData?.timeline) return [];
         return analysisData.timeline.map((d: any, index: number) => ({
@@ -244,11 +286,22 @@ export default function SentinelAnalysisClient() {
         }));
     }, [analysisData]);
 
+     const combinedScorecardData = useMemo(() => {
+        if (!analysisData?.scorecard) return null;
+        return {
+            ...analysisData.scorecard,
+            avg_ndvi: activeTimelinePoint.ndvi,
+            avg_ndmi: activeTimelinePoint.ndmi,
+            avg_ndre: activeTimelinePoint.ndre,
+            burn_damage: activeTimelinePoint.nbr,
+        };
+    }, [analysisData, activeTimelinePoint]);
+
     return (
         <div className="flex h-full w-full bg-background overflow-hidden">
             <div className="flex-1 relative">
                 <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
-                    <MapContent onPolygonDrawn={onPolygonDrawn} setAnalysisData={setAnalysisData} />
+                    <MapContent onPolygonDrawn={onPolygonDrawn} setAnalysisData={setAnalysisData} analysisData={analysisData} activeTimelinePoint={activeTimelinePoint} />
                 </MapContainer>
                 {isAnalyzing && (
                     <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-[1001]">
@@ -283,20 +336,21 @@ export default function SentinelAnalysisClient() {
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <Label className="flex items-center gap-2 text-xs">
-                                        <CalendarDays className="h-4 w-4" /> Year-over-Year (YoY)
+                                        <Calendar className="h-4 w-4" />
+                                        Year-over-Year (YoY)
                                     </Label>
                                     <Switch checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing} />
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {analysisData && analysisData.scorecard ? (
+                        {combinedScorecardData ? (
                              <Card>
                                 <CardHeader className="p-3">
                                     <CardTitle className="text-sm">Scorecard</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-3">
-                                    <Scorecard data={analysisData.scorecard} />
+                                    <Scorecard data={combinedScorecardData} />
                                 </CardContent>
                             </Card>
                         ) : isAnalyzing ? (
