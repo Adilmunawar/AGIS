@@ -175,7 +175,7 @@ export default function SentinelVisionClient() {
             <CardHeader className="p-3 border-b border-border/50">
                 <CardTitle className="flex items-center gap-2 text-base">
                     <Layers className="h-5 w-5 text-primary" />
-                    Enterprise Layers
+                    Data Layers
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-1">
