@@ -15,7 +15,6 @@ export async function POST(req: Request) {
       try {
         const layers = getZaraatDostLayers();
         
-        // Promises for EE math evaluations
         const evaluateEE = (eeObject: any): Promise<any> => new Promise((resolve, reject) => {
           eeObject.evaluate((val: any, err: any) => err ? reject(err) : resolve(val));
         });
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
           reducer: ee.Reducer.mode(), geometry: geom, scale: 10, maxPixels: 1e9
         });
 
-        // Run evaluations asynchronously
         const [areaVal, avgVals, cropVal] = await Promise.all([
           evaluateEE(area_sqm),
           evaluateEE(averagesReducer),
@@ -66,6 +64,7 @@ export async function POST(req: Request) {
       scorecard: scorecardResult,
       timeline: timelineResult.timeline,
       ghostTimeline: timelineResult.ghostTimeline,
+      events: timelineResult.events,
       metadata: {
         rangeRequested: `${range} months`,
         compareEnabled: compare,

@@ -98,10 +98,54 @@ export const getMapUrl = (image: any, visParams: any): Promise<string> => {
   });
 };
 
-/**
- * Fetches a full historical timeline for a parcel.
- * Supports dynamic ranges (3M, 6M, 1Y, 2Y) and provides data for "Ghost Curves".
- */
+// New Anomaly Detection Logic
+const detectAnomalies = (timeline: any[]) => {
+  if (timeline.length < 3) return [];
+
+  const events: { date: string; type: string; description: string }[] = [];
+  let maxNdvi = -1;
+  let maxNdviDate = '';
+  
+  // Find Peak Health
+  timeline.forEach(point => {
+    if (point.ndvi > maxNdvi) {
+      maxNdvi = point.ndvi;
+      maxNdviDate = point.date;
+    }
+  });
+  if (maxNdviDate) {
+    events.push({ date: maxNdviDate, type: 'peak', description: `Peak crop health detected (NDVI: ${maxNdvi.toFixed(2)})` });
+  }
+
+  // Find Start of Season
+  const firstHalf = timeline.slice(0, Math.floor(timeline.length / 2));
+  const minNdviFirstHalf = Math.min(...firstHalf.map(p => p.ndvi || 1));
+  const startThreshold = minNdviFirstHalf + 0.15;
+  
+  for (let i = 1; i < timeline.length; i++) {
+    if (timeline[i].ndvi > startThreshold && timeline[i-1].ndvi < startThreshold) {
+      events.push({ date: timeline[i].date, type: 'start', description: `Start of growing season detected (NDVI crossed ${startThreshold.toFixed(2)})` });
+      break; 
+    }
+  }
+
+  // Find Stress & Burn Events
+  for (let i = 1; i < timeline.length; i++) {
+    const ndviDrop = timeline[i-1].ndvi - timeline[i].ndvi;
+    if (ndviDrop > 0.18) { // Significant drop
+      events.push({ date: timeline[i].date, type: 'stress', description: `Potential stress event detected (NDVI drop of ${ndviDrop.toFixed(2)})` });
+    }
+    if (timeline[i].nbr > 0.2) { // NBR threshold for burn scars
+       events.push({ date: timeline[i].date, type: 'burn', description: `Potential burn anomaly detected (NBR: ${timeline[i].nbr.toFixed(2)})` });
+    }
+  }
+
+  // Deduplicate events by date
+  const uniqueEvents = Array.from(new Map(events.map(event => [event.date, event])).values());
+  return uniqueEvents;
+};
+
+
 export const getHistoricalTimeline = async (
   geometry: any, 
   months: number = 6,
@@ -119,16 +163,15 @@ export const getHistoricalTimeline = async (
       .filterDate(sDate, eDate)
       .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
       .map((img: ee.Image) => {
-        // Calculate Indices
         const ndvi = img.normalizedDifference(['B8', 'B4']).rename('ndvi');
         const ndmi = img.normalizedDifference(['B8', 'B11']).rename('ndmi');
         const ndre = img.normalizedDifference(['B5', 'B4']).rename('ndre');
+        const nbr = img.normalizedDifference(['B8A', 'B12']).rename('nbr');
         
-        return img.addBands([ndvi, ndmi, ndre])
+        return img.addBands([ndvi, ndmi, ndre, nbr])
           .set('date', img.date().format('YYYY-MM-dd'));
       });
 
-    // Reduce collection to a list of average values per date
     return new Promise((resolve, reject) => {
       collection.map((img: ee.Image) => {
         const stats = img.reduceRegion({
@@ -139,26 +182,24 @@ export const getHistoricalTimeline = async (
         });
         return ee.Feature(null, stats).set('date', img.get('date'));
       }).evaluate((result: any, error: any) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(result);
-        }
+        if (error) reject(error);
+        else resolve(result);
       });
     });
   };
 
-  const currentTimeline = await fetchRange(startDate, now);
+  const currentData = await fetchRange(startDate, now);
+  const timeline = currentData.features.map((f: any) => f.properties);
   
-  let ghostTimeline = null;
+  let ghostTimeline: any[] | null = null;
   if (compare) {
     const ghostStart = startDate.advance(-1, 'year');
     const ghostEnd = now.advance(-1, 'year');
-    ghostTimeline = await fetchRange(ghostStart, ghostEnd);
+    const ghostData = await fetchRange(ghostStart, ghostEnd);
+    ghostTimeline = ghostData.features.map((f: any) => f.properties);
   }
 
-  return {
-    timeline: currentTimeline.features.map((f: any) => f.properties),
-    ghostTimeline: ghostTimeline ? ghostTimeline.features.map((f: any) => f.properties) : null
-  };
+  const events = detectAnomalies(timeline);
+
+  return { timeline, ghostTimeline, events };
 };

@@ -2,20 +2,21 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import L, { type LatLng } from 'leaflet';
-import { MapContainer, TileLayer, FeatureGroup, useMap, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, useMap, Popup, Tooltip as LeafletTooltip } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot } from 'recharts';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3 } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { MapLegends } from './MapLegends';
 import { LocationSearch } from './LocationSearch';
+import { cn } from '@/lib/utils';
 
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -65,9 +66,15 @@ const ChartTooltipContent = ({ active, payload, label }: any) => {
             <div className="bg-background/90 backdrop-blur-sm p-2 border border-border/50 rounded-lg shadow-lg">
                 <p className="label font-semibold text-foreground mb-1">{`${label}`}</p>
                 {payload.map((p: any, i: number) => (
-                    <p key={i} style={{ color: p.stroke }} className="text-sm font-medium">
-                        {`${p.name}: ${p.value.toFixed(3)}`}
-                    </p>
+                    <div key={i} className="flex items-center justify-between gap-4">
+                        <span style={{ color: p.stroke }} className="text-sm font-medium flex items-center gap-1.5">
+                            <div className="h-2 w-2 rounded-full" style={{backgroundColor: p.stroke}}></div>
+                            {p.name}
+                        </span>
+                        <span style={{ color: p.stroke }} className="text-sm font-bold">
+                            {p.value.toFixed(3)}
+                        </span>
+                    </div>
                 ))}
             </div>
         );
@@ -77,7 +84,6 @@ const ChartTooltipContent = ({ active, payload, label }: any) => {
 
 const CompactDynamicScorecard = ({ data, staticData }: { data: any, staticData: any }) => {
     if (!data || !staticData) return null;
-
     return (
         <div className="w-60">
             <div className="flex items-center justify-between mb-2">
@@ -90,7 +96,7 @@ const CompactDynamicScorecard = ({ data, staticData }: { data: any, staticData: 
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-1.5 text-xs">
-                <div className="bg-muted/50 p-1.5 rounded-md">
+                 <div className="bg-muted/50 p-1.5 rounded-md">
                     <p className="text-muted-foreground text-[10px]">Health (NDVI)</p>
                     <p className="font-semibold flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.ndvi?.toFixed(2) ?? '...'}</p>
                 </div>
@@ -109,6 +115,37 @@ const CompactDynamicScorecard = ({ data, staticData }: { data: any, staticData: 
             </div>
         </div>
     );
+};
+
+const AnomalyDot = (props: any) => {
+  const { cx, cy, payload, event } = props;
+  if (!event) return null;
+
+  const ICONS: Record<string, React.ReactNode> = {
+    'peak': <TrendingUp className="h-3 w-3 text-white" />,
+    'start': <ChevronsRight className="h-3 w-3 text-white" />,
+    'stress': <AlertTriangle className="h-3 w-3 text-white" />,
+    'burn': <Flame className="h-3 w-3 text-white" />,
+  };
+  const COLORS: Record<string, string> = {
+    'peak': 'bg-green-500',
+    'start': 'bg-blue-500',
+    'stress': 'bg-yellow-500',
+    'burn': 'bg-red-500',
+  };
+
+  return (
+    <g transform={`translate(${cx},${cy})`}>
+      <foreignObject x={-10} y={-10} width={20} height={20}>
+        <LeafletTooltip direction="top" offset={[0, -10]} opacity={1} permanent>
+          <span className="text-xs font-semibold">{event.description}</span>
+        </LeafletTooltip>
+        <div className={`flex items-center justify-center h-5 w-5 rounded-full ${COLORS[event.type]} ring-2 ring-background`}>
+          {ICONS[event.type]}
+        </div>
+      </foreignObject>
+    </g>
+  );
 };
 
 
@@ -217,6 +254,7 @@ export default function SentinelAnalysisClient() {
     const [isPlaying, setIsPlaying] = useState(false);
     const [range, setRange] = useState(12);
     const [compare, setCompare] = useState(false);
+    const [visibleLines, setVisibleLines] = useState({ ndvi: true, ndmi: false, ndre: false });
 
     useEffect(() => {
         if (analysisData?.timeline) {
@@ -276,14 +314,23 @@ export default function SentinelAnalysisClient() {
         }
     };
 
+    const toggleLineVisibility = (line: 'ndvi' | 'ndmi' | 'ndre') => {
+        setVisibleLines(prev => ({...prev, [line]: !prev[line]}));
+    };
+
     const activeTimelinePoint = useMemo(() => analysisData?.timeline?.[currentIndex] || {}, [analysisData, currentIndex]);
     
     const chartData = useMemo(() => {
         if (!analysisData?.timeline) return [];
-        return analysisData.timeline.map((d: any, index: number) => ({
-            ...d,
-            ghost_ndvi: analysisData.ghostTimeline?.[index]?.ndvi
-        }));
+        return analysisData.timeline.map((d: any, index: number) => {
+            const ghostPoint = analysisData.ghostTimeline?.[index];
+            return {
+                ...d,
+                ghost_ndvi: ghostPoint?.ndvi,
+                ghost_ndmi: ghostPoint?.ndmi,
+                ghost_ndre: ghostPoint?.ndre,
+            }
+        });
     }, [analysisData]);
 
      const combinedScorecardData = useMemo(() => {
@@ -296,6 +343,12 @@ export default function SentinelAnalysisClient() {
             burn_damage: activeTimelinePoint.nbr,
         };
     }, [analysisData, activeTimelinePoint]);
+
+    const chartConfig = [
+        { key: 'ndvi', name: 'Health (NDVI)', color: '#22c55e', ghostKey: 'ghost_ndvi', ghostColor: '#166534'},
+        { key: 'ndmi', name: 'Moisture (NDMI)', color: '#3b82f6', ghostKey: 'ghost_ndmi', ghostColor: '#1e40af'},
+        { key: 'ndre', name: 'Nitrogen (NDRE)', color: '#f97316', ghostKey: 'ghost_ndre', ghostColor: '#9a3412'},
+    ];
 
     return (
         <div className="flex h-full w-full bg-background overflow-hidden">
@@ -371,7 +424,7 @@ export default function SentinelAnalysisClient() {
                     </div>
                 </ScrollArea>
 
-                <div className="p-3 border-t space-y-3 bg-muted/50">
+                <div className="p-3 border-t space-y-2 bg-muted/50">
                     <div className="h-40">
                     {analysisData?.timeline ? (
                          <ResponsiveContainer width="100%" height="100%">
@@ -380,9 +433,22 @@ export default function SentinelAnalysisClient() {
                                 <XAxis dataKey="date" hide />
                                 <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} axisLine={false} tickLine={false} />
                                 <Tooltip content={<ChartTooltipContent />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}/>
-                                <Line type="monotone" dataKey="ndvi" name="Health (NDVI)" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
-                                {compare && analysisData.ghostTimeline && <Line type="monotone" dataKey="ghost_ndvi" name="Health (YoY)" stroke="hsl(var(--chart-2))" strokeWidth={2} strokeDasharray="5 5" dot={false} />}
-                                {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="red" strokeWidth={1.5} />}
+                                
+                                {chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
+                                    <Line key={line.key} type="monotone" dataKey={line.key} name={line.name} stroke={line.color} strokeWidth={2.5} dot={false} />
+                                ))}
+                                {compare && analysisData.ghostTimeline && chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
+                                    <Line key={`ghost-${line.key}`} type="monotone" dataKey={line.ghostKey} name={`${line.name} (YoY)`} stroke={line.ghostColor} strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                                ))}
+
+                                {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="hsl(var(--destructive))" strokeWidth={1.5} />}
+
+                                {analysisData.events.map((event: any) => (
+                                    <ReferenceDot key={event.date + event.type} x={event.date} y={chartData.find(d => d.date === event.date)?.ndvi} ifOverflow="extendDomain" r={0}>
+                                        <AnomalyDot event={event} />
+                                    </ReferenceDot>
+                                ))}
+
                             </LineChart>
                         </ResponsiveContainer>
                     ) : (
@@ -391,8 +457,17 @@ export default function SentinelAnalysisClient() {
                         </div>
                     )}
                     </div>
+                    <div className="flex justify-center gap-2">
+                        {chartConfig.map(line => (
+                            <button key={line.key} onClick={() => toggleLineVisibility(line.key as keyof typeof visibleLines)}
+                                className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-all", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary-foreground font-semibold' : 'bg-muted text-muted-foreground')}>
+                                <div className="h-2 w-2 rounded-full" style={{backgroundColor: line.color}}></div>
+                                {line.name}
+                            </button>
+                        ))}
+                    </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 pt-1">
                         <Button variant="ghost" size="icon" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
                             {isPlaying ? <Pause className="h-5 w-5"/> : <Play className="h-5 w-5"/>}
                         </Button>
