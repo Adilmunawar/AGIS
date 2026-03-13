@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import L, { type LatLng } from 'leaflet';
-import { MapContainer, TileLayer, FeatureGroup, useMap, Popup, Tooltip as LeafletTooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, useMap, Popup } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot } from 'recharts';
 
@@ -11,12 +11,14 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { MapLegends } from './MapLegends';
 import { LocationSearch } from './LocationSearch';
 import { cn } from '@/lib/utils';
+import { Tooltip as ShadTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -136,13 +138,19 @@ const AnomalyDot = (props: any) => {
 
   return (
     <g transform={`translate(${cx},${cy})`}>
-      <foreignObject x={-10} y={-10} width={20} height={20}>
-        <LeafletTooltip direction="top" offset={[0, -10]} opacity={1} permanent>
-          <span className="text-xs font-semibold">{event.description}</span>
-        </LeafletTooltip>
-        <div className={`flex items-center justify-center h-5 w-5 rounded-full ${COLORS[event.type]} ring-2 ring-background`}>
-          {ICONS[event.type]}
-        </div>
+      <foreignObject x={-12} y={-12} width={24} height={24}>
+        <TooltipProvider>
+          <ShadTooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <div className={`flex items-center justify-center h-5 w-5 rounded-full ${COLORS[event.type]} ring-2 ring-background cursor-pointer`}>
+                {ICONS[event.type]}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs font-semibold">
+              <p>{event.description}</p>
+            </TooltipContent>
+          </ShadTooltip>
+        </TooltipProvider>
       </foreignObject>
     </g>
   );
@@ -350,6 +358,46 @@ export default function SentinelAnalysisClient() {
         { key: 'ndre', name: 'Nitrogen (NDRE)', color: '#f97316', ghostKey: 'ghost_ndre', ghostColor: '#9a3412'},
     ];
 
+    const handleExport = () => {
+        if (!analysisData?.timeline) {
+            return;
+        }
+
+        const { timeline, ghostTimeline } = analysisData;
+        
+        const headers = ['date', 'ndvi', 'ndmi', 'ndre', 'nbr'];
+        if (compare && ghostTimeline) {
+            headers.push('ndvi_yoy', 'ndmi_yoy', 'ndre_yoy', 'nbr_yoy');
+        }
+
+        const combinedData = timeline.map((point: any, index: number) => {
+            const row: any = { ...point };
+            if (compare && ghostTimeline && ghostTimeline[index]) {
+                const ghostPoint = ghostTimeline[index];
+                row.ndvi_yoy = ghostPoint.ndvi;
+                row.ndmi_yoy = ghostPoint.ndmi;
+                row.ndre_yoy = ghostPoint.ndre;
+                row.nbr_yoy = ghostPoint.nbr;
+            }
+            return row;
+        });
+
+        const csvContent = [
+            headers.join(','), 
+            ...combinedData.map((row: any) => headers.map(header => row[header] ?? '').join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `sentinel_analysis_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="flex h-full w-full bg-background overflow-hidden">
             <div className="flex-1 relative">
@@ -394,6 +442,15 @@ export default function SentinelAnalysisClient() {
                                     </Label>
                                     <Switch checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing} />
                                 </div>
+                                 <Button 
+                                    variant="outline" 
+                                    className="w-full mt-2" 
+                                    onClick={handleExport} 
+                                    disabled={!analysisData || isAnalyzing}
+                                >
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Export as CSV
+                                </Button>
                             </CardContent>
                         </Card>
 
@@ -428,7 +485,7 @@ export default function SentinelAnalysisClient() {
                     <div className="h-40">
                     {analysisData?.timeline ? (
                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                            <LineChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false}/>
                                 <XAxis dataKey="date" hide />
                                 <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} axisLine={false} tickLine={false} />
@@ -444,9 +501,14 @@ export default function SentinelAnalysisClient() {
                                 {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="hsl(var(--destructive))" strokeWidth={1.5} />}
 
                                 {analysisData.events.map((event: any) => (
-                                    <ReferenceDot key={event.date + event.type} x={event.date} y={chartData.find(d => d.date === event.date)?.ndvi} ifOverflow="extendDomain" r={0}>
-                                        <AnomalyDot event={event} />
-                                    </ReferenceDot>
+                                    <ReferenceDot 
+                                      key={event.date + event.type} 
+                                      x={event.date} 
+                                      y={chartData.find((d: any) => d.date === event.date)?.ndvi ?? 0}
+                                      ifOverflow="extendDomain" 
+                                      r={0}
+                                      shape={<AnomalyDot event={event} />}
+                                    />
                                 ))}
 
                             </LineChart>
@@ -460,9 +522,9 @@ export default function SentinelAnalysisClient() {
                     <div className="flex justify-center gap-2">
                         {chartConfig.map(line => (
                             <button key={line.key} onClick={() => toggleLineVisibility(line.key as keyof typeof visibleLines)}
-                                className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs transition-all", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary-foreground font-semibold' : 'bg-muted text-muted-foreground')}>
+                                className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold transition-all", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground opacity-70 hover:opacity-100')}>
                                 <div className="h-2 w-2 rounded-full" style={{backgroundColor: line.color}}></div>
-                                {line.name}
+                                {line.name.split('(')[0].trim()}
                             </button>
                         ))}
                     </div>
