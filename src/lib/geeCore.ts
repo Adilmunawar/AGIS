@@ -58,7 +58,7 @@ export const getZaraatDostLayers = () => {
 
   const ndvi = s2_live.normalizedDifference(['B8', 'B4']).rename('NDVI');
   const ndmi = s2_live.normalizedDifference(['B8', 'B11']).rename('NDMI');
-  const ndre = s2_live.normalizedDifference(['B8', 'B5']).rename('NDRE');
+  const ndre = s2_live.normalizedDifference(['B5', 'B4']).rename('NDRE');
   const ndwi = s2_live.normalizedDifference(['B3', 'B8']).rename('NDWI');
   
   // FIX: This now exactly matches the Python script by not renaming the band.
@@ -96,4 +96,69 @@ export const getMapUrl = (image: any, visParams: any): Promise<string> => {
       else resolve(map.urlFormat);
     });
   });
+};
+
+/**
+ * Fetches a full historical timeline for a parcel.
+ * Supports dynamic ranges (3M, 6M, 1Y, 2Y) and provides data for "Ghost Curves".
+ */
+export const getHistoricalTimeline = async (
+  geometry: any, 
+  months: number = 6,
+  compare: boolean = false
+) => {
+  await initGEE();
+  
+  const now = ee.Date(new Date());
+  const startDate = now.advance(-months, 'month');
+
+  // Helper to fetch data for a specific window
+  const fetchRange = (sDate: ee.Date, eDate: ee.Date): Promise<ee.FeatureCollection> => {
+    const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+      .filterBounds(geometry)
+      .filterDate(sDate, eDate)
+      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+      .map((img: ee.Image) => {
+        // Calculate Indices
+        const ndvi = img.normalizedDifference(['B8', 'B4']).rename('ndvi');
+        const ndmi = img.normalizedDifference(['B8', 'B11']).rename('ndmi');
+        const ndre = img.normalizedDifference(['B5', 'B4']).rename('ndre');
+        
+        return img.addBands([ndvi, ndmi, ndre])
+          .set('date', img.date().format('YYYY-MM-dd'));
+      });
+
+    // Reduce collection to a list of average values per date
+    return new Promise((resolve, reject) => {
+      collection.map((img: ee.Image) => {
+        const stats = img.reduceRegion({
+          reducer: ee.Reducer.mean(),
+          geometry: geometry,
+          scale: 10,
+          maxPixels: 1e9,
+        });
+        return ee.Feature(null, stats).set('date', img.get('date'));
+      }).evaluate((result: any, error: any) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      });
+    });
+  };
+
+  const currentTimeline = await fetchRange(startDate, now);
+  
+  let ghostTimeline = null;
+  if (compare) {
+    const ghostStart = startDate.advance(-1, 'year');
+    const ghostEnd = now.advance(-1, 'year');
+    ghostTimeline = await fetchRange(ghostStart, ghostEnd);
+  }
+
+  return {
+    timeline: currentTimeline.features.map((f: any) => f.properties),
+    ghostTimeline: ghostTimeline ? ghostTimeline.features.map((f: any) => f.properties) : null
+  };
 };
