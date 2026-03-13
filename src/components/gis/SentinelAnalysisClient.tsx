@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import L, { type LatLng } from 'leaflet';
-import { MapContainer, TileLayer, FeatureGroup, useMap, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, useMap, Popup, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot } from 'recharts';
 
@@ -157,7 +157,7 @@ const AnomalyDot = (props: any) => {
 };
 
 
-const MapContent = ({ onPolygonDrawn, setAnalysisData, analysisData, activeTimelinePoint }: any) => {
+const MapContent = ({ onPolygonDrawn, onClear, drawnGeometry, isAnalyzing, analysisData, activeTimelinePoint }: any) => {
     const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true });
     const featureGroupRef = useRef<L.FeatureGroup>(null);
@@ -179,16 +179,18 @@ const MapContent = ({ onPolygonDrawn, setAnalysisData, analysisData, activeTimel
         fetchTiles();
     }, []);
 
-    const handleClear = useCallback(() => {
-        featureGroupRef.current?.clearLayers();
-        setAnalysisData(null);
-    }, [setAnalysisData]);
-
     const toggleLayer = (layerId: string) => {
         setActiveLayers(prev => ({ ...prev, [layerId]: !prev[layerId] }));
     };
 
     const activeBand = Object.keys(activeLayers).find(key => key !== 's2_true_color' && activeLayers[key]);
+
+    const onCreated = (e: any) => {
+        onPolygonDrawn(e.layer.toGeoJSON().geometry);
+        // Immediately clear the temporary layer drawn by the library
+        // because we will render it declaratively from our state.
+        featureGroupRef.current?.clearLayers();
+    }
 
     return (
         <>
@@ -237,16 +239,20 @@ const MapContent = ({ onPolygonDrawn, setAnalysisData, analysisData, activeTimel
             </div>
             <div className="absolute top-4 left-4 z-[1000]"><LocationSearch /></div>
             <MapLegends currentBand={activeBand} />
+            
+            {drawnGeometry && <GeoJSON data={drawnGeometry} style={{ color: '#22c55e', weight: 3, fillOpacity: 0.2 }} />}
+
             <FeatureGroup ref={featureGroupRef}>
                 <EditControl
                     position="topleft"
-                    onCreated={onPolygonDrawn}
-                    onDeleted={handleClear}
+                    onCreated={onCreated}
+                    onDeleted={onClear}
                     draw={{ polygon: { allowIntersection: false, shapeOptions: { color: '#22c55e', weight: 3, fillOpacity: 0.2 } }, rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false }}
                     edit={{ remove: true, edit: false }}
                 />
             </FeatureGroup>
-            {analysisData?.polygonCenter && (
+            
+            {analysisData?.polygonCenter && !isAnalyzing && (
                  <Popup position={analysisData.polygonCenter} autoClose={false} closeOnClick={false} closeButton={false}>
                     <CompactDynamicScorecard data={activeTimelinePoint} staticData={analysisData.scorecard} />
                 </Popup>
@@ -263,6 +269,7 @@ export default function SentinelAnalysisClient() {
     const [range, setRange] = useState(12);
     const [compare, setCompare] = useState(false);
     const [visibleLines, setVisibleLines] = useState({ ndvi: true, ndmi: false, ndre: false });
+    const [drawnGeometry, setDrawnGeometry] = useState<any>(null);
 
     useEffect(() => {
         if (analysisData?.timeline) {
@@ -278,7 +285,7 @@ export default function SentinelAnalysisClient() {
         return () => clearInterval(timer);
     }, [isPlaying, analysisData]);
 
-    const runAnalysis = async (geometry: any, currentRange: number, currentCompare: boolean) => {
+    const runAnalysis = useCallback(async (geometry: any, currentRange: number, currentCompare: boolean) => {
         setIsAnalyzing(true);
         setAnalysisData(null);
         try {
@@ -291,7 +298,7 @@ export default function SentinelAnalysisClient() {
             const data = await res.json();
             if (data.status === 'success') {
                 const center = L.geoJSON(geometry).getBounds().getCenter();
-                setAnalysisData({ ...data, drawnGeometry: geometry, polygonCenter: center });
+                setAnalysisData({ ...data, polygonCenter: center });
             } else {
                 throw new Error(data.error || 'Analysis failed on server.');
             }
@@ -300,27 +307,31 @@ export default function SentinelAnalysisClient() {
         } finally {
             setIsAnalyzing(false);
         }
-    };
+    }, []);
     
-    const onPolygonDrawn = (e: any) => {
-        const layer = e.layer;
-        const geoJson = layer.toGeoJSON();
-        runAnalysis(geoJson.geometry, range, compare);
-    };
+    const handlePolygonDrawn = useCallback((geometry: any) => {
+        setDrawnGeometry(geometry);
+        runAnalysis(geometry, range, compare);
+    }, [range, compare, runAnalysis]);
 
-    const handleRangeChange = (newRange: number) => {
+    const handleClear = useCallback(() => {
+        setDrawnGeometry(null);
+        setAnalysisData(null);
+    }, []);
+
+    const handleRangeChange = useCallback((newRange: number) => {
         setRange(newRange);
-        if (analysisData?.drawnGeometry) {
-            runAnalysis(analysisData.drawnGeometry, newRange, compare);
+        if (drawnGeometry) {
+            runAnalysis(drawnGeometry, newRange, compare);
         }
-    };
+    }, [drawnGeometry, compare, runAnalysis]);
 
-    const handleCompareChange = (newCompare: boolean) => {
+    const handleCompareChange = useCallback((newCompare: boolean) => {
         setCompare(newCompare);
-        if (analysisData?.drawnGeometry) {
-            runAnalysis(analysisData.drawnGeometry, range, newCompare);
+        if (drawnGeometry) {
+            runAnalysis(drawnGeometry, range, newCompare);
         }
-    };
+    }, [drawnGeometry, range, runAnalysis]);
 
     const toggleLineVisibility = (line: 'ndvi' | 'ndmi' | 'ndre') => {
         setVisibleLines(prev => ({...prev, [line]: !prev[line]}));
@@ -402,7 +413,14 @@ export default function SentinelAnalysisClient() {
         <div className="flex h-full w-full bg-background overflow-hidden">
             <div className="flex-1 relative">
                 <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
-                    <MapContent onPolygonDrawn={onPolygonDrawn} setAnalysisData={setAnalysisData} analysisData={analysisData} activeTimelinePoint={activeTimelinePoint} />
+                    <MapContent 
+                        onPolygonDrawn={handlePolygonDrawn}
+                        onClear={handleClear}
+                        drawnGeometry={drawnGeometry}
+                        isAnalyzing={isAnalyzing}
+                        analysisData={analysisData} 
+                        activeTimelinePoint={activeTimelinePoint}
+                    />
                 </MapContainer>
                 {isAnalyzing && (
                     <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-[1001]">
@@ -431,7 +449,7 @@ export default function SentinelAnalysisClient() {
                                     <Label className="text-xs">Time Range</Label>
                                     <div className="flex gap-1 bg-muted p-1 rounded-md">
                                         {[3, 6, 12, 24].map(m => (
-                                            <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-8 text-xs" onClick={() => handleRangeChange(m)} disabled={isAnalyzing}>{m}M</Button>
+                                            <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-8 text-xs" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
                                         ))}
                                     </div>
                                 </div>
@@ -440,7 +458,7 @@ export default function SentinelAnalysisClient() {
                                         <Calendar className="h-4 w-4" />
                                         Year-over-Year (YoY)
                                     </Label>
-                                    <Switch checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing} />
+                                    <Switch checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing || !drawnGeometry} />
                                 </div>
                                  <Button 
                                     variant="outline" 
@@ -463,7 +481,7 @@ export default function SentinelAnalysisClient() {
                                     <Scorecard data={combinedScorecardData} />
                                 </CardContent>
                             </Card>
-                        ) : isAnalyzing ? (
+                        ) : (drawnGeometry && isAnalyzing) ? (
                             <Card>
                                 <CardHeader className="p-3"><CardTitle className="text-sm">Scorecard</CardTitle></CardHeader>
                                 <CardContent className="p-3 space-y-2">
@@ -515,7 +533,7 @@ export default function SentinelAnalysisClient() {
                         </ResponsiveContainer>
                     ) : (
                         <div className="h-full flex items-center justify-center text-xs text-muted-foreground bg-background rounded-md">
-                            <p>{isAnalyzing ? 'Loading chart data...' : 'Draw a polygon to view timeline'}</p>
+                            <p>{drawnGeometry ? (isAnalyzing ? 'Loading chart data...' : 'Analysis complete.') : 'Draw a polygon to view timeline'}</p>
                         </div>
                     )}
                     </div>
