@@ -1,22 +1,18 @@
 'use client';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
-import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { Storage, ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+import { Firestore, doc, setDoc, Timestamp } from 'firebase/firestore';
 import { MauzaMetadata } from '@/types/gis-schema';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import type { FeatureCollection } from 'geojson';
 import * as turf from '@turf/turf';
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const storage = getStorage(app);
-
 export async function uploadMauzaAndParcels(
     mauzaName: string,
     boundaryData: FeatureCollection | null,
-    parcelsData: FeatureCollection | null
+    parcelsData: FeatureCollection | null,
+    db: Firestore,
+    storage: Storage
 ) {
     const mauzaId = mauzaName.replace(/[^a-zA-Z0-9-_\.]/g, '_');
     const storagePromises: Promise<any>[] = [];
