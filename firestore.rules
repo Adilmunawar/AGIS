@@ -58,13 +58,12 @@ service cloud.firestore {
     /**
      * @description Controls access to Mauza (administrative area) metadata.
      * @path /Mauzas/{mauzaId}
-     * @allow (read) Any authenticated user can read Mauza metadata.
-     * @allow (list) Any authenticated user can query the Mauzas collection.
+     * @allow (read, list) Any authenticated user can read Mauza metadata.
      * @allow (create) An authenticated user can create a Mauza document, provided it passes validation.
      * @principle Enforces data integrity for the core administrative boundaries.
      */
     match /Mauzas/{mauzaId} {
-      allow read, update, delete: if isSignedIn();
+      allow get, list, update, delete: if isSignedIn();
       allow create: if isSignedIn() &&
                       request.resource.data.id == mauzaId &&
                       request.resource.data.name is string &&
@@ -74,12 +73,12 @@ service cloud.firestore {
     /**
      * @description Controls access to individual land parcel metadata.
      * @path /Parcels/{parcelId}
-     * @allow (read) Any authenticated user can read Parcel metadata.
+     * @allow (read, list) Any authenticated user can read Parcel metadata.
      * @allow (create, update) Writes are permitted only if required fields are present and correctly typed.
      * @principle Ensures every parcel record is complete and conforms to the data schema.
      */
     match /Parcels/{parcelId} {
-      allow read, delete: if isSignedIn();
+      allow get, list, delete: if isSignedIn();
       allow create, update: if isSignedIn() &&
                               request.resource.data.geometryUrl is string &&
                               request.resource.data.geometryUrl.size() > 0 &&
