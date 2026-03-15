@@ -11,13 +11,19 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown, AreaChart, GitCommitHorizontal } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Waves, X, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown, AreaChart, GitCommitHorizontal } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { MapLegends } from './MapLegends';
 import { LocationSearch } from './LocationSearch';
 import { cn } from '@/lib/utils';
 import { Tooltip as ShadTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 
 import 'leaflet/dist/leaflet.css';
@@ -40,22 +46,22 @@ const Scorecard = ({ data }: { data: any }) => (
             <CardDescription className="text-sm font-semibold text-muted-foreground">{data.primary_crop}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-sm">
                 <div className="bg-muted/50 p-2 rounded-lg">
-                    <p className="text-muted-foreground text-xs font-semibold">Health (NDVI)</p>
-                    <p className="font-semibold text-sm flex items-center gap-1.5"><Activity className="h-4 w-4 text-green-500"/> {data.avg_ndvi?.toFixed(2) ?? '...'}</p>
+                    <p className="text-muted-foreground text-[10px] font-semibold">Health (NDVI)</p>
+                    <p className="font-semibold text-sm flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.avg_ndvi?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-2 rounded-lg">
-                    <p className="text-muted-foreground text-xs font-semibold">Moisture (NDMI)</p>
-                    <p className="font-semibold text-sm flex items-center gap-1.5"><Droplets className="h-4 w-4 text-blue-500"/> {data.avg_ndmi?.toFixed(2) ?? '...'}</p>
+                    <p className="text-muted-foreground text-[10px] font-semibold">Moisture (NDMI)</p>
+                    <p className="font-semibold text-sm flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500"/> {data.avg_ndmi?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-2 rounded-lg">
-                    <p className="text-muted-foreground text-xs font-semibold">Nitrogen (NDRE)</p>
-                    <p className="font-semibold text-sm flex items-center gap-1.5"><FlaskConical className="h-4 w-4 text-amber-500"/> {data.avg_ndre?.toFixed(2) ?? '...'}</p>
+                    <p className="text-muted-foreground text-[10px] font-semibold">Nitrogen (NDRE)</p>
+                    <p className="font-semibold text-sm flex items-center gap-1"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.avg_ndre?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-2 rounded-lg">
-                    <p className="text-muted-foreground text-xs font-semibold">Burn Scar (NBR)</p>
-                    <p className="font-semibold text-sm flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500"/> {data.burn_damage?.toFixed(2) ?? '...'}</p>
+                    <p className="text-muted-foreground text-[10px] font-semibold">Burn Scar (NBR)</p>
+                    <p className="font-semibold text-sm flex items-center gap-1"><Flame className="h-3 w-3 text-red-500"/> {data.burn_damage?.toFixed(2) ?? '...'}</p>
                 </div>
             </div>
         </CardContent>
@@ -69,11 +75,11 @@ const ChartTooltipContent = ({ active, payload, label }: any) => {
                 <p className="label font-semibold text-foreground mb-1">{`${label}`}</p>
                 {payload.map((p: any, i: number) => (
                     <div key={i} className="flex items-center justify-between gap-4">
-                        <span style={{ color: p.stroke }} className="text-sm font-medium flex items-center gap-1.5">
+                        <span style={{ color: p.stroke }} className="text-xs font-medium flex items-center gap-1.5">
                             <div className="h-2 w-2 rounded-full" style={{backgroundColor: p.stroke}}></div>
                             {p.name}
                         </span>
-                        <span style={{ color: p.stroke }} className="text-sm font-bold">
+                        <span style={{ color: p.stroke }} className="text-xs font-bold">
                             {p.value.toFixed(3)}
                         </span>
                     </div>
@@ -87,32 +93,32 @@ const ChartTooltipContent = ({ active, payload, label }: any) => {
 const CompactDynamicScorecard = ({ data, staticData }: { data: any, staticData: any }) => {
     if (!data || !staticData) return null;
     return (
-        <div className="w-60">
-            <div className="flex items-center justify-between mb-2">
+        <div className="w-56">
+            <div className="flex items-center justify-between mb-1.5">
                 <div>
-                    <p className="font-bold text-lg text-primary">{staticData.area_acres?.toLocaleString() || ''} Acres</p>
+                    <p className="font-bold text-base text-primary">{staticData.area_acres?.toLocaleString() || ''} Acres</p>
                     <p className="text-xs font-semibold text-muted-foreground -mt-1">{data.date || staticData.primary_crop}</p>
                 </div>
                 <div className="p-2 rounded-full bg-primary/10">
-                    <Calendar className="h-5 w-5 text-primary" />
+                    <Calendar className="h-4 w-4 text-primary" />
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 text-xs">
-                 <div className="bg-muted/50 p-1.5 rounded-md">
-                    <p className="text-muted-foreground text-[10px]">Health (NDVI)</p>
-                    <p className="font-semibold flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.ndvi?.toFixed(2) ?? '...'}</p>
+            <div className="grid grid-cols-2 gap-1 text-[11px]">
+                 <div className="bg-muted/50 p-1 rounded-md">
+                    <p className="text-muted-foreground text-[9px]">Health (NDVI)</p>
+                    <p className="font-semibold flex items-center gap-1"><Activity className="h-2.5 w-2.5 text-green-500"/> {data.ndvi?.toFixed(2) ?? '...'}</p>
                 </div>
-                <div className="bg-muted/50 p-1.5 rounded-md">
-                    <p className="text-muted-foreground text-[10px]">Moisture (NDMI)</p>
-                    <p className="font-semibold flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500"/> {data.ndmi?.toFixed(2) ?? '...'}</p>
+                <div className="bg-muted/50 p-1 rounded-md">
+                    <p className="text-muted-foreground text-[9px]">Moisture (NDMI)</p>
+                    <p className="font-semibold flex items-center gap-1"><Droplets className="h-2.5 w-2.5 text-blue-500"/> {data.ndmi?.toFixed(2) ?? '...'}</p>
                 </div>
-                <div className="bg-muted/50 p-1.5 rounded-md">
-                    <p className="text-muted-foreground text-[10px]">Nitrogen (NDRE)</p>
-                    <p className="font-semibold flex items-center gap-1"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.ndre?.toFixed(2) ?? '...'}</p>
+                <div className="bg-muted/50 p-1 rounded-md">
+                    <p className="text-muted-foreground text-[9px]">Nitrogen (NDRE)</p>
+                    <p className="font-semibold flex items-center gap-1"><FlaskConical className="h-2.5 w-2.5 text-amber-500"/> {data.ndre?.toFixed(2) ?? '...'}</p>
                 </div>
-                <div className="bg-muted/50 p-1.5 rounded-md">
-                    <p className="text-muted-foreground text-[10px]">Burn Scar (NBR)</p>
-                    <p className="font-semibold flex items-center gap-1"><Flame className="h-3 w-3 text-red-500"/> {data.nbr?.toFixed(2) ?? '...'}</p>
+                <div className="bg-muted/50 p-1 rounded-md">
+                    <p className="text-muted-foreground text-[9px]">Burn Scar (NBR)</p>
+                    <p className="font-semibold flex items-center gap-1"><Flame className="h-2.5 w-2.5 text-red-500"/> {data.nbr?.toFixed(2) ?? '...'}</p>
                 </div>
             </div>
         </div>
@@ -124,10 +130,10 @@ const AnomalyDot = (props: any) => {
   if (!event) return null;
 
   const ICONS: Record<string, React.ReactNode> = {
-    'peak': <TrendingUp className="h-3.5 w-3.5 text-white" />,
-    'start': <ChevronsRight className="h-3.5 w-3.5 text-white" />,
-    'stress': <AlertTriangle className="h-3.5 w-3.5 text-white" />,
-    'burn': <Flame className="h-3.5 w-3.5 text-white" />,
+    'peak': <TrendingUp className="h-3 w-3 text-white" />,
+    'start': <ChevronsRight className="h-3 w-3 text-white" />,
+    'stress': <AlertTriangle className="h-3 w-3 text-white" />,
+    'burn': <Flame className="h-3 w-3 text-white" />,
   };
   const COLORS: Record<string, string> = {
     'peak': 'bg-green-500',
@@ -138,11 +144,11 @@ const AnomalyDot = (props: any) => {
 
   return (
     <g transform={`translate(${cx},${cy})`}>
-      <foreignObject x={-12} y={-12} width={24} height={24}>
+      <foreignObject x={-10} y={-10} width={20} height={20}>
         <TooltipProvider>
           <ShadTooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <div className={`flex items-center justify-center h-6 w-6 rounded-full ${COLORS[event.type]} ring-4 ring-background cursor-pointer`}>
+              <div className={`flex items-center justify-center h-5 w-5 rounded-full ${COLORS[event.type]} ring-2 ring-background cursor-pointer`}>
                 {ICONS[event.type]}
               </div>
             </TooltipTrigger>
@@ -203,11 +209,11 @@ export default function SentinelAnalysisClient() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [range, setRange] = useState(12);
-    const [compare, setCompare] = useState(false);
+    const [compare, setCompare] = useState(true);
     const [visibleLines, setVisibleLines] = useState({ ndvi: true, ndmi: true, ndre: true });
     const [drawnGeometry, setDrawnGeometry] = useState<any>(null);
     const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
-    const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true });
+    const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true, ndvi: true });
     const [isFetchingTiles, setIsFetchingTiles] = useState(true);
 
      useEffect(() => {
@@ -401,40 +407,40 @@ export default function SentinelAnalysisClient() {
                 )}
             </div>
 
-            <aside className="w-[400px] border-l bg-background flex flex-col h-full">
-                <div className="p-3 border-b space-y-3">
-                    <div className="space-y-2">
-                        <Label className="text-xs font-semibold text-muted-foreground">Analysis Controls</Label>
+            <aside className="w-[380px] border-l bg-background flex flex-col h-full">
+                <div className="p-2 border-b space-y-2">
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-muted-foreground px-1">Analysis Controls</Label>
                         <div className="flex items-center gap-2">
                             <div className="flex-1 grid grid-cols-4 gap-1 bg-muted p-1 rounded-lg">
                                 {[3, 6, 12, 24].map(m => (
-                                    <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-8 text-xs font-semibold" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
+                                    <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-7 text-xs font-semibold" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
                                 ))}
                             </div>
-                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleExport} disabled={!analysisData || isAnalyzing}>
-                                <FileDown className="h-4 w-4" />
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleExport} disabled={!analysisData || isAnalyzing}>
+                                <FileDown className="h-3.5 w-3.5" />
                             </Button>
                         </div>
                     </div>
-                     <div className="flex items-center justify-between p-1.5 rounded-lg bg-muted/50">
-                        <Label htmlFor="yoy-switch" className="flex flex-col gap-0.5">
-                            <span className="font-semibold text-sm">Year-over-Year (YoY)</span>
-                            <span className="text-xs text-muted-foreground">Compare with same period last year.</span>
+                     <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                        <Label htmlFor="yoy-switch" className="flex flex-col gap-0">
+                            <span className="font-semibold text-sm">Year-over-Year</span>
+                            <span className="text-xs text-muted-foreground">Compare with last year's data.</span>
                         </Label>
                         <Switch id="yoy-switch" checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing || !drawnGeometry} />
                     </div>
                 </div>
 
-                <div className="p-3 border-b">
-                     <Label className="text-xs font-semibold text-muted-foreground mb-2 block">Data Layers</Label>
-                    <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 border-b">
+                     <Label className="text-xs font-semibold text-muted-foreground mb-1.5 block px-1">Data Layers</Label>
+                    <div className="grid grid-cols-2 gap-1.5">
                     {isFetchingTiles ? (
-                        Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)
+                        Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)
                     ) : (
                         AVAILABLE_LAYERS.map(layer => (
-                            <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent transition-colors border bg-accent/20">
+                            <div key={layer.id} className="flex items-center justify-between p-1 rounded-md hover:bg-accent transition-colors border bg-accent/20">
                                 <Label htmlFor={layer.id} className="flex items-center gap-2 cursor-pointer text-xs font-medium">
-                                    <layer.icon className="h-4 w-4 text-muted-foreground" />
+                                    <layer.icon className="h-3.5 w-3.5 text-muted-foreground" />
                                     {layer.name}
                                 </Label>
                                 <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
@@ -447,65 +453,70 @@ export default function SentinelAnalysisClient() {
                 <ScrollArea className="flex-1">
                     <div className="p-3">
                         {!drawnGeometry ? (
-                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-                                <AreaChart className="h-10 w-10 mb-2" />
+                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-32">
+                                <AreaChart className="h-8 w-8 mb-2" />
                                 <h3 className="font-semibold text-foreground text-sm">Draw an Area to Begin</h3>
-                                <p className="text-xs mt-1">Use the polygon tool on the map to select a field for analysis.</p>
+                                <p className="text-xs mt-1">Use the polygon tool to select a field.</p>
                              </div>
                         ) : isAnalyzing ? (
                             <div className="space-y-3">
-                                <Skeleton className="h-6 w-1/2" />
-                                <Skeleton className="h-4 w-1/3" />
+                                <Skeleton className="h-5 w-1/2" />
+                                <Skeleton className="h-3 w-1/3" />
                                 <div className="grid grid-cols-2 gap-2 pt-2">
-                                    <Skeleton className="h-14 w-full" />
-                                    <Skeleton className="h-14 w-full" />
-                                    <Skeleton className="h-14 w-full" />
-                                    <Skeleton className="h-14 w-full" />
+                                    <Skeleton className="h-12 w-full" />
+                                    <Skeleton className="h-12 w-full" />
+                                    <Skeleton className="h-12 w-full" />
+                                    <Skeleton className="h-12 w-full" />
                                 </div>
-                                <Skeleton className="h-20 w-full" />
                             </div>
                         ) : analysisData && (
                              <div className="space-y-3">
                                 <Scorecard data={analysisData.scorecard} />
                                 {analysisData.events.length > 0 && (
-                                    <div>
-                                        <h3 className="text-xs font-bold mb-1.5">Key Anomaly Events</h3>
-                                        <div className="space-y-1.5">
-                                            {analysisData.events.map((event: any, i: number) => (
-                                                 <div key={i} className="flex items-start gap-2 bg-muted/50 p-1.5 rounded-lg">
-                                                    <GitCommitHorizontal className="h-4 w-4 mt-0.5 text-muted-foreground"/>
-                                                    <div>
-                                                        <p className="font-semibold text-xs">{event.description}</p>
-                                                        <p className="text-xs text-muted-foreground">{event.date}</p>
-                                                    </div>
-                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                     <Accordion type="single" collapsible className="w-full">
+                                      <AccordionItem value="item-1" className="border-b-0">
+                                        <AccordionTrigger className="text-sm font-bold text-muted-foreground py-1 hover:no-underline rounded-md bg-muted/50 px-2 data-[state=open]:bg-accent">
+                                          Key Anomaly Events ({analysisData.events.length})
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                          <div className="space-y-1.5 pt-2">
+                                              {analysisData.events.map((event: any, i: number) => (
+                                                   <div key={i} className="flex items-start gap-2 bg-muted/50 p-1.5 rounded-lg">
+                                                      <GitCommitHorizontal className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0"/>
+                                                      <div>
+                                                          <p className="font-semibold text-xs">{event.description}</p>
+                                                          <p className="text-xs text-muted-foreground">{event.date}</p>
+                                                      </div>
+                                                   </div>
+                                              ))}
+                                          </div>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    </Accordion>
                                 )}
                             </div>
                         )}
                     </div>
                 </ScrollArea>
 
-                <div className="p-3 border-t space-y-2 bg-muted/30">
-                    <div className="h-32">
+                <div className="p-2 border-t space-y-1.5 bg-muted/30">
+                    <div className="h-28">
                     {analysisData?.timeline ? (
                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                            <LineChart data={chartData} margin={{ top: 15, right: 5, left: -25, bottom: -5 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false}/>
                                 <XAxis dataKey="date" hide />
-                                <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} axisLine={false} tickLine={false} />
+                                <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 9}} axisLine={false} tickLine={false} />
                                 <Tooltip content={<ChartTooltipContent />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}/>
                                 
                                 {chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
-                                    <Line key={line.key} type="monotone" dataKey={line.key} name={line.name} stroke={line.color} strokeWidth={2.5} dot={false} />
+                                    <Line key={line.key} type="monotone" dataKey={line.key} name={line.name} stroke={line.color} strokeWidth={2} dot={false} />
                                 ))}
                                 {compare && analysisData.ghostTimeline && chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
-                                    <Line key={`ghost-${line.key}`} type="monotone" dataKey={line.ghostKey} name={`${line.name} (YoY)`} stroke={line.ghostColor} strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                                    <Line key={`ghost-${line.key}`} type="monotone" dataKey={line.ghostKey} name={`${line.name} (YoY)`} stroke={line.ghostColor} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
                                 ))}
 
-                                {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="hsl(var(--destructive))" strokeWidth={1.5} />}
+                                {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="hsl(var(--destructive))" strokeWidth={1} />}
 
                                 {analysisData.events.map((event: any) => (
                                     <ReferenceDot 
@@ -526,21 +537,21 @@ export default function SentinelAnalysisClient() {
                         </div>
                     )}
                     </div>
-                    <div className="flex justify-center gap-2">
+                    <div className="flex justify-center gap-1.5">
                         {chartConfig.map(line => (
                             <button key={line.key} onClick={() => toggleLineVisibility(line.key as keyof typeof visibleLines)}
-                                className={cn("flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold transition-all border", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent hover:border-border')}>
-                                <div className="h-2 w-2 rounded-full" style={{backgroundColor: line.color}}></div>
+                                className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-all border", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent hover:border-border')}>
+                                <div className="h-1.5 w-1.5 rounded-full" style={{backgroundColor: line.color}}></div>
                                 {line.name.split('(')[0].trim()}
                             </button>
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-3 pt-1">
-                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
-                            {isPlaying ? <Pause className="h-4 w-4"/> : <Play className="h-4 w-4"/>}
+                    <div className="flex items-center gap-2 pt-1">
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
+                            {isPlaying ? <Pause className="h-3.5 w-3.5"/> : <Play className="h-3.5 w-3.5"/>}
                         </Button>
-                        <div className="flex-1 space-y-1">
+                        <div className="flex-1 space-y-0.5">
                             <p className="text-center text-xs font-mono text-primary font-semibold">{activeTimelinePoint.date || '---'}</p>
                             <Slider value={[currentIndex]} max={analysisData?.timeline?.length -1 || 0} onValueChange={([val]) => setCurrentIndex(val)} disabled={!analysisData} />
                         </div>
