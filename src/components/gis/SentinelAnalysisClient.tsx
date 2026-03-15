@@ -36,26 +36,26 @@ const AVAILABLE_LAYERS = [
 const Scorecard = ({ data }: { data: any }) => (
     <Card className="bg-transparent border-none shadow-none">
         <CardHeader className="p-0 mb-3">
-            <CardTitle className="text-2xl text-primary">{data.area_acres.toLocaleString()} Acres</CardTitle>
+            <CardTitle className="text-xl text-primary">{data.area_acres.toLocaleString()} Acres</CardTitle>
             <CardDescription className="text-sm font-semibold text-muted-foreground">{data.primary_crop}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
             <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="bg-muted/50 p-2 rounded-lg">
                     <p className="text-muted-foreground text-xs font-semibold">Health (NDVI)</p>
-                    <p className="font-bold text-base flex items-center gap-1.5"><Activity className="h-4 w-4 text-green-500"/> {data.avg_ndvi?.toFixed(2) ?? '...'}</p>
+                    <p className="font-semibold text-sm flex items-center gap-1.5"><Activity className="h-4 w-4 text-green-500"/> {data.avg_ndvi?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-2 rounded-lg">
                     <p className="text-muted-foreground text-xs font-semibold">Moisture (NDMI)</p>
-                    <p className="font-bold text-base flex items-center gap-1.5"><Droplets className="h-4 w-4 text-blue-500"/> {data.avg_ndmi?.toFixed(2) ?? '...'}</p>
+                    <p className="font-semibold text-sm flex items-center gap-1.5"><Droplets className="h-4 w-4 text-blue-500"/> {data.avg_ndmi?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-2 rounded-lg">
                     <p className="text-muted-foreground text-xs font-semibold">Nitrogen (NDRE)</p>
-                    <p className="font-bold text-base flex items-center gap-1.5"><FlaskConical className="h-4 w-4 text-amber-500"/> {data.avg_ndre?.toFixed(2) ?? '...'}</p>
+                    <p className="font-semibold text-sm flex items-center gap-1.5"><FlaskConical className="h-4 w-4 text-amber-500"/> {data.avg_ndre?.toFixed(2) ?? '...'}</p>
                 </div>
                 <div className="bg-muted/50 p-2 rounded-lg">
                     <p className="text-muted-foreground text-xs font-semibold">Burn Scar (NBR)</p>
-                    <p className="font-bold text-base flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500"/> {data.burn_damage?.toFixed(2) ?? '...'}</p>
+                    <p className="font-semibold text-sm flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500"/> {data.burn_damage?.toFixed(2) ?? '...'}</p>
                 </div>
             </div>
         </CardContent>
@@ -402,44 +402,39 @@ export default function SentinelAnalysisClient() {
             </div>
 
             <aside className="w-[400px] border-l bg-background flex flex-col h-full">
-                <div className="p-4 border-b">
-                    <h2 className="font-bold text-xl flex items-center gap-3"><BarChart3 className="h-6 w-6 text-primary" /> Sentinel Analysis</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Time-series and YoY performance analysis for any selected area.</p>
-                </div>
-                
-                 <div className="p-4 border-b space-y-4">
+                <div className="p-3 border-b space-y-3">
                     <div className="space-y-2">
                         <Label className="text-xs font-semibold text-muted-foreground">Analysis Controls</Label>
                         <div className="flex items-center gap-2">
                             <div className="flex-1 grid grid-cols-4 gap-1 bg-muted p-1 rounded-lg">
                                 {[3, 6, 12, 24].map(m => (
-                                    <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-9 text-xs font-semibold" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
+                                    <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-8 text-xs font-semibold" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
                                 ))}
                             </div>
-                            <Button variant="outline" size="icon" className="h-10 w-10" onClick={handleExport} disabled={!analysisData || isAnalyzing}>
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleExport} disabled={!analysisData || isAnalyzing}>
                                 <FileDown className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
-                     <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                     <div className="flex items-center justify-between p-1.5 rounded-lg bg-muted/50">
                         <Label htmlFor="yoy-switch" className="flex flex-col gap-0.5">
-                            <span className="font-semibold">Year-over-Year (YoY)</span>
+                            <span className="font-semibold text-sm">Year-over-Year (YoY)</span>
                             <span className="text-xs text-muted-foreground">Compare with same period last year.</span>
                         </Label>
                         <Switch id="yoy-switch" checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing || !drawnGeometry} />
                     </div>
                 </div>
 
-                <div className="p-4 border-b">
+                <div className="p-3 border-b">
                      <Label className="text-xs font-semibold text-muted-foreground mb-2 block">Data Layers</Label>
                     <div className="grid grid-cols-2 gap-2">
                     {isFetchingTiles ? (
-                        Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
+                        Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)
                     ) : (
                         AVAILABLE_LAYERS.map(layer => (
-                            <div key={layer.id} className="flex items-center justify-between p-2 rounded-md hover:bg-accent transition-colors border bg-accent/20">
+                            <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent transition-colors border bg-accent/20">
                                 <Label htmlFor={layer.id} className="flex items-center gap-2 cursor-pointer text-xs font-medium">
-                                    <layer.icon className="h-5 w-5 text-muted-foreground" />
+                                    <layer.icon className="h-4 w-4 text-muted-foreground" />
                                     {layer.name}
                                 </Label>
                                 <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
@@ -450,34 +445,34 @@ export default function SentinelAnalysisClient() {
                 </div>
 
                 <ScrollArea className="flex-1">
-                    <div className="p-4">
+                    <div className="p-3">
                         {!drawnGeometry ? (
-                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-48">
-                                <AreaChart className="h-12 w-12 mb-2" />
-                                <h3 className="font-semibold text-foreground">Draw an Area to Begin</h3>
-                                <p className="text-sm">Use the polygon tool on the map to select a field for analysis.</p>
+                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
+                                <AreaChart className="h-10 w-10 mb-2" />
+                                <h3 className="font-semibold text-foreground text-sm">Draw an Area to Begin</h3>
+                                <p className="text-xs mt-1">Use the polygon tool on the map to select a field for analysis.</p>
                              </div>
                         ) : isAnalyzing ? (
-                            <div className="space-y-4">
-                                <Skeleton className="h-8 w-1/2" />
-                                <Skeleton className="h-5 w-1/3" />
+                            <div className="space-y-3">
+                                <Skeleton className="h-6 w-1/2" />
+                                <Skeleton className="h-4 w-1/3" />
                                 <div className="grid grid-cols-2 gap-2 pt-2">
-                                    <Skeleton className="h-16 w-full" />
-                                    <Skeleton className="h-16 w-full" />
-                                    <Skeleton className="h-16 w-full" />
-                                    <Skeleton className="h-16 w-full" />
+                                    <Skeleton className="h-14 w-full" />
+                                    <Skeleton className="h-14 w-full" />
+                                    <Skeleton className="h-14 w-full" />
+                                    <Skeleton className="h-14 w-full" />
                                 </div>
-                                <Skeleton className="h-24 w-full" />
+                                <Skeleton className="h-20 w-full" />
                             </div>
                         ) : analysisData && (
-                             <div className="space-y-4">
+                             <div className="space-y-3">
                                 <Scorecard data={analysisData.scorecard} />
                                 {analysisData.events.length > 0 && (
                                     <div>
-                                        <h3 className="text-sm font-semibold mb-2">Key Anomaly Events</h3>
-                                        <div className="space-y-2">
+                                        <h3 className="text-xs font-bold mb-1.5">Key Anomaly Events</h3>
+                                        <div className="space-y-1.5">
                                             {analysisData.events.map((event: any, i: number) => (
-                                                 <div key={i} className="flex items-start gap-3 bg-muted/50 p-2 rounded-lg">
+                                                 <div key={i} className="flex items-start gap-2 bg-muted/50 p-1.5 rounded-lg">
                                                     <GitCommitHorizontal className="h-4 w-4 mt-0.5 text-muted-foreground"/>
                                                     <div>
                                                         <p className="font-semibold text-xs">{event.description}</p>
@@ -493,8 +488,8 @@ export default function SentinelAnalysisClient() {
                     </div>
                 </ScrollArea>
 
-                <div className="p-4 border-t space-y-3 bg-muted/30">
-                    <div className="h-36">
+                <div className="p-3 border-t space-y-2 bg-muted/30">
+                    <div className="h-32">
                     {analysisData?.timeline ? (
                          <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
@@ -534,16 +529,16 @@ export default function SentinelAnalysisClient() {
                     <div className="flex justify-center gap-2">
                         {chartConfig.map(line => (
                             <button key={line.key} onClick={() => toggleLineVisibility(line.key as keyof typeof visibleLines)}
-                                className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all border", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent hover:border-border')}>
+                                className={cn("flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold transition-all border", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent hover:border-border')}>
                                 <div className="h-2 w-2 rounded-full" style={{backgroundColor: line.color}}></div>
                                 {line.name.split('(')[0].trim()}
                             </button>
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-4 pt-2">
-                        <Button variant="outline" size="icon" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
-                            {isPlaying ? <Pause className="h-5 w-5"/> : <Play className="h-5 w-5"/>}
+                    <div className="flex items-center gap-3 pt-1">
+                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
+                            {isPlaying ? <Pause className="h-4 w-4"/> : <Play className="h-4 w-4"/>}
                         </Button>
                         <div className="flex-1 space-y-1">
                             <p className="text-center text-xs font-mono text-primary font-semibold">{activeTimelinePoint.date || '---'}</p>
