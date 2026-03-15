@@ -231,9 +231,14 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
         toast({ title: 'Upload Starting...', description: `Uploading ${mauzaName} to the database.` });
         try {
             await uploadMauzaAndParcels(mauzaName, boundaryData, parcelsData);
-            toast({ title: 'Upload Successful!', description: `${mauzaName} has been saved.` });
+            toast({ title: 'Upload Successful!', description: `${mauzaName} has been saved to the database.` });
         } catch (error: any) {
             console.error("Upload failed", error);
+            toast({
+                variant: 'destructive',
+                title: 'Upload Failed',
+                description: 'Could not save to the database. This is likely a permissions issue. Please check your Firestore security rules.',
+            });
         }
     };
 
