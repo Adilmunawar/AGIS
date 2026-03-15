@@ -39,6 +39,8 @@ export interface MauzaMetadata {
   parcelsGeometryUrl?: string;
   /** The total number of individual parcels recorded within this Mauza. */
   totalParcels: number;
+  /** The total calculated area of all parcels in this Mauza, in acres. */
+  totalAreaAcres?: number;
   /** A Firestore timestamp indicating when this Mauza record was created. */
   createdAt: Timestamp;
 }

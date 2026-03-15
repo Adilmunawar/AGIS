@@ -1,29 +1,35 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import type { MauzaMetadata } from '@/types/gis-schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Package, Layers, Square, MapPin, Database, ServerCrash } from 'lucide-react';
+import { Package, Layers, Square, MapPin, Database, ServerCrash, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
-function StatCard({ title, value, icon: Icon, isLoading }: { title: string; value: string; icon: React.ElementType; isLoading: boolean }) {
+function StatCard({ title, value, icon: Icon, isLoading, unit }: { title: string; value: string; icon: React.ElementType; isLoading: boolean; unit?: string }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+    <Card className="shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 pt-0">
         {isLoading ? (
-          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="h-8 w-3/4" />
         ) : (
-          <div className="text-2xl font-bold">{value}</div>
+          <div className="text-3xl font-bold">
+            {value}
+            {unit && <span className="text-lg font-medium text-muted-foreground ml-1">{unit}</span>}
+          </div>
         )}
       </CardContent>
     </Card>
@@ -32,40 +38,51 @@ function StatCard({ title, value, icon: Icon, isLoading }: { title: string; valu
 
 function MauzaCard({ mauza }: { mauza: MauzaMetadata }) {
     return (
-        <Card className="hover:border-primary/50 hover:shadow-md transition-all">
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle className="text-lg">{mauza.name}</CardTitle>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+        <Link href={`/dashboard/parcels-database/${mauza.id}`} className="block">
+            <Card className="group transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:-translate-y-1">
+                <CardHeader className="flex-row items-center justify-between p-4">
+                    <div className="space-y-1">
+                        <CardTitle className="text-base font-bold group-hover:text-primary">{mauza.name}</CardTitle>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                             <MapPin className="h-3 w-3"/> {mauza.district}, {mauza.tehsil}
                         </p>
                     </div>
-                    <div className="text-right">
-                        <p className="font-bold text-lg text-primary">{mauza.totalParcels}</p>
-                        <p className="text-xs text-muted-foreground -mt-1">Parcels</p>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
+                        <Package className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
                     </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                    <p>Hudbust: <span className="font-semibold">{mauza.hudbust_no}</span></p>
-                    <Button asChild size="sm" variant="outline" className="h-8">
-                        <Link href={`/dashboard/parcels-database/${mauza.id}`}>View Details</Link>
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="rounded-md bg-muted/70 p-2">
+                            <p className="font-bold text-sm text-foreground">{mauza.totalParcels.toLocaleString()}</p>
+                            <p className="text-muted-foreground font-medium">Parcels</p>
+                        </div>
+                        <div className="rounded-md bg-muted/70 p-2">
+                             <p className="font-bold text-sm text-foreground">{(mauza.totalAreaAcres || 0).toLocaleString()}</p>
+                            <p className="text-muted-foreground font-medium">Acres</p>
+                        </div>
+                         <div className="rounded-md bg-muted/70 p-2">
+                            <p className="font-bold text-sm text-foreground truncate">{mauza.hudbust_no}</p>
+                            <p className="text-muted-foreground font-medium">Hudbust</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </Link>
     )
 }
 
-function EmptyState() {
+function EmptyState({ hasSearch }: { hasSearch: boolean }) {
     return (
-        <div className="text-center py-16">
-            <Database className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">No Mauzas in Database</h3>
+        <div className="text-center py-16 col-span-1 md:col-span-2 lg:col-span-3">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
+                {hasSearch ? <Search className="h-8 w-8 text-muted-foreground" /> : <Database className="h-8 w-8 text-muted-foreground" />}
+            </div>
+            <h3 className="mt-4 text-lg font-semibold">
+                {hasSearch ? "No Mauzas Found" : "No Mauzas in Database"}
+            </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-                Upload a shapefile from the 'Import Parcels' tab to get started.
+                {hasSearch ? "Try adjusting your search term." : "Upload a shapefile from the 'Import Parcels' tab to get started."}
             </p>
         </div>
     );
@@ -73,8 +90,10 @@ function EmptyState() {
 
 function ErrorState() {
      return (
-        <div className="text-center py-16 text-destructive">
-            <ServerCrash className="mx-auto h-12 w-12" />
+        <div className="text-center py-16 text-destructive col-span-1 md:col-span-2 lg:col-span-3">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 mb-4">
+                <ServerCrash className="h-8 w-8" />
+            </div>
             <h3 className="mt-4 text-lg font-semibold">Error Fetching Data</h3>
             <p className="mt-2 text-sm">
                 Could not connect to the database. Check your Firestore security rules and network connection.
@@ -85,6 +104,8 @@ function ErrorState() {
 
 export default function ParcelsDatabasePage() {
   const firestore = useFirestore();
+  const [searchTerm, setSearchTerm] = useState('');
+
   const mauzasQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'Mauzas'), orderBy('createdAt', 'desc'));
@@ -92,49 +113,76 @@ export default function ParcelsDatabasePage() {
 
   const { data: mauzas, isLoading, error } = useCollection<MauzaMetadata>(mauzasQuery);
 
+  const filteredMauzas = useMemo(() => {
+    if (!mauzas) return [];
+    const term = searchTerm.toLowerCase();
+    if (!term) return mauzas;
+    return mauzas.filter(m => 
+        m.name.toLowerCase().includes(term) ||
+        m.district.toLowerCase().includes(term) ||
+        m.tehsil.toLowerCase().includes(term)
+    );
+  }, [mauzas, searchTerm]);
+
   const stats = useMemo(() => {
-    if (!mauzas) return { totalMauzas: 0, totalParcels: 0, totalArea: 0 };
+    const sourceData = filteredMauzas || [];
     return {
-      totalMauzas: mauzas.length,
-      totalParcels: mauzas.reduce((acc, m) => acc + (m.totalParcels || 0), 0),
-      totalArea: 0, // This needs to be implemented.
+      totalMauzas: sourceData.length,
+      totalParcels: sourceData.reduce((acc, m) => acc + (m.totalParcels || 0), 0),
+      totalArea: sourceData.reduce((acc, m) => acc + (m.totalAreaAcres || 0), 0),
     };
-  }, [mauzas]);
+  }, [filteredMauzas]);
 
   return (
-    <div className="flex h-full flex-col bg-muted/20">
-      <header className="border-b bg-background p-4">
-        <h1 className="text-xl font-bold tracking-tight">Parcels Database</h1>
-        <p className="text-sm text-muted-foreground">
-          A centralized repository of all uploaded cadastral datasets (Mauzas).
-        </p>
+    <div className="flex h-full flex-col bg-muted/30">
+      <header className="border-b bg-background p-4 sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 className="text-xl font-bold tracking-tight">Parcels Database</h1>
+                <p className="text-sm text-muted-foreground">
+                  A centralized repository of all uploaded cadastral datasets.
+                </p>
+            </div>
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Search by name, district, tehsil..." 
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
+            </div>
+        </div>
       </header>
 
-      <div className="flex-1 overflow-hidden p-4">
-        <div className="grid gap-4 md:grid-cols-3 h-full">
-            <div className="col-span-3">
-                <div className="grid gap-4 md:grid-cols-3">
-                    <StatCard title="Total Mauzas" value={stats.totalMauzas.toLocaleString()} icon={Package} isLoading={isLoading} />
-                    <StatCard title="Total Parcels" value={stats.totalParcels.toLocaleString()} icon={Layers} isLoading={isLoading} />
-                    <StatCard title="Total Area (Acres)" value="0" icon={Square} isLoading={isLoading} />
-                </div>
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+                <StatCard title="Showing Mauzas" value={stats.totalMauzas.toLocaleString()} icon={Package} isLoading={isLoading} />
+                <StatCard title="Total Parcels" value={stats.totalParcels.toLocaleString()} icon={Layers} isLoading={isLoading} />
+                <StatCard title="Total Area" value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 })} unit="Acres" icon={Square} isLoading={isLoading} />
             </div>
             
-            <div className="col-span-3 flex flex-col min-h-0">
-                <h2 className="text-lg font-semibold mb-2">All Mauzas</h2>
-                <ScrollArea className="flex-1 -mr-3">
-                    <div className="space-y-4 pr-3">
-                        {isLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-36 w-full"/>)}
-                        {!isLoading && error && <ErrorState />}
-                        {!isLoading && !error && mauzas?.length === 0 && <EmptyState />}
-                        {!isLoading && !error && mauzas && mauzas.map(mauza => (
+            <div>
+                <h2 className="text-lg font-semibold mb-3 px-1">All Mauzas</h2>
+                 {isLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-44 w-full"/>)}
+                    </div>
+                ) : error ? (
+                    <ErrorState />
+                ) : filteredMauzas.length === 0 ? (
+                    <EmptyState hasSearch={!!searchTerm} />
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredMauzas.map(mauza => (
                             <MauzaCard key={mauza.id} mauza={mauza} />
                         ))}
                     </div>
-                </ScrollArea>
+                )}
             </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

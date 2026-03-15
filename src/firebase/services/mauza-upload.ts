@@ -57,6 +57,10 @@ export async function uploadMauzaAndParcels(
         const bboxData = parcelsData || boundaryData;
         const boundingBox = bboxData ? turf.bbox(bboxData) as [number, number, number, number] : [0,0,0,0];
 
+        // Calculate total area from parcels if available, otherwise from boundary
+        const totalAreaSqm = parcelsData ? turf.area(parcelsData) : (boundaryData ? turf.area(boundaryData) : 0);
+        const totalAreaAcres = totalAreaSqm * 0.000247105;
+
         const metadata: MauzaMetadata = {
             id: mauzaId,
             name: mauzaName,
@@ -67,6 +71,7 @@ export async function uploadMauzaAndParcels(
             geometryUrl: boundaryUrl,
             parcelsGeometryUrl: parcelsUrl,
             totalParcels: parcelsData?.features.length || 0,
+            totalAreaAcres: parseFloat(totalAreaAcres.toFixed(2)),
             createdAt: Timestamp.now(),
         };
         metadataForError = metadata;
