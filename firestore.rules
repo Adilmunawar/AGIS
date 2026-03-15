@@ -42,7 +42,7 @@ service cloud.firestore {
     // Cadastral Data Model Rules (Shared)
     // ----------------------------------------------------------------------
     match /Mauzas/{mauzaId} {
-      allow read, update, delete: if isSignedIn();
+      allow get, list, update, delete: if isSignedIn();
       allow create: if isSignedIn() &&
                       request.resource.data.id == mauzaId &&
                       request.resource.data.name is string &&
@@ -50,7 +50,7 @@ service cloud.firestore {
     }
 
     match /Parcels/{parcelId} {
-      allow read, delete: if isSignedIn();
+      allow get, list, delete: if isSignedIn();
       allow create, update: if isSignedIn() &&
                               request.resource.data.geometryUrl is string &&
                               request.resource.data.geometryUrl.size() > 0 &&
