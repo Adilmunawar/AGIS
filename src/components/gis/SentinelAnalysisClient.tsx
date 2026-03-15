@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Waves, X, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown, AreaChart, GitCommitHorizontal } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Waves, X, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown, AreaChart, GitCommitHorizontal, FileText, FileJson, FileSpreadsheet } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { MapLegends } from './MapLegends';
@@ -422,46 +422,66 @@ export default function SentinelAnalysisClient() {
     return (
         <>
             <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                     <DialogTitle>Export Analysis Data</DialogTitle>
-                    <DialogDescription>Choose a filename and format for your export.</DialogDescription>
+                    <DialogDescription>Customize your data export before downloading.</DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="filename" className="text-right">Filename</Label>
-                        <Input
-                        id="filename"
-                        value={exportConfig.filename}
-                        onChange={(e) => setExportConfig(prev => ({ ...prev, filename: e.target.value }))}
-                        className="col-span-3"
-                        />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right">Format</Label>
-                        <RadioGroup
-                        value={exportConfig.format}
-                        onValueChange={(value) => setExportConfig(prev => ({ ...prev, format: value }))}
-                        className="col-span-3 flex items-center gap-4"
-                        >
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="csv" id="r-csv" />
-                            <Label htmlFor="r-csv">CSV</Label>
+                    <div className="grid gap-6 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="filename">Filename</Label>
+                            <Input
+                                id="filename"
+                                value={exportConfig.filename}
+                                onChange={(e) => setExportConfig(prev => ({ ...prev, filename: e.target.value }))}
+                            />
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="json" id="r-json" />
-                            <Label htmlFor="r-json">JSON</Label>
+                        <div className="space-y-2">
+                            <Label>Format</Label>
+                            <RadioGroup
+                                value={exportConfig.format}
+                                onValueChange={(value) => setExportConfig(prev => ({ ...prev, format: value }))}
+                                className="grid grid-cols-3 gap-3"
+                            >
+                                <div>
+                                    <RadioGroupItem value="csv" id="r-csv" className="peer sr-only" />
+                                    <Label
+                                        htmlFor="r-csv"
+                                        className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
+                                    >
+                                        <FileText className="mb-2 h-7 w-7" />
+                                        <span className="font-semibold text-sm">CSV</span>
+                                    </Label>
+                                </div>
+                                <div>
+                                    <RadioGroupItem value="json" id="r-json" className="peer sr-only" />
+                                    <Label
+                                        htmlFor="r-json"
+                                        className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
+                                    >
+                                        <FileJson className="mb-2 h-7 w-7" />
+                                        <span className="font-semibold text-sm">JSON</span>
+                                    </Label>
+                                </div>
+                                <div>
+                                    <RadioGroupItem value="xlsx" id="r-xlsx" className="peer sr-only" />
+                                    <Label
+                                        htmlFor="r-xlsx"
+                                        className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
+                                    >
+                                        <FileSpreadsheet className="mb-2 h-7 w-7" />
+                                        <span className="font-semibold text-sm">Excel</span>
+                                    </Label>
+                                </div>
+                            </RadioGroup>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="xlsx" id="r-xlsx" />
-                            <Label htmlFor="r-xlsx">Excel</Label>
-                        </div>
-                        </RadioGroup>
-                    </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleConfirmExport}>Download</Button>
+                        <Button onClick={handleConfirmExport}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Download
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
