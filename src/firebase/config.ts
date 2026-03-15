@@ -1,8 +1,21 @@
 export const firebaseConfig = {
-  "projectId": "studio-6409784031-be7a8",
-  "appId": "1:155086108337:web:0afd89e7b39838ee709490",
-  "apiKey": "AIzaSyCZpANgbKLjNefLYpNZGQLhFgb97_P60xs",
-  "authDomain": "studio-6409784031-be7a8.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "155086108337"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
+
+/**
+ * Checks if the essential Firebase config variables are present in the environment.
+ * @returns {boolean} True if the required Firebase variables are set, false otherwise.
+ */
+export const areFirebaseConfigVarsPresent = (): boolean => {
+  return (
+    !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+    !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN &&
+    !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  );
 };
