@@ -204,7 +204,7 @@ export default function SentinelAnalysisClient() {
     const [isPlaying, setIsPlaying] = useState(false);
     const [range, setRange] = useState(12);
     const [compare, setCompare] = useState(false);
-    const [visibleLines, setVisibleLines] = useState({ ndvi: true, ndmi: false, ndre: false });
+    const [visibleLines, setVisibleLines] = useState({ ndvi: true, ndmi: true, ndre: true });
     const [drawnGeometry, setDrawnGeometry] = useState<any>(null);
     const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true });
@@ -231,7 +231,10 @@ export default function SentinelAnalysisClient() {
     };
 
     const activeBand = useMemo(() => {
-        return Object.keys(activeLayers).find(key => key !== 's2_true_color' && activeLayers[key]);
+        const active = Object.keys(activeLayers).find(key => 
+            key !== 's2_true_color' && key !== 'classification' && activeLayers[key]
+        );
+        return active;
     }, [activeLayers]);
 
 
@@ -398,7 +401,7 @@ export default function SentinelAnalysisClient() {
                 )}
             </div>
 
-            <aside className="w-[420px] border-l bg-background flex flex-col h-full">
+            <aside className="w-[400px] border-l bg-background flex flex-col h-full">
                 <div className="p-4 border-b">
                     <h2 className="font-bold text-xl flex items-center gap-3"><BarChart3 className="h-6 w-6 text-primary" /> Sentinel Analysis</h2>
                     <p className="text-sm text-muted-foreground mt-1">Time-series and YoY performance analysis for any selected area.</p>
@@ -429,23 +432,21 @@ export default function SentinelAnalysisClient() {
 
                 <div className="p-4 border-b">
                      <Label className="text-xs font-semibold text-muted-foreground mb-2 block">Data Layers</Label>
-                     <ScrollArea className="h-40 -mr-2">
-                        <div className="space-y-1 pr-2">
-                        {isFetchingTiles ? (
-                            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
-                        ) : (
-                            AVAILABLE_LAYERS.map(layer => (
-                                <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent transition-colors">
-                                    <Label htmlFor={layer.id} className="flex items-center gap-3 cursor-pointer text-sm font-medium">
-                                        <layer.icon className="h-5 w-5 text-muted-foreground" />
-                                        {layer.name}
-                                    </Label>
-                                    <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
-                                </div>
-                            ))
-                        )}
-                        </div>
-                    </ScrollArea>
+                    <div className="grid grid-cols-2 gap-2">
+                    {isFetchingTiles ? (
+                        Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
+                    ) : (
+                        AVAILABLE_LAYERS.map(layer => (
+                            <div key={layer.id} className="flex items-center justify-between p-2 rounded-md hover:bg-accent transition-colors border bg-accent/20">
+                                <Label htmlFor={layer.id} className="flex items-center gap-2 cursor-pointer text-xs font-medium">
+                                    <layer.icon className="h-5 w-5 text-muted-foreground" />
+                                    {layer.name}
+                                </Label>
+                                <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
+                            </div>
+                        ))
+                    )}
+                    </div>
                 </div>
 
                 <ScrollArea className="flex-1">
@@ -454,7 +455,7 @@ export default function SentinelAnalysisClient() {
                              <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-48">
                                 <AreaChart className="h-12 w-12 mb-2" />
                                 <h3 className="font-semibold text-foreground">Draw an Area to Begin</h3>
-                                <p className="text-sm">Use the polygon tool on the map to select a field or area for analysis.</p>
+                                <p className="text-sm">Use the polygon tool on the map to select a field for analysis.</p>
                              </div>
                         ) : isAnalyzing ? (
                             <div className="space-y-4">
@@ -493,10 +494,10 @@ export default function SentinelAnalysisClient() {
                 </ScrollArea>
 
                 <div className="p-4 border-t space-y-3 bg-muted/30">
-                    <div className="h-40">
+                    <div className="h-36">
                     {analysisData?.timeline ? (
                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 25, right: 10, left: -20, bottom: 0 }}>
+                            <LineChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false}/>
                                 <XAxis dataKey="date" hide />
                                 <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} axisLine={false} tickLine={false} />
