@@ -16,7 +16,7 @@ import * as turf from '@turf/turf'
 import { Layers, Table as TableIcon } from 'lucide-react'
 import { UploadMauzaDialog } from './UploadMauzaDialog'
 import { uploadMauzaAndParcels } from '@/firebase/services/mauza-upload'
-import { useFirestore, useStorage } from '@/firebase';
+import { useAuth, useFirestore, useStorage } from '@/firebase';
 
 const LayerPreviewMap = dynamic(() => import('./LayerPreviewMap'), { ssr: false });
 
@@ -116,6 +116,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
     const [isUploadingToCloud, setIsUploadingToCloud] = useState(false);
     const firestore = useFirestore();
     const storage = useStorage();
+    const auth = useAuth();
 
 
     const handleSaveLocally = async () => {
@@ -237,9 +238,8 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
         toast({ title: 'Upload Starting...', description: `Uploading ${mauzaName} to the database.` });
         
         try {
-            await uploadMauzaAndParcels(mauzaName, boundaryData, parcelsData, firestore, storage);
+            await uploadMauzaAndParcels(mauzaName, boundaryData, parcelsData, firestore, storage, auth);
             toast({ title: 'Upload Successful!', description: `${mauzaName} has been saved to the database.` });
-            setIsUploadingToCloud(false);
             setIsUploadDialogOpen(false);
         } catch (error: any) {
             console.error("Upload failed", error);
@@ -248,6 +248,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
                 title: 'Upload Failed',
                 description: 'Could not save to the database. This is likely a permissions issue. Please check your Firestore security rules.',
             });
+        } finally {
             setIsUploadingToCloud(false);
         }
     };
@@ -256,10 +257,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
         <>
             <UploadMauzaDialog 
                 isOpen={isUploadDialogOpen}
-                onOpenChange={(isOpen) => {
-                    if (isUploadingToCloud) return; // Prevent closing while uploading
-                    setIsUploadDialogOpen(isOpen);
-                }}
+                onOpenChange={setIsUploadDialogOpen}
                 onConfirm={handleUploadConfirm}
                 isUploading={isUploadingToCloud}
                 boundaryData={boundaryData}

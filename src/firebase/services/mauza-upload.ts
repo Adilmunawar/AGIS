@@ -1,4 +1,5 @@
 'use client';
+import { Auth } from 'firebase/auth';
 import { Storage, ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Firestore, doc, setDoc, Timestamp } from 'firebase/firestore';
 import { MauzaMetadata } from '@/types/gis-schema';
@@ -12,7 +13,8 @@ export async function uploadMauzaAndParcels(
     boundaryData: FeatureCollection | null,
     parcelsData: FeatureCollection | null,
     db: Firestore,
-    storage: Storage
+    storage: Storage,
+    auth: Auth
 ) {
     const mauzaId = mauzaName.replace(/[^a-zA-Z0-9-_\.]/g, '_');
     const storagePromises: Promise<any>[] = [];
@@ -94,7 +96,7 @@ export async function uploadMauzaAndParcels(
             path: `Mauzas/${mauzaId}`,
             operation: 'create',
             requestResourceData: metadataForError,
-        });
+        }, auth.currentUser);
         errorEmitter.emit('permission-error', permissionError);
 
         throw error;
