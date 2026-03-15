@@ -5,12 +5,16 @@ import L, { type LatLng } from 'leaflet';
 import { MapContainer, TileLayer, FeatureGroup, useMap, Popup, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceDot } from 'recharts';
+import * as XLSX from 'xlsx';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Snowflake, Waves, X, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown, AreaChart, GitCommitHorizontal } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
@@ -215,6 +219,8 @@ export default function SentinelAnalysisClient() {
     const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true, ndvi: true });
     const [isFetchingTiles, setIsFetchingTiles] = useState(true);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [exportConfig, setExportConfig] = useState({ filename: `sentinel_analysis_${new Date().toISOString().split('T')[0]}`, format: 'csv' });
 
      useEffect(() => {
         const fetchTiles = async () => {
@@ -342,16 +348,20 @@ export default function SentinelAnalysisClient() {
         { key: 'ndre', name: 'Nitrogen (NDRE)', color: '#f97316', ghostKey: 'ghost_ndre', ghostColor: '#9a3412'},
     ];
 
-    const handleExport = () => {
+    const handleConfirmExport = () => {
         if (!analysisData?.timeline) return;
-
-        const { timeline, ghostTimeline } = analysisData;
-        
+    
+        const { timeline, ghostTimeline, events, scorecard } = analysisData;
+    
+        let dataToExport: Blob | string;
+        let fileExtension: string;
+        let mimeType: string | undefined;
+        const fileName = exportConfig.filename || `sentinel_analysis_${new Date().toISOString().split('T')[0]}`;
+    
         const headers = ['date', 'ndvi', 'ndmi', 'ndre', 'nbr'];
         if (compare && ghostTimeline) {
-            headers.push('ndvi_yoy', 'ndmi_yoy', 'ndre_yoy', 'nbr_yoy');
+            headers.push('ndvi_yoy', 'ndmi_yoy', 'ndre_yoy');
         }
-
         const combinedData = timeline.map((point: any, index: number) => {
             const row: any = { ...point };
             if (compare && ghostTimeline && ghostTimeline[index]) {
@@ -359,205 +369,281 @@ export default function SentinelAnalysisClient() {
                 row.ndvi_yoy = ghostPoint.ndvi;
                 row.ndmi_yoy = ghostPoint.ndmi;
                 row.ndre_yoy = ghostPoint.ndre;
-                row.nbr_yoy = ghostPoint.nbr;
             }
             return row;
         });
-
-        const csvContent = [
-            headers.join(','), 
-            ...combinedData.map((row: any) => headers.map(header => row[header] ?? '').join(','))
-        ].join('\n');
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+        switch (exportConfig.format) {
+            case 'json':
+                dataToExport = JSON.stringify({ scorecard, timeline, ghostTimeline, events }, null, 2);
+                fileExtension = 'json';
+                mimeType = 'application/json';
+                break;
+            
+            case 'xlsx':
+                const timelineSheet = XLSX.utils.json_to_sheet(combinedData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, timelineSheet, 'Timeline');
+                
+                XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([scorecard]), 'Scorecard');
+                XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(events), 'Key Events');
+    
+                const xlsxData = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                dataToExport = new Blob([xlsxData], { type: 'application/octet-stream' });
+                fileExtension = 'xlsx';
+                break;
+    
+            case 'csv':
+            default:
+                const csvContent = [
+                    headers.join(','), 
+                    ...combinedData.map((row: any) => headers.map(header => row[header] ?? '').join(','))
+                ].join('\n');
+                dataToExport = csvContent;
+                fileExtension = 'csv';
+                mimeType = 'text/csv;charset=utf-8;';
+                break;
+        }
+    
+        const blob = dataToExport instanceof Blob ? dataToExport : new Blob([dataToExport], { type: mimeType });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
-        link.setAttribute("download", `sentinel_analysis_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute("download", `${fileName}.${fileExtension}`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    
+        setIsExportDialogOpen(false);
     };
 
     return (
-        <div className="flex h-full w-full bg-background overflow-hidden">
-            <div className="flex-1 relative">
-                <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
-                    <MapContent 
-                        onPolygonDrawn={handlePolygonDrawn}
-                        onClear={handleClear}
-                        drawnGeometry={drawnGeometry}
-                        isAnalyzing={isAnalyzing}
-                        analysisData={analysisData} 
-                        activeTimelinePoint={activeTimelinePoint}
-                        tileUrls={tileUrls}
-                        activeLayers={activeLayers}
-                        activeBand={activeBand}
-                    />
-                </MapContainer>
-                {isAnalyzing && (
-                    <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-[1001]">
-                        <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-2xl shadow-2xl">
-                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                            <p className="font-bold text-lg text-foreground">Running Temporal Analysis...</p>
-                            <p className="text-sm text-muted-foreground -mt-2">This may take a few moments.</p>
+        <>
+            <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                    <DialogTitle>Export Analysis Data</DialogTitle>
+                    <DialogDescription>Choose a filename and format for your export.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="filename" className="text-right">Filename</Label>
+                        <Input
+                        id="filename"
+                        value={exportConfig.filename}
+                        onChange={(e) => setExportConfig(prev => ({ ...prev, filename: e.target.value }))}
+                        className="col-span-3"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Format</Label>
+                        <RadioGroup
+                        value={exportConfig.format}
+                        onValueChange={(value) => setExportConfig(prev => ({ ...prev, format: value }))}
+                        className="col-span-3 flex items-center gap-4"
+                        >
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="csv" id="r-csv" />
+                            <Label htmlFor="r-csv">CSV</Label>
                         </div>
-                    </div>
-                )}
-            </div>
-
-            <aside className="w-[380px] border-l bg-background flex flex-col h-full">
-                <div className="p-2 border-b space-y-2">
-                    <div className="space-y-1">
-                        <Label className="text-xs font-semibold text-muted-foreground px-1">Analysis Controls</Label>
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1 grid grid-cols-4 gap-1 bg-muted p-1 rounded-lg">
-                                {[3, 6, 12, 24].map(m => (
-                                    <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-7 text-xs font-semibold" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
-                                ))}
-                            </div>
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleExport} disabled={!analysisData || isAnalyzing}>
-                                <FileDown className="h-3.5 w-3.5" />
-                            </Button>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="json" id="r-json" />
+                            <Label htmlFor="r-json">JSON</Label>
                         </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="xlsx" id="r-xlsx" />
+                            <Label htmlFor="r-xlsx">Excel</Label>
+                        </div>
+                        </RadioGroup>
                     </div>
-                     <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                        <Label htmlFor="yoy-switch" className="flex flex-col gap-0">
-                            <span className="font-semibold text-sm">Year-over-Year</span>
-                            <span className="text-xs text-muted-foreground">Compare with last year's data.</span>
-                        </Label>
-                        <Switch id="yoy-switch" checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing || !drawnGeometry} />
                     </div>
-                </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleConfirmExport}>Download</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-                <div className="p-2 border-b">
-                     <Label className="text-xs font-semibold text-muted-foreground mb-1.5 block px-1">Data Layers</Label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                    {isFetchingTiles ? (
-                        Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)
-                    ) : (
-                        AVAILABLE_LAYERS.map(layer => (
-                            <div key={layer.id} className="flex items-center justify-between p-1 rounded-md hover:bg-accent transition-colors border bg-accent/20">
-                                <Label htmlFor={layer.id} className="flex items-center gap-2 cursor-pointer text-xs font-medium">
-                                    <layer.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                                    {layer.name}
-                                </Label>
-                                <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
+            <div className="flex h-full w-full bg-background overflow-hidden">
+                <div className="flex-1 relative">
+                    <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
+                        <MapContent 
+                            onPolygonDrawn={handlePolygonDrawn}
+                            onClear={handleClear}
+                            drawnGeometry={drawnGeometry}
+                            isAnalyzing={isAnalyzing}
+                            analysisData={analysisData} 
+                            activeTimelinePoint={activeTimelinePoint}
+                            tileUrls={tileUrls}
+                            activeLayers={activeLayers}
+                            activeBand={activeBand}
+                        />
+                    </MapContainer>
+                    {isAnalyzing && (
+                        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-[1001]">
+                            <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-2xl shadow-2xl">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                <p className="font-bold text-lg text-foreground">Running Temporal Analysis...</p>
+                                <p className="text-sm text-muted-foreground -mt-2">This may take a few moments.</p>
                             </div>
-                        ))
+                        </div>
                     )}
-                    </div>
                 </div>
 
-                <ScrollArea className="flex-1">
-                    <div className="p-3">
-                        {!drawnGeometry ? (
-                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-32">
-                                <AreaChart className="h-8 w-8 mb-2" />
-                                <h3 className="font-semibold text-foreground text-sm">Draw an Area to Begin</h3>
-                                <p className="text-xs mt-1">Use the polygon tool to select a field.</p>
-                             </div>
-                        ) : isAnalyzing ? (
-                            <div className="space-y-3">
-                                <Skeleton className="h-5 w-1/2" />
-                                <Skeleton className="h-3 w-1/3" />
-                                <div className="grid grid-cols-2 gap-2 pt-2">
-                                    <Skeleton className="h-12 w-full" />
-                                    <Skeleton className="h-12 w-full" />
-                                    <Skeleton className="h-12 w-full" />
-                                    <Skeleton className="h-12 w-full" />
+                <aside className="w-[380px] border-l bg-background flex flex-col h-full">
+                    <div className="p-2 border-b space-y-2">
+                        <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-muted-foreground px-1">Analysis Controls</Label>
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 grid grid-cols-4 gap-1 bg-muted p-1 rounded-lg">
+                                    {[3, 6, 12, 24].map(m => (
+                                        <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-7 text-xs font-semibold" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
+                                    ))}
                                 </div>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setIsExportDialogOpen(true)} disabled={!analysisData || isAnalyzing}>
+                                    <FileDown className="h-3.5 w-3.5" />
+                                </Button>
                             </div>
-                        ) : analysisData && (
-                             <div className="space-y-3">
-                                <Scorecard data={analysisData.scorecard} />
-                                {analysisData.events.length > 0 && (
-                                     <Accordion type="single" collapsible className="w-full">
-                                      <AccordionItem value="item-1" className="border-b-0">
-                                        <AccordionTrigger className="text-sm font-bold text-muted-foreground py-1 hover:no-underline rounded-md bg-muted/50 px-2 data-[state=open]:bg-accent">
-                                          Key Anomaly Events ({analysisData.events.length})
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                          <div className="space-y-1.5 pt-2">
-                                              {analysisData.events.map((event: any, i: number) => (
-                                                   <div key={i} className="flex items-start gap-2 bg-muted/50 p-1.5 rounded-lg">
-                                                      <GitCommitHorizontal className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0"/>
-                                                      <div>
-                                                          <p className="font-semibold text-xs">{event.description}</p>
-                                                          <p className="text-xs text-muted-foreground">{event.date}</p>
-                                                      </div>
-                                                   </div>
-                                              ))}
-                                          </div>
-                                        </AccordionContent>
-                                      </AccordionItem>
-                                    </Accordion>
-                                )}
+                        </div>
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                            <Label htmlFor="yoy-switch" className="flex flex-col gap-0">
+                                <span className="font-semibold text-sm">Year-over-Year</span>
+                                <span className="text-xs text-muted-foreground">Compare with last year's data.</span>
+                            </Label>
+                            <Switch id="yoy-switch" checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing || !drawnGeometry} />
+                        </div>
+                    </div>
+
+                    <div className="p-2 border-b">
+                        <Label className="text-xs font-semibold text-muted-foreground mb-1.5 block px-1">Data Layers</Label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                        {isFetchingTiles ? (
+                            Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)
+                        ) : (
+                            AVAILABLE_LAYERS.map(layer => (
+                                <div key={layer.id} className="flex items-center justify-between p-1 rounded-md hover:bg-accent transition-colors border bg-accent/20">
+                                    <Label htmlFor={layer.id} className="flex items-center gap-2 cursor-pointer text-xs font-medium">
+                                        <layer.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                        {layer.name}
+                                    </Label>
+                                    <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
+                                </div>
+                            ))
+                        )}
+                        </div>
+                    </div>
+
+                    <ScrollArea className="flex-1">
+                        <div className="p-3">
+                            {!drawnGeometry ? (
+                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-32">
+                                    <AreaChart className="h-8 w-8 mb-2" />
+                                    <h3 className="font-semibold text-foreground text-sm">Draw an Area to Begin</h3>
+                                    <p className="text-xs mt-1">Use the polygon tool to select a field.</p>
+                                </div>
+                            ) : isAnalyzing ? (
+                                <div className="space-y-3">
+                                    <Skeleton className="h-5 w-1/2" />
+                                    <Skeleton className="h-3 w-1/3" />
+                                    <div className="grid grid-cols-2 gap-2 pt-2">
+                                        <Skeleton className="h-12 w-full" />
+                                        <Skeleton className="h-12 w-full" />
+                                        <Skeleton className="h-12 w-full" />
+                                        <Skeleton className="h-12 w-full" />
+                                    </div>
+                                </div>
+                            ) : analysisData && (
+                                <div className="space-y-3">
+                                    <Scorecard data={analysisData.scorecard} />
+                                    {analysisData.events.length > 0 && (
+                                        <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                                        <AccordionItem value="item-1" className="border-b-0">
+                                            <AccordionTrigger className="text-sm font-bold text-muted-foreground py-1 hover:no-underline rounded-md bg-muted/50 px-2 data-[state=open]:bg-accent">
+                                            Key Anomaly Events ({analysisData.events.length})
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                            <div className="space-y-1.5 pt-2">
+                                                {analysisData.events.map((event: any, i: number) => (
+                                                    <div key={i} className="flex items-start gap-2 bg-muted/50 p-1.5 rounded-lg">
+                                                        <GitCommitHorizontal className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0"/>
+                                                        <div>
+                                                            <p className="font-semibold text-xs">{event.description}</p>
+                                                            <p className="text-xs text-muted-foreground">{event.date}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                        </Accordion>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+
+                    <div className="p-2 border-t space-y-1.5 bg-muted/30">
+                        <div className="h-28">
+                        {analysisData?.timeline ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chartData} margin={{ top: 15, right: 5, left: -25, bottom: -5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false}/>
+                                    <XAxis dataKey="date" hide />
+                                    <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 9}} axisLine={false} tickLine={false} />
+                                    <Tooltip content={<ChartTooltipContent />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}/>
+                                    
+                                    {chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
+                                        <Line key={line.key} type="monotone" dataKey={line.key} name={line.name} stroke={line.color} strokeWidth={2} dot={false} />
+                                    ))}
+                                    {compare && analysisData.ghostTimeline && chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
+                                        <Line key={`ghost-${line.key}`} type="monotone" dataKey={line.ghostKey} name={`${line.name} (YoY)`} stroke={line.ghostColor} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                                    ))}
+
+                                    {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="hsl(var(--destructive))" strokeWidth={1} />}
+
+                                    {analysisData.events.map((event: any) => (
+                                        <ReferenceDot 
+                                        key={event.date + event.type} 
+                                        x={event.date} 
+                                        y={chartData.find((d: any) => d.date === event.date)?.ndvi ?? 0}
+                                        ifOverflow="extendDomain" 
+                                        r={0}
+                                        shape={<AnomalyDot event={event} />}
+                                        />
+                                    ))}
+
+                                </LineChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-xs text-muted-foreground bg-background rounded-md">
+                                <p>{drawnGeometry ? (isAnalyzing ? 'Loading chart data...' : 'Analysis complete.') : 'Draw a polygon to view timeline'}</p>
                             </div>
                         )}
-                    </div>
-                </ScrollArea>
-
-                <div className="p-2 border-t space-y-1.5 bg-muted/30">
-                    <div className="h-28">
-                    {analysisData?.timeline ? (
-                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 15, right: 5, left: -25, bottom: -5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false}/>
-                                <XAxis dataKey="date" hide />
-                                <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 9}} axisLine={false} tickLine={false} />
-                                <Tooltip content={<ChartTooltipContent />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}/>
-                                
-                                {chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
-                                    <Line key={line.key} type="monotone" dataKey={line.key} name={line.name} stroke={line.color} strokeWidth={2} dot={false} />
-                                ))}
-                                {compare && analysisData.ghostTimeline && chartConfig.map(line => visibleLines[line.key as keyof typeof visibleLines] && (
-                                    <Line key={`ghost-${line.key}`} type="monotone" dataKey={line.ghostKey} name={`${line.name} (YoY)`} stroke={line.ghostColor} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
-                                ))}
-
-                                {activeTimelinePoint.date && <ReferenceLine x={activeTimelinePoint.date} stroke="hsl(var(--destructive))" strokeWidth={1} />}
-
-                                {analysisData.events.map((event: any) => (
-                                    <ReferenceDot 
-                                      key={event.date + event.type} 
-                                      x={event.date} 
-                                      y={chartData.find((d: any) => d.date === event.date)?.ndvi ?? 0}
-                                      ifOverflow="extendDomain" 
-                                      r={0}
-                                      shape={<AnomalyDot event={event} />}
-                                    />
-                                ))}
-
-                            </LineChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground bg-background rounded-md">
-                            <p>{drawnGeometry ? (isAnalyzing ? 'Loading chart data...' : 'Analysis complete.') : 'Draw a polygon to view timeline'}</p>
                         </div>
-                    )}
-                    </div>
-                    <div className="flex justify-center gap-1.5">
-                        {chartConfig.map(line => (
-                            <button key={line.key} onClick={() => toggleLineVisibility(line.key as keyof typeof visibleLines)}
-                                className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-all border", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent hover:border-border')}>
-                                <div className="h-1.5 w-1.5 rounded-full" style={{backgroundColor: line.color}}></div>
-                                {line.name.split('(')[0].trim()}
-                            </button>
-                        ))}
-                    </div>
+                        <div className="flex justify-center gap-1.5">
+                            {chartConfig.map(line => (
+                                <button key={line.key} onClick={() => toggleLineVisibility(line.key as keyof typeof visibleLines)}
+                                    className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-all border", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent hover:border-border')}>
+                                    <div className="h-1.5 w-1.5 rounded-full" style={{backgroundColor: line.color}}></div>
+                                    {line.name.split('(')[0].trim()}
+                                </button>
+                            ))}
+                        </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
-                            {isPlaying ? <Pause className="h-3.5 w-3.5"/> : <Play className="h-3.5 w-3.5"/>}
-                        </Button>
-                        <div className="flex-1 space-y-0.5">
-                            <p className="text-center text-xs font-mono text-primary font-semibold">{activeTimelinePoint.date || '---'}</p>
-                            <Slider value={[currentIndex]} max={analysisData?.timeline?.length -1 || 0} onValueChange={([val]) => setCurrentIndex(val)} disabled={!analysisData} />
+                        <div className="flex items-center gap-2 pt-1">
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
+                                {isPlaying ? <Pause className="h-3.5 w-3.5"/> : <Play className="h-3.5 w-3.5"/>}
+                            </Button>
+                            <div className="flex-1 space-y-0.5">
+                                <p className="text-center text-xs font-mono text-primary font-semibold">{activeTimelinePoint.date || '---'}</p>
+                                <Slider value={[currentIndex]} max={analysisData?.timeline?.length -1 || 0} onValueChange={([val]) => setCurrentIndex(val)} disabled={!analysisData} />
+                            </div>
                         </div>
                     </div>
-                </div>
-            </aside>
-        </div>
+                </aside>
+            </div>
+        </>
     );
 }
