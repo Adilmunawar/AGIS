@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown } from 'lucide-react';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat, Calendar, Play, Pause, BarChart3, TrendingUp, AlertTriangle, ChevronsRight, FileDown, AreaChart, GitCommitHorizontal } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { MapLegends } from './MapLegends';
@@ -29,33 +29,33 @@ const AVAILABLE_LAYERS = [
   { id: 'ndvi', name: 'Greenness / Health (NDVI)', icon: Activity },
   { id: 'ndmi', name: 'Leaf Moisture (NDMI)', icon: Droplets },
   { id: 'ndre', name: 'Nitrogen Content (NDRE)', icon: FlaskConical },
-  { id: 'bsi', name: 'Bare Soil / Ploughed (BSI)', icon: () => <span className="text-lg">🟫</span> },
+  { id: 'bsi', name: 'Bare Soil / Ploughed (BSI)', icon: () => <div className="h-5 w-5 rounded-full bg-orange-900 border-2 border-orange-950/50" /> },
   { id: 'nbr', name: 'Stubble Burning (NBR)', icon: Flame },
 ];
 
 const Scorecard = ({ data }: { data: any }) => (
     <Card className="bg-transparent border-none shadow-none">
-        <CardHeader className="p-0 mb-2">
-            <CardTitle className="text-xl text-primary">{data.area_acres.toLocaleString()} Acres</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground font-semibold">{data.primary_crop}</CardDescription>
+        <CardHeader className="p-0 mb-3">
+            <CardTitle className="text-2xl text-primary">{data.area_acres.toLocaleString()} Acres</CardTitle>
+            <CardDescription className="text-sm font-semibold text-muted-foreground">{data.primary_crop}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-            <div className="grid grid-cols-2 gap-1 text-xs">
-                <div className="bg-muted/50 p-1.5 rounded">
-                    <p className="text-muted-foreground text-[10px]">Health (NDVI)</p>
-                    <p className="font-semibold flex items-center gap-1"><Activity className="h-3 w-3 text-green-500"/> {data.avg_ndvi?.toFixed(2) ?? '...'}</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-muted/50 p-2 rounded-lg">
+                    <p className="text-muted-foreground text-xs font-semibold">Health (NDVI)</p>
+                    <p className="font-bold text-base flex items-center gap-1.5"><Activity className="h-4 w-4 text-green-500"/> {data.avg_ndvi?.toFixed(2) ?? '...'}</p>
                 </div>
-                <div className="bg-muted/50 p-1.5 rounded">
-                    <p className="text-muted-foreground text-[10px]">Moisture (NDMI)</p>
-                    <p className="font-semibold flex items-center gap-1"><Droplets className="h-3 w-3 text-blue-500"/> {data.avg_ndmi?.toFixed(2) ?? '...'}</p>
+                <div className="bg-muted/50 p-2 rounded-lg">
+                    <p className="text-muted-foreground text-xs font-semibold">Moisture (NDMI)</p>
+                    <p className="font-bold text-base flex items-center gap-1.5"><Droplets className="h-4 w-4 text-blue-500"/> {data.avg_ndmi?.toFixed(2) ?? '...'}</p>
                 </div>
-                <div className="bg-muted/50 p-1.5 rounded">
-                    <p className="text-muted-foreground text-[10px]">Nitrogen (NDRE)</p>
-                    <p className="font-semibold flex items-center gap-1"><FlaskConical className="h-3 w-3 text-amber-500"/> {data.avg_ndre?.toFixed(2) ?? '...'}</p>
+                <div className="bg-muted/50 p-2 rounded-lg">
+                    <p className="text-muted-foreground text-xs font-semibold">Nitrogen (NDRE)</p>
+                    <p className="font-bold text-base flex items-center gap-1.5"><FlaskConical className="h-4 w-4 text-amber-500"/> {data.avg_ndre?.toFixed(2) ?? '...'}</p>
                 </div>
-                <div className="bg-muted/50 p-1.5 rounded">
-                    <p className="text-muted-foreground text-[10px]">Burn Scar (NBR)</p>
-                    <p className="font-semibold flex items-center gap-1"><Flame className="h-3 w-3 text-red-500"/> {data.burn_damage?.toFixed(2) ?? '...'}</p>
+                <div className="bg-muted/50 p-2 rounded-lg">
+                    <p className="text-muted-foreground text-xs font-semibold">Burn Scar (NBR)</p>
+                    <p className="font-bold text-base flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500"/> {data.burn_damage?.toFixed(2) ?? '...'}</p>
                 </div>
             </div>
         </CardContent>
@@ -124,10 +124,10 @@ const AnomalyDot = (props: any) => {
   if (!event) return null;
 
   const ICONS: Record<string, React.ReactNode> = {
-    'peak': <TrendingUp className="h-3 w-3 text-white" />,
-    'start': <ChevronsRight className="h-3 w-3 text-white" />,
-    'stress': <AlertTriangle className="h-3 w-3 text-white" />,
-    'burn': <Flame className="h-3 w-3 text-white" />,
+    'peak': <TrendingUp className="h-3.5 w-3.5 text-white" />,
+    'start': <ChevronsRight className="h-3.5 w-3.5 text-white" />,
+    'stress': <AlertTriangle className="h-3.5 w-3.5 text-white" />,
+    'burn': <Flame className="h-3.5 w-3.5 text-white" />,
   };
   const COLORS: Record<string, string> = {
     'peak': 'bg-green-500',
@@ -142,7 +142,7 @@ const AnomalyDot = (props: any) => {
         <TooltipProvider>
           <ShadTooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <div className={`flex items-center justify-center h-5 w-5 rounded-full ${COLORS[event.type]} ring-2 ring-background cursor-pointer`}>
+              <div className={`flex items-center justify-center h-6 w-6 rounded-full ${COLORS[event.type]} ring-4 ring-background cursor-pointer`}>
                 {ICONS[event.type]}
               </div>
             </TooltipTrigger>
@@ -156,87 +156,23 @@ const AnomalyDot = (props: any) => {
   );
 };
 
-
-const MapContent = ({ onPolygonDrawn, onClear, drawnGeometry, isAnalyzing, analysisData, activeTimelinePoint }: any) => {
-    const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
-    const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true });
+const MapContent = ({ onPolygonDrawn, onClear, drawnGeometry, isAnalyzing, analysisData, activeTimelinePoint, tileUrls, activeLayers, activeBand }: any) => {
     const featureGroupRef = useRef<L.FeatureGroup>(null);
-    const [isFetchingTiles, setIsFetchingTiles] = useState(true);
-
-    useEffect(() => {
-        const fetchTiles = async () => {
-            setIsFetchingTiles(true);
-            try {
-                const res = await fetch(`/api/gee/tiles`);
-                const data = await res.json();
-                if (data.status === 'success') setTileUrls(data.tiles);
-            } catch (error) {
-                console.error("Failed to fetch GEE Tiles:", error);
-            } finally {
-                setIsFetchingTiles(false);
-            }
-        };
-        fetchTiles();
-    }, []);
-
-    const toggleLayer = (layerId: string) => {
-        setActiveLayers(prev => ({ ...prev, [layerId]: !prev[layerId] }));
-    };
-
-    const activeBand = Object.keys(activeLayers).find(key => key !== 's2_true_color' && activeLayers[key]);
 
     const onCreated = (e: any) => {
         onPolygonDrawn(e.layer.toGeoJSON().geometry);
-        // Immediately clear the temporary layer drawn by the library
-        // because we will render it declaratively from our state.
         featureGroupRef.current?.clearLayers();
     }
 
     return (
         <>
             <TileLayer attribution='&copy; Google' url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" zIndex={1} />
-            {AVAILABLE_LAYERS.map((layer) => (
-                activeLayers[layer.id] && tileUrls[layer.id] ? (
-                    <TileLayer key={layer.id} url={tileUrls[layer.id]} opacity={0.8} zIndex={10} />
+            {Object.keys(tileUrls).map(layerId => (
+                 activeLayers[layerId] && tileUrls[layerId] ? (
+                    <TileLayer key={layerId} url={tileUrls[layerId]} opacity={0.8} zIndex={10} />
                 ) : null
             ))}
-            <div className="absolute top-4 right-4 z-[1000] w-72">
-                <Card className="bg-card/80 backdrop-blur-md shadow-2xl border-border/50">
-                    <CardHeader className="p-3 border-b border-border/50">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Layers className="h-5 w-5 text-primary" />
-                            Data Layers
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-1">
-                    <ScrollArea className="h-64">
-                        <div className="space-y-1 p-1">
-                        {isFetchingTiles ? (
-                            Array.from({ length: 8 }).map((_, i) => (
-                            <div key={i} className="flex items-center justify-between p-2.5">
-                                <div className="flex items-center gap-3">
-                                <Skeleton className="h-5 w-5 rounded-full" />
-                                <Skeleton className="h-4 w-32" />
-                                </div>
-                                <Skeleton className="h-6 w-11 rounded-full" />
-                            </div>
-                            ))
-                        ) : (
-                            AVAILABLE_LAYERS.map(layer => (
-                                <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent/50 transition-colors">
-                                    <Label htmlFor={layer.id} className="flex items-center gap-3 cursor-pointer text-sm font-medium">
-                                        <layer.icon className="h-5 w-5 text-muted-foreground" />
-                                        {layer.name}
-                                    </Label>
-                                    <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
-                                </div>
-                            ))
-                        )}
-                        </div>
-                    </ScrollArea>
-                    </CardContent>
-                </Card>
-            </div>
+            
             <div className="absolute top-4 left-4 z-[1000]"><LocationSearch /></div>
             <MapLegends currentBand={activeBand} />
             
@@ -270,6 +206,34 @@ export default function SentinelAnalysisClient() {
     const [compare, setCompare] = useState(false);
     const [visibleLines, setVisibleLines] = useState({ ndvi: true, ndmi: false, ndre: false });
     const [drawnGeometry, setDrawnGeometry] = useState<any>(null);
+    const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
+    const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({ s2_true_color: true });
+    const [isFetchingTiles, setIsFetchingTiles] = useState(true);
+
+     useEffect(() => {
+        const fetchTiles = async () => {
+            setIsFetchingTiles(true);
+            try {
+                const res = await fetch(`/api/gee/tiles`);
+                const data = await res.json();
+                if (data.status === 'success') setTileUrls(data.tiles);
+            } catch (error) {
+                console.error("Failed to fetch GEE Tiles:", error);
+            } finally {
+                setIsFetchingTiles(false);
+            }
+        };
+        fetchTiles();
+    }, []);
+
+    const toggleLayer = (layerId: string) => {
+        setActiveLayers(prev => ({ ...prev, [layerId]: !prev[layerId] }));
+    };
+
+    const activeBand = useMemo(() => {
+        return Object.keys(activeLayers).find(key => key !== 's2_true_color' && activeLayers[key]);
+    }, [activeLayers]);
+
 
     useEffect(() => {
         if (analysisData?.timeline) {
@@ -370,9 +334,7 @@ export default function SentinelAnalysisClient() {
     ];
 
     const handleExport = () => {
-        if (!analysisData?.timeline) {
-            return;
-        }
+        if (!analysisData?.timeline) return;
 
         const { timeline, ghostTimeline } = analysisData;
         
@@ -420,90 +382,121 @@ export default function SentinelAnalysisClient() {
                         isAnalyzing={isAnalyzing}
                         analysisData={analysisData} 
                         activeTimelinePoint={activeTimelinePoint}
+                        tileUrls={tileUrls}
+                        activeLayers={activeLayers}
+                        activeBand={activeBand}
                     />
                 </MapContainer>
                 {isAnalyzing && (
-                    <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-[1001]">
-                        <div className="flex flex-col items-center gap-2 p-4 bg-card/90 backdrop-blur-md rounded-lg shadow-2xl">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <p className="font-semibold text-foreground">Running Temporal Analysis...</p>
+                    <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center z-[1001]">
+                        <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-2xl shadow-2xl">
+                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                            <p className="font-bold text-lg text-foreground">Running Temporal Analysis...</p>
+                            <p className="text-sm text-muted-foreground -mt-2">This may take a few moments.</p>
                         </div>
                     </div>
                 )}
             </div>
 
-            <aside className="w-[380px] border-l bg-background flex flex-col h-full">
-                <div className="p-3 border-b">
-                    <h2 className="font-semibold text-lg flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Sentinel Analysis</h2>
-                    <p className="text-xs text-muted-foreground">Time-series and YoY performance analysis.</p>
+            <aside className="w-[420px] border-l bg-background flex flex-col h-full">
+                <div className="p-4 border-b">
+                    <h2 className="font-bold text-xl flex items-center gap-3"><BarChart3 className="h-6 w-6 text-primary" /> Sentinel Analysis</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Time-series and YoY performance analysis for any selected area.</p>
                 </div>
                 
-                <ScrollArea className="flex-1">
-                    <div className="p-3 space-y-4">
-                        <Card>
-                            <CardHeader className="p-3">
-                                <CardTitle className="text-sm">Analysis Controls</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-3 space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-xs">Time Range</Label>
-                                    <div className="flex gap-1 bg-muted p-1 rounded-md">
-                                        {[3, 6, 12, 24].map(m => (
-                                            <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-8 text-xs" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label className="flex items-center gap-2 text-xs">
-                                        <Calendar className="h-4 w-4" />
-                                        Year-over-Year (YoY)
-                                    </Label>
-                                    <Switch checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing || !drawnGeometry} />
-                                </div>
-                                 <Button 
-                                    variant="outline" 
-                                    className="w-full mt-2" 
-                                    onClick={handleExport} 
-                                    disabled={!analysisData || isAnalyzing}
-                                >
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export as CSV
-                                </Button>
-                            </CardContent>
-                        </Card>
+                 <div className="p-4 border-b space-y-4">
+                    <div className="space-y-2">
+                        <Label className="text-xs font-semibold text-muted-foreground">Analysis Controls</Label>
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 grid grid-cols-4 gap-1 bg-muted p-1 rounded-lg">
+                                {[3, 6, 12, 24].map(m => (
+                                    <Button key={m} size="sm" variant={range === m ? 'default' : 'ghost'} className="flex-1 h-9 text-xs font-semibold" onClick={() => handleRangeChange(m)} disabled={isAnalyzing || !drawnGeometry}>{m}M</Button>
+                                ))}
+                            </div>
+                            <Button variant="outline" size="icon" className="h-10 w-10" onClick={handleExport} disabled={!analysisData || isAnalyzing}>
+                                <FileDown className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                     <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                        <Label htmlFor="yoy-switch" className="flex flex-col gap-0.5">
+                            <span className="font-semibold">Year-over-Year (YoY)</span>
+                            <span className="text-xs text-muted-foreground">Compare with same period last year.</span>
+                        </Label>
+                        <Switch id="yoy-switch" checked={compare} onCheckedChange={handleCompareChange} disabled={isAnalyzing || !drawnGeometry} />
+                    </div>
+                </div>
 
-                        {combinedScorecardData ? (
-                             <Card>
-                                <CardHeader className="p-3">
-                                    <CardTitle className="text-sm">Scorecard</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-3">
-                                    <Scorecard data={combinedScorecardData} />
-                                </CardContent>
-                            </Card>
-                        ) : (drawnGeometry && isAnalyzing) ? (
-                            <Card>
-                                <CardHeader className="p-3"><CardTitle className="text-sm">Scorecard</CardTitle></CardHeader>
-                                <CardContent className="p-3 space-y-2">
-                                    <Skeleton className="h-6 w-1/2" />
-                                    <Skeleton className="h-4 w-1/3" />
-                                    <div className="grid grid-cols-2 gap-2 pt-2">
-                                        <Skeleton className="h-12 w-full" />
-                                        <Skeleton className="h-12 w-full" />
-                                        <Skeleton className="h-12 w-full" />
-                                        <Skeleton className="h-12 w-full" />
+                <div className="p-4 border-b">
+                     <Label className="text-xs font-semibold text-muted-foreground mb-2 block">Data Layers</Label>
+                     <ScrollArea className="h-40 -mr-2">
+                        <div className="space-y-1 pr-2">
+                        {isFetchingTiles ? (
+                            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)
+                        ) : (
+                            AVAILABLE_LAYERS.map(layer => (
+                                <div key={layer.id} className="flex items-center justify-between p-1.5 rounded-md hover:bg-accent transition-colors">
+                                    <Label htmlFor={layer.id} className="flex items-center gap-3 cursor-pointer text-sm font-medium">
+                                        <layer.icon className="h-5 w-5 text-muted-foreground" />
+                                        {layer.name}
+                                    </Label>
+                                    <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
+                                </div>
+                            ))
+                        )}
+                        </div>
+                    </ScrollArea>
+                </div>
+
+                <ScrollArea className="flex-1">
+                    <div className="p-4">
+                        {!drawnGeometry ? (
+                             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-48">
+                                <AreaChart className="h-12 w-12 mb-2" />
+                                <h3 className="font-semibold text-foreground">Draw an Area to Begin</h3>
+                                <p className="text-sm">Use the polygon tool on the map to select a field or area for analysis.</p>
+                             </div>
+                        ) : isAnalyzing ? (
+                            <div className="space-y-4">
+                                <Skeleton className="h-8 w-1/2" />
+                                <Skeleton className="h-5 w-1/3" />
+                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                    <Skeleton className="h-16 w-full" />
+                                    <Skeleton className="h-16 w-full" />
+                                    <Skeleton className="h-16 w-full" />
+                                    <Skeleton className="h-16 w-full" />
+                                </div>
+                                <Skeleton className="h-24 w-full" />
+                            </div>
+                        ) : analysisData && (
+                             <div className="space-y-4">
+                                <Scorecard data={analysisData.scorecard} />
+                                {analysisData.events.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-semibold mb-2">Key Anomaly Events</h3>
+                                        <div className="space-y-2">
+                                            {analysisData.events.map((event: any, i: number) => (
+                                                 <div key={i} className="flex items-start gap-3 bg-muted/50 p-2 rounded-lg">
+                                                    <GitCommitHorizontal className="h-4 w-4 mt-0.5 text-muted-foreground"/>
+                                                    <div>
+                                                        <p className="font-semibold text-xs">{event.description}</p>
+                                                        <p className="text-xs text-muted-foreground">{event.date}</p>
+                                                    </div>
+                                                 </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ) : null}
+                                )}
+                            </div>
+                        )}
                     </div>
                 </ScrollArea>
 
-                <div className="p-3 border-t space-y-2 bg-muted/50">
+                <div className="p-4 border-t space-y-3 bg-muted/30">
                     <div className="h-40">
                     {analysisData?.timeline ? (
                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
+                            <LineChart data={chartData} margin={{ top: 25, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false}/>
                                 <XAxis dataKey="date" hide />
                                 <YAxis domain={[0, 1]} tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} axisLine={false} tickLine={false} />
@@ -540,20 +533,20 @@ export default function SentinelAnalysisClient() {
                     <div className="flex justify-center gap-2">
                         {chartConfig.map(line => (
                             <button key={line.key} onClick={() => toggleLineVisibility(line.key as keyof typeof visibleLines)}
-                                className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold transition-all", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground opacity-70 hover:opacity-100')}>
+                                className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all border", visibleLines[line.key as keyof typeof visibleLines] ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-transparent hover:border-border')}>
                                 <div className="h-2 w-2 rounded-full" style={{backgroundColor: line.color}}></div>
                                 {line.name.split('(')[0].trim()}
                             </button>
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-4 pt-1">
-                        <Button variant="ghost" size="icon" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
+                    <div className="flex items-center gap-4 pt-2">
+                        <Button variant="outline" size="icon" onClick={() => setIsPlaying(!isPlaying)} disabled={!analysisData}>
                             {isPlaying ? <Pause className="h-5 w-5"/> : <Play className="h-5 w-5"/>}
                         </Button>
                         <div className="flex-1 space-y-1">
+                            <p className="text-center text-xs font-mono text-primary font-semibold">{activeTimelinePoint.date || '---'}</p>
                             <Slider value={[currentIndex]} max={analysisData?.timeline?.length -1 || 0} onValueChange={([val]) => setCurrentIndex(val)} disabled={!analysisData} />
-                            <p className="text-center text-xs font-mono text-primary">{activeTimelinePoint.date || '---'}</p>
                         </div>
                     </div>
                 </div>
