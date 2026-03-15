@@ -26,27 +26,14 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
     // Helper Functions
     // ----------------------------------------------------------------------
-
-    /**
-     * Checks if the user is signed in.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Verifies that the requesting user's UID matches the provided userId from the path.
-     * Used for the private user data model.
-     * @param userId The user ID from the document path.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Verifies ownership for an existing document. Used for update and delete operations.
-     * @param userId The user ID from the document path.
-     */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
@@ -54,31 +41,16 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
     // Cadastral Data Model Rules (Shared)
     // ----------------------------------------------------------------------
-
-    /**
-     * @description Controls access to Mauza (administrative area) metadata.
-     * @path /Mauzas/{mauzaId}
-     * @allow (read, list) Any authenticated user can read Mauza metadata.
-     * @allow (create) An authenticated user can create a Mauza document, provided it passes validation.
-     * @principle Enforces data integrity for the core administrative boundaries.
-     */
     match /Mauzas/{mauzaId} {
-      allow get, list, update, delete: if isSignedIn();
+      allow read, update, delete: if isSignedIn();
       allow create: if isSignedIn() &&
                       request.resource.data.id == mauzaId &&
                       request.resource.data.name is string &&
                       request.resource.data.name.size() > 0;
     }
 
-    /**
-     * @description Controls access to individual land parcel metadata.
-     * @path /Parcels/{parcelId}
-     * @allow (read, list) Any authenticated user can read Parcel metadata.
-     * @allow (create, update) Writes are permitted only if required fields are present and correctly typed.
-     * @principle Ensures every parcel record is complete and conforms to the data schema.
-     */
     match /Parcels/{parcelId} {
-      allow get, list, delete: if isSignedIn();
+      allow read, delete: if isSignedIn();
       allow create, update: if isSignedIn() &&
                               request.resource.data.geometryUrl is string &&
                               request.resource.data.geometryUrl.size() > 0 &&
@@ -91,11 +63,6 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
     // User-Private Data Model Rules
     // ----------------------------------------------------------------------
-
-    /**
-     * @description Controls access to user profile and related private documents.
-     * @path /users/{userId}
-     */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
@@ -103,15 +70,6 @@ service cloud.firestore {
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
 
-      /**
-       * @description Controls access to a user's collection of satellite images.
-       * @path /users/{userId}/satelliteImages/{imageId}
-       * @allow (list) An authenticated user can list all satellite images they own.
-       * @allow (create) An authenticated user can upload a new satellite image.
-       * @deny (get) A user cannot read a satellite image belonging to another user.
-       * @deny (delete) A user cannot delete another user's satellite image.
-       * @principle Enforces document ownership for all operations and validates relational integrity.
-       */
       match /satelliteImages/{imageId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId);
@@ -119,15 +77,6 @@ service cloud.firestore {
         allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
         allow delete: if isExistingOwner(userId);
 
-        /**
-         * @description Controls access to AI detection sessions for a specific satellite image.
-         * @path /users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}
-         * @allow (get) The owner can retrieve a specific detection session for their image.
-         * @allow (list) The owner can list all detection sessions for their image.
-         * @deny (create) Another user cannot start a detection session on an image they do not own.
-         * @deny (update) A user cannot modify another user's session results.
-         * @principle Cascades ownership rules from the parent user document and validates path consistency.
-         */
         match /detectionSessions/{sessionId} {
           allow get: if isOwner(userId);
           allow list: if isOwner(userId);
@@ -135,15 +84,6 @@ service cloud.firestore {
           allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId && request.resource.data.imageId == resource.data.imageId;
           allow delete: if isExistingOwner(userId);
 
-          /**
-           * @description Controls access to specific user clicks within a detection session.
-           * @path /users/{userId}/satelliteImages/{imageId}/detectionSessions/{sessionId}/clickedCoordinates/{coordinateId}
-           * @allow (create) The owner can add a new clicked coordinate to their own detection session.
-           * @allow (list) The owner can list all clicked coordinates within their own session.
-           * @deny (get) A user cannot retrieve a specific coordinate from another user's session.
-           * @deny (delete) A user cannot delete a coordinate from another user's session.
-           * @principle Ensures data can only be added to a user's own session and maintains relational integrity.
-           */
           match /clickedCoordinates/{coordinateId} {
             allow get: if isOwner(userId);
             allow list: if isOwner(userId);
