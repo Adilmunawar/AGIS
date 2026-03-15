@@ -113,6 +113,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
     const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
     const { toast } = useToast();
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+    const [isUploadingToCloud, setIsUploadingToCloud] = useState(false);
     const firestore = useFirestore();
     const storage = useStorage();
 
@@ -227,15 +228,19 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
     }, [selectedFeature]);
 
     const handleUploadConfirm = async (mauzaName: string) => {
-        setIsUploadDialogOpen(false);
         if (!parcelsData && !boundaryData) {
             toast({ variant: 'destructive', title: 'Upload Failed', description: 'No data to upload.' });
             return;
         }
+
+        setIsUploadingToCloud(true);
         toast({ title: 'Upload Starting...', description: `Uploading ${mauzaName} to the database.` });
+        
         try {
             await uploadMauzaAndParcels(mauzaName, boundaryData, parcelsData, firestore, storage);
             toast({ title: 'Upload Successful!', description: `${mauzaName} has been saved to the database.` });
+            setIsUploadingToCloud(false);
+            setIsUploadDialogOpen(false);
         } catch (error: any) {
             console.error("Upload failed", error);
             toast({
@@ -243,6 +248,7 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
                 title: 'Upload Failed',
                 description: 'Could not save to the database. This is likely a permissions issue. Please check your Firestore security rules.',
             });
+            setIsUploadingToCloud(false);
         }
     };
 
@@ -250,8 +256,12 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
         <>
             <UploadMauzaDialog 
                 isOpen={isUploadDialogOpen}
-                onOpenChange={setIsUploadDialogOpen}
+                onOpenChange={(isOpen) => {
+                    if (isUploadingToCloud) return; // Prevent closing while uploading
+                    setIsUploadDialogOpen(isOpen);
+                }}
                 onConfirm={handleUploadConfirm}
+                isUploading={isUploadingToCloud}
                 boundaryData={boundaryData}
                 parcelsData={parcelsData}
             />
