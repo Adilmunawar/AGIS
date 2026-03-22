@@ -95,12 +95,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             
             <div className="flex-1 overflow-y-auto p-3">
                 <nav className="space-y-1">
-                  <h2 className={cn(
-                    "px-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2",
-                    isCollapsed && "text-center"
-                  )}>
-                    {isCollapsed ? "T" : "Tools"}
-                  </h2>
                   {sidebarNavItems.map((item) => (
                     <Tooltip key={item.href}>
                       <TooltipTrigger asChild>
