@@ -156,6 +156,14 @@ function MapControlsWrapper({
 
     return (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] flex flex-col items-center gap-2">
+            {statusMessage && (
+                <div
+                className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
+                >
+                {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                <p className="text-muted-foreground">{statusMessage}</p>
+                </div>
+            )}
             <div className="flex items-end gap-2">
                  <div ref={controlRef}>
                     <GisControlBar
@@ -170,9 +178,9 @@ function MapControlsWrapper({
                         onZoomIn={() => map.zoomIn()}
                         onZoomOut={() => map.zoomOut()}
                         standardTab={{
-                            title: 'Standard',
-                            description: 'Extracts road networks using standard open-source data. Ideal for quick analysis.',
-                            buttonText: 'Run Standard'
+                            title: 'GEE Standard',
+                            description: 'Extracts road networks using GEE data. Ideal for quick analysis.',
+                            buttonText: 'Run GEE'
                         }}
                         realtimeTab={{
                             title: 'AGIS Realtime',
@@ -183,7 +191,7 @@ function MapControlsWrapper({
                 </div>
                 <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-lg backdrop-blur-xl p-1.5 flex items-center gap-1.5">
                     <Button onClick={handleLiveRoadExtraction} disabled={isExtractingRoads} variant="outline" className="h-9 bg-white/50">
-                        {isExtractingRoads ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" /> : <RouteIcon className="mr-2 h-4 w-4 text-red-500" />}
+                        {isExtractingRoads ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-yellow-500" /> : <RouteIcon className="mr-2 h-4 w-4 text-yellow-500" />}
                         Extract Roads
                     </Button>
                     <Button onClick={handleDownloadLive} variant="outline" size="icon" className="h-9 w-9 bg-white/50" disabled={!liveBuildings && !liveRoads}>
@@ -191,14 +199,6 @@ function MapControlsWrapper({
                     </Button>
                 </Card>
             </div>
-             {statusMessage && (
-                <div
-                className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
-                >
-                {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                <p className="text-muted-foreground">{statusMessage}</p>
-                </div>
-            )}
         </div>
     );
 }
@@ -280,39 +280,33 @@ export default function ExtractRoadsClient() {
   };
 
   const runStandardExtraction = async () => {
-    if (!polygonCoords) return;
+    if (!selectionBounds) return;
     setIsProcessing(true);
     updateToolState('extractRoads', { geoData: null });
-    setStatusMessage("Querying data source for highway vectors...");
-
+    setStatusMessage("Querying GEE for road networks...");
+    
     try {
-      const overpassPoly = polygonCoords.split(' ').map(c => c.replace(',', ' ')).join(' ');
-      const query = `[out:json][timeout:25];(way["highway"](poly:"${overpassPoly}"););(._;>;);out;`;
-      const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
-      
-      if (!response.ok) {
-        throw new Error(`Data fetching failed: ${response.status}`);
-      }
-      
-      const rawData = await response.json();
-      const roadsGeoJSON = osmToGeoJSONRoads(rawData);
+        const bounds = L.latLngBounds(selectionBounds._southWest, selectionBounds._northEast);
+        const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
 
-      if (!roadsGeoJSON.features.length) {
-         toast({ title: "No Data Found", description: "No roads were found in the selected area.", variant: "destructive" });
-         setIsProcessing(false);
-         setStatusMessage("No roads found in the selected area.");
-         return;
-      }
+        const response = await fetch('/api/gee/extract-live', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bbox, type: 'roads' }),
+        });
 
-      setStatusMessage("Performing topological structuring on linear features...");
-      workerRef.current?.postMessage({
-        action: "EXTRACT_ROADS",
-        payload: { roads: roadsGeoJSON }
-      });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch GEE data');
+
+        if (data.geoJson) {
+            updateToolState('extractRoads', { geoData: data.geoJson });
+            setStatusMessage(`GEE extraction complete. ${data.geoJson?.features?.length || 0} features found.`);
+        }
     } catch (error: any) {
-      setIsProcessing(false);
-      setStatusMessage("Vector data retrieval failed. Check data source endpoint.");
-      toast({ title: "Error", description: error.message || "Failed to fetch map data.", variant: "destructive" });
+        setStatusMessage("GEE data retrieval failed.");
+        toast({ title: "Error", description: error.message || "Failed to fetch GEE data.", variant: "destructive" });
+    } finally {
+        setIsProcessing(false);
     }
   };
   
@@ -392,14 +386,12 @@ export default function ExtractRoadsClient() {
         <LiveBuildingsLayer onDataFetched={setLiveBuildings} />
         {liveBuildings && (
             <GeoJSON 
-                key={JSON.stringify(liveBuildings)}
                 data={liveBuildings} 
                 style={{ color: '#00FFFF', weight: 1.5, fillColor: '#00FFFF', fillOpacity: 0.1 }} 
             />
         )}
         {liveRoads && (
             <GeoJSON 
-                key={JSON.stringify(liveRoads)}
                 data={liveRoads} 
                 style={{ color: '#facc15', weight: 3, opacity: 0.8 }} 
             />
