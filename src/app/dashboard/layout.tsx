@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { GisDataProvider } from '@/context/GisDataContext';
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Import Leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
             </div>
             
-            <div className="flex-1 overflow-y-auto p-3 min-h-0">
+            <ScrollArea className="flex-1 p-3">
                 <nav className="space-y-1">
                   {sidebarNavItems.map((item) => (
                     <Tooltip key={item.href}>
@@ -159,7 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </Tooltip>
                   ))}
                 </nav>
-            </div>
+            </ScrollArea>
 
             <div className="flex-shrink-0 border-t p-2 space-y-1">
               <Tooltip>
