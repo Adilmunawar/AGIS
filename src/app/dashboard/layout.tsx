@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
             </div>
             
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-3 min-h-0">
                 <nav className="space-y-1">
                   {sidebarNavItems.map((item) => (
                     <Tooltip key={item.href}>
