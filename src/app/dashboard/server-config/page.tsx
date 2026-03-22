@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,8 +69,15 @@ export default function ServerConfigPage() {
 
   if (!isServerConfigLoaded) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gray-100/50">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      <div className="flex h-full w-full flex-col items-center justify-center bg-gray-100/50">
+        <Image
+          src="/AGIS animation/AGIS (1).gif"
+          alt="AGIS Loading Animation"
+          width={128}
+          height={128}
+          unoptimized
+        />
+        <p className="mt-4 text-lg font-semibold text-primary">Loading Configuration...</p>
       </div>
     );
   }

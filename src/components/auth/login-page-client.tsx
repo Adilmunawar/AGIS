@@ -4,7 +4,7 @@ import { LoginForm } from '@/components/auth/login-form';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { WavyBackground } from '@/components/ui/wavy-background';
 
 export function LoginPageClient() {
@@ -19,8 +19,15 @@ export function LoginPageClient() {
 
   if (isUserLoading || user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
+        <Image
+          src="/AGIS animation/AGIS (1).gif"
+          alt="AGIS Loading Animation"
+          width={128}
+          height={128}
+          unoptimized
+        />
+        <p className="mt-4 text-lg font-semibold text-primary">Authenticating...</p>
       </div>
     );
   }
