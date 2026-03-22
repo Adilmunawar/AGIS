@@ -4,17 +4,17 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Download, Play, Server, ShieldAlert, Plus, Minus } from 'lucide-react';
+import { Loader2, Download, Play, Server, ShieldAlert, Plus, Minus, MapIcon, Route } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { usePathname } from 'next/navigation';
 
 
 interface GisControlBarProps {
-  title: React.ReactNode;
   hasSelection: boolean;
   isProcessing: boolean;
   geoData: any;
@@ -24,20 +24,9 @@ interface GisControlBarProps {
   onDownload: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  standardTab: {
-    title: string;
-    description: string;
-    buttonText: string;
-  };
-  realtimeTab: {
-    title: string;
-    description: string;
-    buttonText: string;
-  };
 }
 
 export function GisControlBar({
-  title,
   hasSelection,
   isProcessing,
   geoData,
@@ -47,18 +36,19 @@ export function GisControlBar({
   onDownload,
   onZoomIn,
   onZoomOut,
-  standardTab,
-  realtimeTab,
 }: GisControlBarProps) {
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = React.useState('standard');
   
+  const isDigitizePage = pathname.includes('digitize');
+
   const getTooltipContent = () => {
     if (!hasSelection) return 'Please draw a polygon on the map to enable extraction.';
     switch(activeTab) {
       case 'standard':
-        return standardTab.description;
+        return isDigitizePage ? 'Extracts building footprints using standard open-source data. Good for general use.' : 'Extracts road networks using GEE data. Ideal for quick analysis.';
       case 'realtime':
-        return !colabUrl ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.' : realtimeTab.description;
+        return !colabUrl ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.' : 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.';
       default:
         return '';
     }
@@ -89,19 +79,16 @@ export function GisControlBar({
           <div className="p-2">
             <div className="flex w-full flex-wrap items-center justify-center md:justify-between gap-4">
               <div className="flex items-center gap-2">
-                <div className="flex-shrink-0 flex items-center gap-2 font-medium text-foreground">{title}</div>
-                <p
-                  className="text-xs text-muted-foreground hidden sm:block"
-                >
-                  {hasSelection ? 'Area selected.' : 'Draw a polygon to begin.'}
-                </p>
+                <div className="flex-shrink-0 flex items-center gap-2 font-medium text-foreground">
+                  {isDigitizePage ? <><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</> : <><Route className="h-5 w-5 text-primary"/> Extract Roads</>}
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList>
-                    <TabsTrigger value="standard">{standardTab.title}</TabsTrigger>
-                    <TabsTrigger value="realtime">{realtimeTab.title}</TabsTrigger>
+                    <TabsTrigger value="standard">GEE Standard</TabsTrigger>
+                    <TabsTrigger value="realtime">AGIS Realtime</TabsTrigger>
                   </TabsList>
                 </Tabs>
 
@@ -114,7 +101,7 @@ export function GisControlBar({
                             {activeTab === 'standard' && (
                               <Button onClick={onRunStandard} disabled={!hasSelection || isProcessing} size="sm">
                                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                                {standardTab.buttonText}
+                                Run GEE
                               </Button>
                             )}
                             {activeTab === 'realtime' && (!colabUrl ? (
@@ -125,7 +112,7 @@ export function GisControlBar({
                             ) : (
                               <Button onClick={onRunRealtime} disabled={!hasSelection || isProcessing} size="sm">
                                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Server className="mr-2 h-4 w-4" />}
-                                {realtimeTab.buttonText}
+                                Run Realtime
                               </Button>
                             ))}
                           </div>

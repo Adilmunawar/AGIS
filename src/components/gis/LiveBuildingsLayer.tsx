@@ -3,13 +3,19 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useMap, useMapEvents } from 'react-leaflet';
 
-export default function LiveBuildingsLayer({ onDataFetched }: { onDataFetched: (data: any) => void }) {
+interface LiveBuildingsLayerProps {
+    onDataFetched: (data: any) => void;
+    onStatusChange: (message: string) => void;
+}
+
+export default function LiveBuildingsLayer({ onDataFetched, onStatusChange }: LiveBuildingsLayerProps) {
   const map = useMap();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchBuildings = useCallback(async () => {
     if (map.getZoom() < 15) {
       onDataFetched(null);
+      onStatusChange('Zoom in to see live building footprints.');
       return;
     }
     
@@ -20,6 +26,7 @@ export default function LiveBuildingsLayer({ onDataFetched }: { onDataFetched: (
     const signal = abortControllerRef.current.signal;
 
     try {
+      onStatusChange('Fetching building footprints...');
       const bounds = map.getBounds();
       const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
 
@@ -39,6 +46,7 @@ export default function LiveBuildingsLayer({ onDataFetched }: { onDataFetched: (
         if (signal.aborted) return;
         const featureCollection = await res.json();
         onDataFetched(featureCollection);
+        onStatusChange(`${featureCollection?.features?.length || 0} building footprints loaded.`);
       } else if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch building data');
       }
@@ -46,9 +54,10 @@ export default function LiveBuildingsLayer({ onDataFetched }: { onDataFetched: (
       if (error.name !== 'AbortError') {
         console.error("Error fetching live buildings:", error);
         onDataFetched(null);
+        onStatusChange('Failed to load building data.');
       }
     }
-  }, [map, onDataFetched]);
+  }, [map, onDataFetched, onStatusChange]);
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 

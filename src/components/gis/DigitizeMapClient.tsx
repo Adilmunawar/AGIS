@@ -1,84 +1,17 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, FeatureGroup, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import { Map as MapIcon, Download, Route, Loader2 } from 'lucide-react';
-import type { LatLng, LatLngBounds } from 'leaflet';
-import { GisControlBar } from './GisControlBar';
+import type { LatLng } from 'leaflet';
+import { MapControlsWrapper } from './MapControlsWrapper';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import L from 'leaflet';
 import { useGisData } from '@/context/GisDataContext';
 import MousePositionControl from './MousePositionControl';
 import LiveBuildingsLayer from './LiveBuildingsLayer';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-
-
-function osmToGeoJSON(osmData: any): GeoJSON.FeatureCollection {
-    const nodes = new Map<number, number[]>();
-    const ways = new Map<number, any>();
-
-    for (const el of osmData.elements) {
-        if (el.type === 'node') {
-            nodes.set(el.id, [el.lon, el.lat]);
-        } else if (el.type === 'way') {
-            ways.set(el.id, el);
-        }
-    }
-
-    const processedWayIds = new Set<number>();
-    const finalFeatures: GeoJSON.Feature[] = [];
-
-    osmData.elements.forEach((el: any) => {
-        if (el.type !== 'relation' || !el.tags?.building) return;
-
-        const outerRings: any[][] = [];
-        const innerRings: any[][] = [];
-        const memberWayIds = new Set<number>();
-
-        el.members.forEach((member: any) => {
-            if (member.type !== 'way') return;
-            const way = ways.get(member.ref);
-            if (!way) return;
-            memberWayIds.add(way.id);
-
-            const ring = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
-            if (ring.length > 1 && JSON.stringify(ring[0]) !== JSON.stringify(ring[ring.length-1])) {
-                ring.push(ring[0]);
-            }
-            if (ring.length < 4) return;
-
-            if (member.role === 'outer') outerRings.push(ring);
-            else if (member.role === 'inner') innerRings.push(ring);
-        });
-
-        if (outerRings.length === 1) {
-            finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [outerRings[0], ...innerRings] } });
-            memberWayIds.forEach(id => processedWayIds.add(id));
-        } else if (outerRings.length > 1) {
-            outerRings.forEach(ring => {
-                finalFeatures.push({ type: 'Feature', properties: el.tags, geometry: { type: 'Polygon', coordinates: [ring] } });
-            });
-            memberWayIds.forEach(id => processedWayIds.add(id));
-        }
-    });
-
-    ways.forEach((way: any) => {
-        if (!way.tags?.building || processedWayIds.has(way.id)) return;
-        const coordinates = way.nodes.map((id: number) => nodes.get(id)).filter(Boolean);
-        if (coordinates.length > 1 && JSON.stringify(coordinates[0]) !== JSON.stringify(coordinates[coordinates.length - 1])) {
-            coordinates.push(coordinates[0]);
-        }
-        if (coordinates.length < 4) return;
-
-        finalFeatures.push({ type: 'Feature', properties: way.tags, geometry: { type: 'Polygon', coordinates: [coordinates] } });
-    });
-
-    return { type: 'FeatureCollection', features: finalFeatures };
-}
 
 const baseLayers: BaseLayer[] = [
     { 
@@ -104,152 +37,18 @@ const baseLayers: BaseLayer[] = [
     },
 ];
 
-function MapControlsWrapper({
-    polygonCoords, isProcessing, geoData, colabUrl, statusMessage, liveBuildings, liveRoads,
-    runStandardExtraction, runRealtimeExtraction, handleDownload, setLiveRoads
-} : {
-    polygonCoords: string | null; isProcessing: boolean; geoData: any;
-    colabUrl: string; statusMessage: string | null; liveBuildings: any; liveRoads: any;
-    runStandardExtraction: () => void;
-    runRealtimeExtraction: () => void; handleDownload: () => void;
-    setLiveRoads: (data: any) => void;
-}) {
-    const map = useMap();
-    const controlRef = useRef<HTMLDivElement>(null);
-    const { toast } = useToast();
-    const [isExtractingRoads, setIsExtractingRoads] = useState(false);
-
-    useEffect(() => {
-        if (controlRef.current) {
-            L.DomEvent.disableClickPropagation(controlRef.current);
-            L.DomEvent.disableScrollPropagation(controlRef.current);
-        }
-    }, []);
-
-    const handleLiveRoadExtraction = async () => {
-        setIsExtractingRoads(true);
-        setLiveRoads(null);
-        try {
-          const bounds = map.getBounds();
-          const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
-    
-          toast({ title: "Extracting Roads...", description: "Querying OpenStreetMap..." });
-    
-          const response = await fetch('/api/gee/extract-live', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bbox, type: 'roads' }),
-          });
-    
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.error || 'Failed to fetch roads from the server');
-    
-          if (data.geoJson) {
-            if (data.geoJson.features.length === 0) {
-                toast({ title: "No Roads Found", description: "No road features were found in the current view.", variant: "destructive" });
-                return;
-            }
-            setLiveRoads(data.geoJson);
-            toast({ title: "Roads Extracted", description: `${data.geoJson.features.length} road segments ready.` });
-          }
-    
-        } catch (error: any) {
-          console.error(error);
-          toast({ title: "Extraction Failed", description: error.message, variant: "destructive" });
-        } finally {
-          setIsExtractingRoads(false);
-        }
-    };
-    
-    const handleDownloadLive = () => {
-        const buildingFeatures = liveBuildings?.features || [];
-        const roadFeatures = liveRoads?.features || [];
-        const features = [...buildingFeatures, ...roadFeatures];
-    
-        if (features.length === 0) {
-            toast({ variant: 'destructive', title: 'No Live Data to Download', description: 'Extract some roads or ensure buildings are visible.' });
-            return;
-        }
-    
-        const combinedGeoJson = {
-            type: "FeatureCollection",
-            features: features
-        };
-    
-        const blob = new Blob([JSON.stringify(combinedGeoJson)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "live_data_export.geojson";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
-
-    const hasSelection = !!polygonCoords;
-
-    return (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] flex flex-col items-center gap-2">
-             {statusMessage && (
-                <div
-                className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
-                >
-                {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                <p className="text-muted-foreground">{statusMessage}</p>
-                </div>
-            )}
-            <div className="flex items-end gap-2">
-                 <div ref={controlRef}>
-                    <GisControlBar
-                        title={<><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</>}
-                        hasSelection={hasSelection}
-                        isProcessing={isProcessing}
-                        geoData={geoData}
-                        colabUrl={colabUrl}
-                        onRunStandard={runStandardExtraction}
-                        onRunRealtime={runRealtimeExtraction}
-                        onDownload={handleDownload}
-                        onZoomIn={() => map.zoomIn()}
-                        onZoomOut={() => map.zoomOut()}
-                        standardTab={{
-                            title: 'GEE Standard',
-                            description: 'Extracts building footprints using standard open-source data. Good for general use.',
-                            buttonText: 'Run GEE'
-                        }}
-                        realtimeTab={{
-                            title: 'AGIS Realtime',
-                            description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
-                            buttonText: 'Run Realtime'
-                        }}
-                    />
-                </div>
-                <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-lg backdrop-blur-xl p-1.5 flex items-center gap-1.5">
-                    <Button onClick={handleLiveRoadExtraction} disabled={isExtractingRoads} variant="outline" className="h-9 bg-white/50">
-                        {isExtractingRoads ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-yellow-500" /> : <Route className="mr-2 h-4 w-4 text-yellow-500" />}
-                        Extract Roads
-                    </Button>
-                    <Button onClick={handleDownloadLive} variant="outline" size="icon" className="h-9 w-9 bg-white/50" disabled={!liveBuildings && !liveRoads}>
-                        <Download className="h-4 w-4" />
-                    </Button>
-                </Card>
-            </div>
-        </div>
-    );
-}
-
 export default function DigitizeMapClient() {
   const { digitize: { polygonCoords, selectionBounds, geoData }, updateToolState } = useGisData();
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>('Engine ready. Draw a polygon to begin.');
-  const workerRef = useRef<Worker | null>(null);
   const { toast } = useToast();
   const { colabUrl } = useServerConfig();
-  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[2]);
+  const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
   const featureGroupRef = useRef<L.FeatureGroup>(null);
 
   const [liveBuildings, setLiveBuildings] = useState<any>(null);
   const [liveRoads, setLiveRoads] = useState<any>(null);
+  const [isExtractingRoads, setIsExtractingRoads] = useState(false);
   
   useEffect(() => {
     const fg = featureGroupRef.current;
@@ -270,26 +69,6 @@ export default function DigitizeMapClient() {
       }
     }
   }, [polygonCoords]);
-
-  useEffect(() => {
-    workerRef.current = new Worker('/workers/digitizeWorker.js');
-    workerRef.current.onmessage = (e: MessageEvent) => {
-      const { status, message, action, data } = e.data;
-
-      if (status === 'info') {
-        setStatusMessage(message);
-      } else if (status === 'success' && action === 'DIGITIZE_MAP') {
-        updateToolState('digitize', { geoData: data });
-        setIsProcessing(false);
-        setStatusMessage(`Vectorization complete. ${data?.features?.length || 0} building footprints delineated.`);
-      } else if (status === 'error') {
-        setIsProcessing(false);
-        setStatusMessage(message);
-        toast({ title: "Geoprocessing Error", description: message, variant: "destructive" });
-      }
-    };
-    return () => workerRef.current?.terminate();
-  }, [toast, updateToolState]);
 
   const handleCreated = (e: any) => {
     const layer = e.layer;
@@ -417,7 +196,8 @@ export default function DigitizeMapClient() {
           noWrap={true}
         />
         
-        <LiveBuildingsLayer onDataFetched={setLiveBuildings} />
+        <LiveBuildingsLayer onDataFetched={setLiveBuildings} onStatusChange={setStatusMessage} />
+
         {liveBuildings && (
             <GeoJSON 
                 data={liveBuildings} 
@@ -466,6 +246,8 @@ export default function DigitizeMapClient() {
         <MapControlsWrapper 
             polygonCoords={polygonCoords}
             isProcessing={isProcessing}
+            isExtractingRoads={isExtractingRoads}
+            setIsExtractingRoads={setIsExtractingRoads}
             geoData={geoData}
             colabUrl={colabUrl}
             statusMessage={statusMessage}
