@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, FeatureGroup, GeoJSON } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import type { LatLng } from 'leaflet';
+import type { LatLng, FeatureCollection } from 'leaflet';
 import { MapControlsWrapper } from './MapControlsWrapper';
 import { MapHeader, type BaseLayer } from './MapHeader';
 import L from 'leaflet';
@@ -45,7 +45,7 @@ export default function ExtractRoadsClient() {
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[0]);
   const featureGroupRef = useRef<L.FeatureGroup>(null);
   
-  const [liveBuildings, setLiveBuildings] = useState<any>(null);
+  const [liveBuildings, setLiveBuildings] = useState<FeatureCollection | null>(null);
   const [liveRoads, setLiveRoads] = useState<any>(null);
   const [isExtractingRoads, setIsExtractingRoads] = useState(false);
 
@@ -198,13 +198,6 @@ export default function ExtractRoadsClient() {
         
         <LiveBuildingsLayer onDataFetched={setLiveBuildings} onStatusChange={setStatusMessage} />
         
-        {liveBuildings && (
-            <GeoJSON
-                key={JSON.stringify(liveBuildings)}
-                data={liveBuildings} 
-                style={{ color: '#00FFFF', weight: 1.5, fillColor: '#00FFFF', fillOpacity: 0.1 }} 
-            />
-        )}
         {liveRoads && (
             <GeoJSON 
                 data={liveRoads} 
