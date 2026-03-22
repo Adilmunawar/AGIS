@@ -11,8 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { GisDataProvider } from '@/context/GisDataContext';
 import Image from 'next/image';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from '@/components/ui/separator';
 
 // Import Leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -74,21 +74,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex h-screen w-screen overflow-hidden bg-background">
           <aside className={cn(
             "flex-shrink-0 bg-background flex flex-col border-r transition-all duration-300",
-            isCollapsed ? "w-20" : "w-56"
+            isCollapsed ? "w-20" : "w-64"
           )}>
-            <div className={cn(
-                "p-4 border-b flex-shrink-0 flex items-center justify-between",
-                isCollapsed && "p-2 justify-center"
-            )}>
+            <div className={cn("p-4 border-b flex items-center gap-3", isCollapsed && "justify-center")}>
+                <Image
+                    src="/AGIS animation/AGIS (1).gif"
+                    alt="AGIS Logo"
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="rounded-md"
+                />
                 {!isCollapsed && (
-                    <div className="flex-1">
-                        <h1 className="text-xl font-bold tracking-tight text-primary">AGIS</h1>
+                    <div className="flex flex-col">
+                        <h1 className="text-lg font-bold tracking-tight text-primary leading-tight">AGIS</h1>
                         <p className="text-xs text-muted-foreground">Advanced Geo-Processing</p>
                     </div>
                 )}
-                <Button variant="ghost" size="icon" onClick={() => setIsCollapsed(!isCollapsed)} className="flex-shrink-0">
-                    {isCollapsed ? <PanelRightClose /> : <PanelLeftClose />}
-                </Button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-3">
@@ -155,7 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </nav>
             </div>
 
-            <div className="flex-shrink-0 border-t p-2">
+            <div className="flex-shrink-0 border-t p-2 space-y-1">
               <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="p-2 rounded-lg hover:bg-accent/80 cursor-pointer group">
@@ -173,15 +175,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </TooltipTrigger>
                   {isCollapsed && <TooltipContent side="right"><p>{user?.displayName || user?.email}</p></TooltipContent>}
               </Tooltip>
-               <Button
-                variant="ghost"
-                size="sm"
-                className={cn("w-full justify-start text-muted-foreground mt-1", isCollapsed && "justify-center")}
-                onClick={() => initiateSignOut(auth)}
-              >
-                <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
-                <span className={cn(isCollapsed && "sr-only")}>Sign Out</span>
-              </Button>
+
+              <Separator />
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center")}
+                        onClick={() => initiateSignOut(auth)}
+                        >
+                        <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+                        <span className={cn(isCollapsed && "sr-only")}>Sign Out</span>
+                        </Button>
+                    </TooltipTrigger>
+                    {isCollapsed && <TooltipContent side="right"><p>Sign Out</p></TooltipContent>}
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center")}
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                        >
+                            {isCollapsed ? <PanelRightClose className={cn("h-4 w-4")} /> : <PanelLeftClose className={cn("h-4 w-4", !isCollapsed && "mr-3")} />}
+                            <span className={cn(isCollapsed && "sr-only")}>{isCollapsed ? "Expand" : "Collapse"}</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right"><p>{isCollapsed ? "Expand" : "Collapse"}</p></TooltipContent>
+                </Tooltip>
             </div>
           </aside>
           <main className="flex-1 relative min-h-0 overflow-hidden">{children}</main>
