@@ -118,7 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                               : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
                           )}
                         >
-                          <item.icon className={cn("flex-shrink-0", isCollapsed ? "h-6 w-6" : "mr-3 h-4 w-4")} />
+                          <item.icon className={cn("h-5 w-5 flex-shrink-0", !isCollapsed && "mr-3")} />
                           <span className={cn(isCollapsed && "sr-only")}>
                             {item.label}
                           </span>
@@ -149,7 +149,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
                             )}
                           >
-                            <item.icon className={cn("flex-shrink-0", isCollapsed ? "h-6 w-6" : "mr-3 h-4 w-4")} />
+                            <item.icon className={cn("h-5 w-5 flex-shrink-0", !isCollapsed && "mr-3")} />
                             <span className={cn(isCollapsed && "sr-only")}>
                               {item.label}
                             </span>
@@ -187,7 +187,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center")}
                         onClick={() => initiateSignOut(auth)}
                         >
-                        <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+                        <LogOut className={cn("h-5 w-5", !isCollapsed && "mr-3")} />
                         <span className={cn(isCollapsed && "sr-only")}>Sign Out</span>
                         </Button>
                     </TooltipTrigger>
