@@ -23,7 +23,7 @@ export default function RoadExtractionControl() {
       const bounds = map.getBounds();
       const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
 
-      toast({ title: "Extracting Roads...", description: "Querying Overture BigQuery." });
+      toast({ title: "Extracting Roads...", description: "Querying OpenStreetMap..." });
 
       const response = await fetch('/api/gee/extract-live', {
         method: 'POST',
@@ -32,23 +32,21 @@ export default function RoadExtractionControl() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch roads from the server');
 
-      if (data.url) {
-        const rRes = await fetch(data.url);
-        const rGeoJson = await rRes.json();
-        
-        if (rGeoJson.features.length === 0) {
+      // FIX: Check for direct geoJson payload from OSM
+      if (data.geoJson) {
+        if (data.geoJson.features.length === 0) {
             toast({ title: "No Roads Found", description: "No road features were found in the current view.", variant: "destructive" });
+            setIsExtracting(false);
             return;
         }
-
-        // Add the new roads directly to the map and store the reference
-        roadsLayerRef.current = L.geoJSON(rGeoJson, {
-          style: { color: '#FF0000', weight: 3, opacity: 0.8 } // Red Roads
+        
+        roadsLayerRef.current = L.geoJSON(data.geoJson, {
+          style: { color: '#FF0000', weight: 3, opacity: 0.8 }
         }).addTo(map);
 
-        toast({ title: "Roads Extracted", description: `${rGeoJson.features.length} road segments added to map.` });
+        toast({ title: "Roads Extracted", description: `${data.geoJson.features.length} road segments added to map.` });
       }
 
     } catch (error: any) {
