@@ -12,6 +12,8 @@ import { MapHeader, type BaseLayer } from './MapHeader';
 import L from 'leaflet';
 import { useGisData } from '@/context/GisDataContext';
 import MousePositionControl from './MousePositionControl';
+import LiveBuildingsLayer from './LiveBuildingsLayer';
+import RoadExtractionControl from './RoadExtractionControl';
 
 function osmToGeoJSON(osmData: any): GeoJSON.FeatureCollection {
     const nodes = new Map<number, number[]>();
@@ -335,6 +337,9 @@ export default function DigitizeMapClient() {
           subdomains={activeLayer.subdomains || ''}
           noWrap={true}
         />
+        
+        <LiveBuildingsLayer />
+        <RoadExtractionControl />
         
         <FeatureGroup ref={featureGroupRef}>
           <EditControl 
