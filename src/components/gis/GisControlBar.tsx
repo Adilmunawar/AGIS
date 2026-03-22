@@ -19,7 +19,6 @@ interface GisControlBarProps {
   isProcessing: boolean;
   geoData: any;
   colabUrl?: string;
-  statusMessage: string | null;
   onRunStandard: () => void;
   onRunRealtime: () => void;
   onDownload: () => void;
@@ -43,7 +42,6 @@ export function GisControlBar({
   isProcessing,
   geoData,
   colabUrl,
-  statusMessage,
   onRunStandard,
   onRunRealtime,
   onDownload,
@@ -68,8 +66,7 @@ export function GisControlBar({
 
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2">
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
@@ -177,16 +174,6 @@ export function GisControlBar({
                 </TooltipContent>
             </Tooltip>
         </TooltipProvider>
-      </div>
-      
-      {statusMessage && (
-        <div
-          className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
-        >
-          {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-          <p className="text-muted-foreground">{statusMessage}</p>
-        </div>
-      )}
     </div>
   );
 }

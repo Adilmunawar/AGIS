@@ -190,41 +190,50 @@ function MapControlsWrapper({
     const hasSelection = !!polygonCoords;
 
     return (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] flex items-end gap-2">
-            <div ref={controlRef}>
-                <GisControlBar
-                    title={<><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</>}
-                    hasSelection={hasSelection}
-                    isProcessing={isProcessing}
-                    geoData={geoData}
-                    colabUrl={colabUrl}
-                    statusMessage={statusMessage}
-                    onRunStandard={runStandardExtraction}
-                    onRunRealtime={runRealtimeExtraction}
-                    onDownload={handleDownload}
-                    onZoomIn={() => map.zoomIn()}
-                    onZoomOut={() => map.zoomOut()}
-                    standardTab={{
-                        title: 'Standard',
-                        description: 'Extracts building footprints using standard open-source data. Good for general use.',
-                        buttonText: 'Run Standard'
-                    }}
-                    realtimeTab={{
-                        title: 'AGIS Realtime',
-                        description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
-                        buttonText: 'Run Realtime'
-                    }}
-                />
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] flex flex-col items-center gap-2">
+            <div className="flex items-end gap-2">
+                 <div ref={controlRef}>
+                    <GisControlBar
+                        title={<><MapIcon className="h-5 w-5 text-primary"/> Digitize Area</>}
+                        hasSelection={hasSelection}
+                        isProcessing={isProcessing}
+                        geoData={geoData}
+                        colabUrl={colabUrl}
+                        onRunStandard={runStandardExtraction}
+                        onRunRealtime={runRealtimeExtraction}
+                        onDownload={handleDownload}
+                        onZoomIn={() => map.zoomIn()}
+                        onZoomOut={() => map.zoomOut()}
+                        standardTab={{
+                            title: 'Standard',
+                            description: 'Extracts building footprints using standard open-source data. Good for general use.',
+                            buttonText: 'Run Standard'
+                        }}
+                        realtimeTab={{
+                            title: 'AGIS Realtime',
+                            description: 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.',
+                            buttonText: 'Run Realtime'
+                        }}
+                    />
+                </div>
+                <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-lg backdrop-blur-xl p-1.5 flex items-center gap-1.5">
+                    <Button onClick={handleLiveRoadExtraction} disabled={isExtractingRoads} variant="outline" className="h-9 bg-white/50">
+                        {isExtractingRoads ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" /> : <Route className="mr-2 h-4 w-4 text-red-500" />}
+                        Extract Roads
+                    </Button>
+                    <Button onClick={handleDownloadLive} variant="outline" size="icon" className="h-9 w-9 bg-white/50" disabled={!liveBuildings && !liveRoads}>
+                        <Download className="h-4 w-4" />
+                    </Button>
+                </Card>
             </div>
-            <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-lg backdrop-blur-xl p-1.5 flex items-center gap-1.5">
-                <Button onClick={handleLiveRoadExtraction} disabled={isExtractingRoads} variant="outline" className="h-9 bg-white/50">
-                    {isExtractingRoads ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" /> : <Route className="mr-2 h-4 w-4 text-red-500" />}
-                    Extract Roads
-                </Button>
-                <Button onClick={handleDownloadLive} variant="outline" size="icon" className="h-9 w-9 bg-white/50" disabled={!liveBuildings && !liveRoads}>
-                    <Download className="h-4 w-4" />
-                </Button>
-            </Card>
+             {statusMessage && (
+                <div
+                className="flex items-center gap-2 rounded-full border border-slate-200/50 bg-white/80 px-4 py-1.5 text-xs shadow-lg backdrop-blur-xl"
+                >
+                {isProcessing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                <p className="text-muted-foreground">{statusMessage}</p>
+                </div>
+            )}
         </div>
     );
 }
