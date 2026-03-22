@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import ee from '@google/earthengine';
 import { initGEE } from '@/lib/geeCore';
