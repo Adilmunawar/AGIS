@@ -199,7 +199,8 @@ export default function ExtractRoadsClient() {
         <LiveBuildingsLayer onDataFetched={setLiveBuildings} onStatusChange={setStatusMessage} />
         
         {liveBuildings && (
-            <GeoJSON 
+            <GeoJSON
+                key={JSON.stringify(liveBuildings)}
                 data={liveBuildings} 
                 style={{ color: '#00FFFF', weight: 1.5, fillColor: '#00FFFF', fillOpacity: 0.1 }} 
             />
