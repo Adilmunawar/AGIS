@@ -73,7 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <TooltipProvider delayDuration={0}>
         <div className="relative flex h-screen w-screen overflow-hidden bg-background">
           <aside className={cn(
-            "flex-shrink-0 bg-background/95 backdrop-blur-sm flex flex-col border-r transition-all duration-300 z-20",
+            "flex-shrink-0 bg-background/95 backdrop-blur-sm flex flex-col border-r transition-all duration-300 z-20 rounded-tr-2xl rounded-br-2xl",
             isCollapsed ? "w-20" : "w-64"
           )}>
             <div className={cn("p-4 border-b flex items-center gap-3", isCollapsed && "justify-center")}>
