@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, FeatureGroup, GeoJSON, useMap } from 'react-le
 import { EditControl } from 'react-leaflet-draw';
 import { useToast } from '@/hooks/use-toast';
 import { useServerConfig } from '@/hooks/use-server-config';
-import { Route as RouteIcon } from 'lucide-react';
+import { Route as RouteIcon, Download, Loader2 } from 'lucide-react';
 import type { LatLng, LatLngBounds } from 'leaflet';
 import { GisControlBar } from './GisControlBar';
 import { MapHeader, type BaseLayer } from './MapHeader';
@@ -12,7 +12,8 @@ import L from 'leaflet';
 import { useGisData } from '@/context/GisDataContext';
 import MousePositionControl from './MousePositionControl';
 import LiveBuildingsLayer from './LiveBuildingsLayer';
-import RoadExtractionControl from './RoadExtractionControl';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 function osmToGeoJSONRoads(osmData: any): GeoJSON.FeatureCollection {
   const nodes = new Map<number, number[]>();
@@ -69,15 +70,19 @@ const baseLayers: BaseLayer[] = [
 ];
 
 function MapControlsWrapper({
-    polygonCoords, isProcessing, geoData, colabUrl, statusMessage,
-    runStandardExtraction, runRealtimeExtraction, handleDownload
+    polygonCoords, isProcessing, geoData, colabUrl, statusMessage, liveBuildings, liveRoads,
+    runStandardExtraction, runRealtimeExtraction, handleDownload, setLiveRoads
 } : {
     polygonCoords: string | null; isProcessing: boolean; geoData: any;
-    colabUrl: string; statusMessage: string | null; runStandardExtraction: () => void;
+    colabUrl: string; statusMessage: string | null; liveBuildings: any; liveRoads: any;
+    runStandardExtraction: () => void;
     runRealtimeExtraction: () => void; handleDownload: () => void;
+    setLiveRoads: (data: any) => void;
 }) {
     const map = useMap();
     const controlRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
+    const [isExtractingRoads, setIsExtractingRoads] = useState(false);
 
     useEffect(() => {
         if (controlRef.current) {
@@ -86,10 +91,71 @@ function MapControlsWrapper({
         }
     }, []);
 
+    const handleLiveRoadExtraction = async () => {
+      setIsExtractingRoads(true);
+      setLiveRoads(null);
+      try {
+        const bounds = map.getBounds();
+        const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+  
+        toast({ title: "Extracting Roads...", description: "Querying OpenStreetMap..." });
+  
+        const response = await fetch('/api/gee/extract-live', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bbox, type: 'roads' }),
+        });
+  
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch roads from the server');
+  
+        if (data.geoJson) {
+          if (data.geoJson.features.length === 0) {
+              toast({ title: "No Roads Found", description: "No road features were found in the current view.", variant: "destructive" });
+              return;
+          }
+          setLiveRoads(data.geoJson);
+          toast({ title: "Roads Extracted", description: `${data.geoJson.features.length} road segments ready.` });
+        }
+  
+      } catch (error: any) {
+        console.error(error);
+        toast({ title: "Extraction Failed", description: error.message, variant: "destructive" });
+      } finally {
+        setIsExtractingRoads(false);
+      }
+    };
+
+    const handleDownloadLive = () => {
+      const buildingFeatures = liveBuildings?.features || [];
+      const roadFeatures = liveRoads?.features || [];
+      const features = [...buildingFeatures, ...roadFeatures];
+  
+      if (features.length === 0) {
+          toast({ variant: 'destructive', title: 'No Live Data to Download', description: 'Extract some roads or ensure buildings are visible.' });
+          return;
+      }
+  
+      const combinedGeoJson = {
+          type: "FeatureCollection",
+          features: features
+      };
+  
+      const blob = new Blob([JSON.stringify(combinedGeoJson)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "live_data_export.geojson";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  };
+
     const hasSelection = !!polygonCoords;
 
     return (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] w-auto max-w-[90vw]">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] flex items-end gap-2">
             <div ref={controlRef}>
               <GisControlBar
                 title={<><RouteIcon className="h-5 w-5 text-primary"/> Extract Roads</>}
@@ -115,6 +181,15 @@ function MapControlsWrapper({
                 }}
               />
             </div>
+             <Card className="rounded-xl border-slate-200/50 bg-white/80 shadow-lg backdrop-blur-xl p-1.5 flex items-center gap-1.5">
+                <Button onClick={handleLiveRoadExtraction} disabled={isExtractingRoads} variant="outline" className="h-9 bg-white/50">
+                    {isExtractingRoads ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" /> : <RouteIcon className="mr-2 h-4 w-4 text-red-500" />}
+                    Extract Roads
+                </Button>
+                <Button onClick={handleDownloadLive} variant="outline" size="icon" className="h-9 w-9 bg-white/50" disabled={!liveBuildings && !liveRoads}>
+                    <Download className="h-4 w-4" />
+                </Button>
+            </Card>
         </div>
     );
 }
@@ -128,6 +203,9 @@ export default function ExtractRoadsClient() {
   const { colabUrl } = useServerConfig();
   const [activeLayer, setActiveLayer] = useState<BaseLayer>(baseLayers[2]);
   const featureGroupRef = useRef<L.FeatureGroup>(null);
+  
+  const [liveBuildings, setLiveBuildings] = useState<any>(null);
+  const [liveRoads, setLiveRoads] = useState<any>(null);
 
   useEffect(() => {
     const fg = featureGroupRef.current;
@@ -302,8 +380,21 @@ export default function ExtractRoadsClient() {
           noWrap={true}
         />
         
-        <LiveBuildingsLayer />
-        <RoadExtractionControl />
+        <LiveBuildingsLayer onDataFetched={setLiveBuildings} />
+        {liveBuildings && (
+            <GeoJSON 
+                key={JSON.stringify(liveBuildings)}
+                data={liveBuildings} 
+                style={{ color: '#00FFFF', weight: 1.5, fillColor: '#00FFFF', fillOpacity: 0.1 }} 
+            />
+        )}
+        {liveRoads && (
+            <GeoJSON 
+                key={JSON.stringify(liveRoads)}
+                data={liveRoads} 
+                style={{ color: '#FF0000', weight: 3, opacity: 0.8 }} 
+            />
+        )}
         
         <FeatureGroup ref={featureGroupRef}>
           <EditControl 
@@ -335,7 +426,7 @@ export default function ExtractRoadsClient() {
         
         {geoData && <GeoJSON data={geoData} style={{ color: '#ef4444', weight: 4 }} />}
 
-         <MapControlsWrapper 
+        <MapControlsWrapper 
             polygonCoords={polygonCoords}
             isProcessing={isProcessing}
             geoData={geoData}
@@ -344,6 +435,9 @@ export default function ExtractRoadsClient() {
             runStandardExtraction={runStandardExtraction}
             runRealtimeExtraction={runRealtimeExtraction}
             handleDownload={handleDownload}
+            liveBuildings={liveBuildings}
+            liveRoads={liveRoads}
+            setLiveRoads={setLiveRoads}
         />
         <MousePositionControl />
       </MapContainer>
