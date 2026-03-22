@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, PanelLeftClose, PanelRightClose } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -71,9 +71,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <GisDataProvider>
       <TooltipProvider delayDuration={0}>
-        <div className="flex h-screen w-screen overflow-hidden bg-background">
+        <div className="relative flex h-screen w-screen overflow-hidden bg-background">
           <aside className={cn(
-            "flex-shrink-0 bg-background flex flex-col border-r transition-all duration-300",
+            "flex-shrink-0 bg-background/95 backdrop-blur-sm flex flex-col border-r transition-all duration-300 z-20",
             isCollapsed ? "w-20" : "w-64"
           )}>
             <div className={cn("p-4 border-b flex items-center gap-3", isCollapsed && "justify-center")}>
@@ -175,9 +175,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </TooltipTrigger>
                   {isCollapsed && <TooltipContent side="right"><p>{user?.displayName || user?.email}</p></TooltipContent>}
               </Tooltip>
-
-              <Separator />
-
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button
@@ -192,23 +189,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </TooltipTrigger>
                     {isCollapsed && <TooltipContent side="right"><p>Sign Out</p></TooltipContent>}
                 </Tooltip>
-
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center")}
-                            onClick={() => setIsCollapsed(!isCollapsed)}
-                        >
-                            {isCollapsed ? <PanelRightClose className={cn("h-4 w-4")} /> : <PanelLeftClose className={cn("h-4 w-4", !isCollapsed && "mr-3")} />}
-                            <span className={cn(isCollapsed && "sr-only")}>{isCollapsed ? "Expand" : "Collapse"}</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right"><p>{isCollapsed ? "Expand" : "Collapse"}</p></TooltipContent>
-                </Tooltip>
             </div>
           </aside>
+           <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={() => setIsCollapsed(!isCollapsed)}
+                  variant="outline"
+                  size="icon"
+                  className="absolute top-1/2 z-30 h-7 w-7 rounded-full -translate-y-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-xl shadow-lg border-border/50 transition-all duration-300 hover:scale-110 hover:border-primary/50"
+                  style={{ left: isCollapsed ? '5rem' : '16rem' }}
+                >
+                  {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10}>
+                <p>{isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}</p>
+              </TooltipContent>
+            </Tooltip>
           <main className="flex-1 relative min-h-0 overflow-hidden">{children}</main>
         </div>
       </TooltipProvider>
