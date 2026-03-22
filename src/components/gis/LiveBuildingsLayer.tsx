@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useMap, useMapEvents } from 'react-leaflet';
 import { GeoJSON } from 'react-leaflet';
-import { useDebounce } from '@/hooks/use-debounce';
 
 export default function LiveBuildingsLayer() {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
@@ -11,12 +10,14 @@ export default function LiveBuildingsLayer() {
   const map = useMap();
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // The function to fetch buildings, memoized to prevent re-creation on every render.
   const fetchBuildings = useCallback(async () => {
     if (map.getZoom() < 15) {
       setGeoJsonData(null);
       return;
     }
     
+    // Abort any ongoing fetch request.
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -59,15 +60,33 @@ export default function LiveBuildingsLayer() {
     }
   }, [map]);
 
-  const debouncedFetch = useDebounce(fetchBuildings, 500);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Creates a stable, debounced version of the fetchBuildings function.
+  const debouncedFetch = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      fetchBuildings();
+    }, 500);
+  }, [fetchBuildings]);
+
+  // Safely use the debounced function in map events.
   useMapEvents({
     moveend: debouncedFetch,
     zoomend: debouncedFetch,
   });
 
+  // Initial fetch when the component mounts and cleanup on unmount.
   useEffect(() => {
     debouncedFetch();
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [debouncedFetch]);
 
   if (!geoJsonData || map.getZoom() < 15) return null;
