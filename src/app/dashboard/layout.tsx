@@ -53,6 +53,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, isUserLoading, pathname, router]);
 
+  const handleToggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+    // Leaflet maps listen for the window's resize event. By dispatching it manually
+    // after the sidebar transition, we force all maps on the page to re-evaluate
+    // their container size and redraw correctly.
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 310); // A little longer than the 300ms transition duration
+  };
+
   if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
@@ -193,7 +203,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    onClick={handleToggleCollapse}
                     variant="outline"
                     size="icon"
                     className="absolute top-1/2 z-30 h-7 w-7 rounded-full -translate-y-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-xl shadow-lg border-border/50 transition-all duration-300 hover:scale-110 hover:border-primary/50"
