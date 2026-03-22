@@ -71,9 +71,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <GisDataProvider>
       <TooltipProvider delayDuration={0}>
-        <div className="relative flex h-screen w-screen overflow-hidden bg-background">
+        <div className="relative h-screen w-screen overflow-hidden bg-background">
           <aside className={cn(
-            "flex-shrink-0 bg-background/95 backdrop-blur-sm flex flex-col border-r transition-all duration-300 z-20 rounded-tr-2xl rounded-br-2xl",
+            "absolute top-0 left-0 h-full bg-background/95 backdrop-blur-sm flex flex-col border-r transition-all duration-300 z-20 rounded-tr-2xl rounded-br-2xl",
             isCollapsed ? "w-20" : "w-64"
           )}>
             <div className={cn("p-4 border-b flex items-center gap-3", isCollapsed && "justify-center")}>
@@ -185,23 +185,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </Tooltip>
             </div>
           </aside>
-           <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={() => setIsCollapsed(!isCollapsed)}
-                  variant="outline"
-                  size="icon"
-                  className="absolute top-1/2 z-30 h-7 w-7 rounded-full -translate-y-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-xl shadow-lg border-border/50 transition-all duration-300 hover:scale-110 hover:border-primary/50"
-                  style={{ left: isCollapsed ? '5rem' : '16rem' }}
-                >
-                  {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={10}>
-                <p>{isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}</p>
-              </TooltipContent>
-            </Tooltip>
-          <main className="flex-1 relative min-h-0 overflow-hidden">{children}</main>
+
+          <main className={cn(
+            "h-full w-full overflow-hidden transition-all duration-300",
+            isCollapsed ? "pl-20" : "pl-64"
+          )}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    variant="outline"
+                    size="icon"
+                    className="absolute top-1/2 z-30 h-7 w-7 rounded-full -translate-y-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-xl shadow-lg border-border/50 transition-all duration-300 hover:scale-110 hover:border-primary/50"
+                    style={{ left: isCollapsed ? '5rem' : '16rem' }}
+                  >
+                    {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                  <p>{isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}</p>
+                </TooltipContent>
+              </Tooltip>
+            {children}
+          </main>
+
         </div>
       </TooltipProvider>
     </GisDataProvider>
