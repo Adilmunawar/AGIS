@@ -539,19 +539,15 @@ export default function SentinelAnalysisClient() {
                     <div className="p-2 border-b">
                         <Label className="text-xs font-semibold text-muted-foreground mb-1.5 block px-1">Data Layers</Label>
                         <div className="grid grid-cols-2 gap-1.5">
-                        {isFetchingTiles ? (
-                            Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)
-                        ) : (
-                            AVAILABLE_LAYERS.map(layer => (
+                            {AVAILABLE_LAYERS.map(layer => (
                                 <div key={layer.id} className="flex items-center justify-between p-1 rounded-md hover:bg-accent transition-colors border bg-accent/20">
                                     <Label htmlFor={layer.id} className="flex items-center gap-2 cursor-pointer text-xs font-medium">
                                         <layer.icon className="h-3.5 w-3.5 text-muted-foreground" />
                                         {layer.name}
                                     </Label>
-                                    <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} />
+                                    <Switch id={layer.id} checked={activeLayers[layer.id] || false} onCheckedChange={() => toggleLayer(layer.id)} disabled={isFetchingTiles} />
                                 </div>
-                            ))
-                        )}
+                            ))}
                         </div>
                     </div>
 
