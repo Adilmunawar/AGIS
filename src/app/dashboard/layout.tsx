@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Map, Route, Layers as LayersIcon, Download, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, ChevronsLeft, ChevronsRight, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -22,7 +22,7 @@ const sidebarNavItems = [
   { href: '/dashboard/digitize', label: 'Digitize Area', icon: Map },
   { href: '/dashboard/extract-roads', label: 'Extract Roads', icon: Route },
   { href: '/dashboard/merge-jsons', label: 'Merge JSONs', icon: LayersIcon },
-  { href: '/dashboard/export-shapefile', label: 'Export Shapefile', icon: Download },
+  { href: '/dashboard/export-shapefile', label: 'Data Converter', icon: ArrowRightLeft },
   { href: '/dashboard/nano-vision', label: 'Nano Vision', icon: Sparkles },
   { href: '/dashboard/import-parcels', label: 'Import Parcels', icon: FolderInput },
   { href: '/dashboard/parcels-database', label: 'Parcels Database', icon: Database },
