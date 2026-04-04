@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { initGEE, getZaraatDostLayers, getMapUrl } from '@/lib/geeCore';
+import ee from '@google/earthengine';
 
 export async function GET() {
   try {
@@ -19,17 +20,66 @@ export async function GET() {
     };
 
     const urls: Record<string, string> = {};
-    for (const key of Object.keys(visParams)) {
+    const promises = Object.keys(visParams).map(async (key) => {
       // @ts-ignore
       if (layers[key]) {
-          // @ts-ignore
-          urls[key] = await getMapUrl(layers[key], visParams[key]);
+          try {
+            // @ts-ignore
+            urls[key] = await getMapUrl(layers[key], visParams[key]);
+          } catch(e) {
+            console.warn(`Could not generate tile for global layer ${key}`);
+          }
       }
-    }
+    });
+
+    await Promise.all(promises);
 
     return NextResponse.json({ status: 'success', tiles: urls });
   } catch (error: any) {
     console.error("GEE Tile Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    await initGEE();
+    const { assetId } = await req.json();
+    if (!assetId) {
+      return NextResponse.json({ error: "assetId is required" }, { status: 400 });
+    }
+
+    const image = ee.Image(assetId);
+
+    // Standard visualizations for Sentinel-2 or Landsat-like assets
+    const visConfigs = {
+      trueColor: { name: 'True Color (B4/B3/B2)', params: { bands: ['B4', 'B3', 'B2'], min: 0, max: 3000, gamma: 1.4 }},
+      falseColor: { name: 'Color Infrared (B8/B4/B3)', params: { bands: ['B8', 'B4', 'B3'], min: 0, max: 4000, gamma: 1.4 }},
+      swir: { name: 'SWIR (B12/B8A/B4)', params: { bands: ['B12', 'B8A', 'B4'], min: 0, max: 5000, gamma: 1.4 }},
+      agriculture: { name: 'Agriculture (B11/B8/B2)', params: { bands: ['B11', 'B8', 'B2'], min: 0, max: 5000, gamma: 1.4 }},
+    };
+
+    const urls: Record<string, {name: string, url: string}> = {};
+
+    const promises = Object.entries(visConfigs).map(async ([key, config]) => {
+      try {
+        const url = await getMapUrl(image, config.params);
+        urls[key] = { name: config.name, url };
+      } catch (e) {
+        console.warn(`Could not generate tile URL for vis '${key}' on asset '${assetId}'. This may be because the image does not contain the required bands.`);
+      }
+    });
+
+    await Promise.all(promises);
+
+    if (Object.keys(urls).length === 0) {
+        throw new Error("Could not generate any visualizations. Please ensure the asset is a valid image with standard bands (e.g., B4, B3, B2).");
+    }
+
+    return NextResponse.json({ status: 'success', tiles: urls });
+
+  } catch (error: any) {
+    console.error("GEE Asset Tile Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
