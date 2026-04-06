@@ -6,66 +6,57 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Image as ImageIcon, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Loader2, Layers, Map as MapIcon, Activity, Droplets, FlaskConical, Flame, Wheat } from 'lucide-react';
 import { LocationSearch } from './LocationSearch';
+import { MapLegends } from './MapLegends';
+import { Skeleton } from '@/components/ui/skeleton';
 
-type AssetVis = {
-  name: string;
-  url: string;
-};
+const AVAILABLE_LAYERS = [
+  { id: 'classification', name: 'AI Crop Classification', icon: Wheat },
+  { id: 's2_true_color', name: 'Live Sentinel-2 Photo', icon: MapIcon },
+  { id: 'ndvi', name: 'Greenness / Health (NDVI)', icon: Activity },
+  { id: 'ndmi', name: 'Leaf Moisture (NDMI)', icon: Droplets },
+  { id: 'ndre', name: 'Nitrogen Content (NDRE)', icon: FlaskConical },
+  { id: 'bsi', name: 'Bare Soil / Ploughed (BSI)', icon: () => <div className="h-4 w-4 rounded-full bg-orange-900 border-2 border-orange-950/50" /> },
+  { id: 'nbr', name: 'Stubble Burning (NBR)', icon: Flame },
+];
 
 export default function SentinelVisionClient() {
-  const [assetId, setAssetId] = useState('');
-  const [assetTiles, setAssetTiles] = useState<Record<string, AssetVis> | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [tileUrls, setTileUrls] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVis, setSelectedVis] = useState<string | null>(null);
+  const [selectedLayer, setSelectedLayer] = useState<string>('s2_true_color');
 
-  const handleLoadAsset = async () => {
-    if (!assetId) {
-      setError('Please enter a Google Earth Engine Asset ID.');
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    setAssetTiles(null);
-    setSelectedVis(null);
-
-    try {
-      const res = await fetch(`/api/gee/tiles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assetId }),
-      });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        setAssetTiles(data.tiles);
-        // Automatically select the first available visualization
-        const firstVisKey = Object.keys(data.tiles)[0];
-        if (firstVisKey) {
-          setSelectedVis(firstVisKey);
+  useEffect(() => {
+    const fetchTiles = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/gee/tiles');
+        const data = await res.json();
+        if (data.status === 'success') {
+          setTileUrls(data.tiles);
+        } else {
+          throw new Error(data.error || 'Failed to fetch GEE tile layers.');
         }
-      } else {
-        throw new Error(data.error || 'Failed to load asset.');
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    fetchTiles();
+  }, []);
 
-  const activeTileUrl = selectedVis && assetTiles ? assetTiles[selectedVis]?.url : null;
+  const activeTileUrl = tileUrls[selectedLayer] || null;
 
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
         <MapContainer center={[30.6682, 73.1114]} zoom={12} zoomControl={false} style={{ height: '100%', width: '100%', backgroundColor: '#1a1a1a' }}>
             <TileLayer attribution='&copy; Google' url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" zIndex={1} />
-            
+
             {activeTileUrl && (
               <TileLayer key={activeTileUrl} url={activeTileUrl} opacity={0.9} zIndex={10} />
             )}
@@ -73,60 +64,43 @@ export default function SentinelVisionClient() {
             <div className="absolute top-4 left-4 z-[1000]">
               <LocationSearch />
             </div>
+            
+            <MapLegends currentBand={selectedLayer} />
 
-            <Card className="absolute top-4 right-4 z-[1000] w-80 bg-card/80 backdrop-blur-md shadow-2xl border-border/50">
+            <Card className="absolute top-4 right-4 z-[1000] w-72 bg-card/80 backdrop-blur-md shadow-2xl border-border/50">
                 <CardHeader className="p-4 border-b border-border/50">
                     <CardTitle className="flex items-center gap-2 text-base">
-                        <ImageIcon className="h-5 w-5 text-primary" />
-                        Custom Raster Explorer
+                        <Layers className="h-5 w-5 text-primary" />
+                        Sentinel-2 Vision
                     </CardTitle>
                     <CardDescription className="text-xs pt-1">
-                        Upload a raster to your GEE Assets, then paste the Asset ID below to visualize it.
+                        Explore global analysis-ready satellite imagery from the past 60 days.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="asset-id" className="font-semibold">GEE Asset ID</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        id="asset-id" 
-                        placeholder="e.g., users/username/asset_name"
-                        value={assetId}
-                        onChange={(e) => setAssetId(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleLoadAsset()}
-                        disabled={isLoading}
-                      />
-                      <Button onClick={handleLoadAsset} disabled={isLoading || !assetId}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
-                      </Button>
+                <CardContent className="p-4">
+                  {isLoading ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                      {Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-5 w-full" />)}
                     </div>
-                  </div>
-
-                  {error && (
-                     <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
-                        <AlertTriangle className="h-4 w-4" />
-                        <div>
-                            <p className="font-semibold">Error</p>
-                            <p className="text-xs">{error}</p>
-                        </div>
-                    </div>
-                  )}
-
-                  {assetTiles && (
-                    <div className="space-y-3 pt-2 animate-in fade-in duration-300">
-                        <div className="flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5 text-green-500"/>
-                            <Label className="font-semibold">Visualizations</Label>
-                        </div>
-                        <RadioGroup value={selectedVis || ''} onValueChange={setSelectedVis}>
-                            {Object.entries(assetTiles).map(([key, vis]) => (
-                                <div key={key} className="flex items-center space-x-2">
-                                    <RadioGroupItem value={key} id={key} />
-                                    <Label htmlFor={key} className="text-sm font-medium cursor-pointer">{vis.name}</Label>
-                                </div>
-                            ))}
-                        </RadioGroup>
-                    </div>
+                  ) : error ? (
+                    <p className="text-sm text-destructive">{error}</p>
+                  ) : (
+                    <RadioGroup value={selectedLayer} onValueChange={setSelectedLayer} className="space-y-1">
+                      {AVAILABLE_LAYERS.map((layer) => (
+                          tileUrls[layer.id] && (
+                            <div key={layer.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent">
+                                <RadioGroupItem value={layer.id} id={layer.id} />
+                                <Label htmlFor={layer.id} className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                  <layer.icon className="h-4 w-4 text-muted-foreground" />
+                                  {layer.name}
+                                </Label>
+                            </div>
+                          )
+                      ))}
+                    </RadioGroup>
                   )}
                 </CardContent>
             </Card>

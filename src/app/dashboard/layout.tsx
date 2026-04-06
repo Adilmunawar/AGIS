@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Map, Route, Layers as LayersIcon, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, ChevronsLeft, ChevronsRight, ArrowRightLeft } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, ChevronsLeft, ChevronsRight, ArrowRightLeft, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -27,6 +27,7 @@ const sidebarNavItems = [
   { href: '/dashboard/import-parcels', label: 'Import Parcels', icon: FolderInput },
   { href: '/dashboard/parcels-database', label: 'Parcels Database', icon: Database },
   { href: '/dashboard/sentinel-vision', label: 'Sentinel Vision', icon: Satellite },
+  { href: '/dashboard/custom-raster', label: 'Custom Raster', icon: ImageIcon },
   { href: '/dashboard/sentinel-analysis', label: 'Sentinel Analysis', icon: BarChart3 },
 ];
 
