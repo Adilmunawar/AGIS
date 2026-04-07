@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import dynamic from 'next/dynamic';
 import L, { LatLngBoundsExpression } from 'leaflet';
 import * as turf from '@turf/turf';
 
@@ -11,12 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { FileJson, UploadCloud, Loader2, Trash2, LayersIcon, MapIcon, Download, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 
-// Dynamically import map components to avoid SSR issues
-const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
-const GeoJSON = dynamic(() => import('react-leaflet').then(mod => mod.GeoJSON), { ssr: false });
 
 const FitBounds = ({ bounds }: { bounds: LatLngBoundsExpression | null }) => {
     const map = useMap();

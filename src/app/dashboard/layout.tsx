@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Map, Route, Layers as LayersIcon, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, ChevronsLeft, ChevronsRight, ArrowRightLeft, Image as ImageIcon } from 'lucide-react';
+import { Map, Route, Layers as LayersIcon, LogOut, User as UserIcon, Server, Sparkles, Package, FolderInput, Database, Satellite, BarChart3, ChevronsLeft, ChevronsRight, ArrowRightLeft, Image as ImageIcon, Shield, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { initiateSignOut } from '@/firebase/non-blocking-login';
@@ -13,6 +13,7 @@ import { GisDataProvider } from '@/context/GisDataContext';
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 // Import Leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -180,20 +181,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </TooltipTrigger>
                   {isCollapsed && <TooltipContent side="right"><p>{user?.displayName || user?.email}</p></TooltipContent>}
               </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center")}
-                        onClick={() => initiateSignOut(auth)}
-                        >
-                        <LogOut className={cn("h-5 w-5", !isCollapsed && "mr-3")} />
-                        <span className={cn(isCollapsed && "sr-only")}>Sign Out</span>
-                        </Button>
-                    </TooltipTrigger>
-                    {isCollapsed && <TooltipContent side="right"><p>Sign Out</p></TooltipContent>}
-                </Tooltip>
+
+              <Separator className="my-1" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/privacy-policy"
+                    className={cn(
+                      "flex items-center rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/80 hover:text-foreground",
+                      isCollapsed ? "h-10 w-full justify-center" : "px-3 py-1.5"
+                    )}
+                  >
+                    <Shield className={cn("h-4 w-4 flex-shrink-0", !isCollapsed && "mr-3")} />
+                    <span className={cn(isCollapsed && "sr-only")}>Privacy Policy</span>
+                  </Link>
+                </TooltipTrigger>
+                {isCollapsed && <TooltipContent side="right"><p>Privacy Policy</p></TooltipContent>}
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/terms-of-service"
+                    className={cn(
+                      "flex items-center rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/80 hover:text-foreground",
+                      isCollapsed ? "h-10 w-full justify-center" : "px-3 py-1.5"
+                    )}
+                  >
+                    <FileText className={cn("h-4 w-4 flex-shrink-0", !isCollapsed && "mr-3")} />
+                    <span className={cn(isCollapsed && "sr-only")}>Terms of Service</span>
+                  </Link>
+                </TooltipTrigger>
+                {isCollapsed && <TooltipContent side="right"><p>Terms of Service</p></TooltipContent>}
+              </Tooltip>
+              
+              <Tooltip>
+                  <TooltipTrigger asChild>
+                      <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center")}
+                      onClick={() => initiateSignOut(auth)}
+                      >
+                      <LogOut className={cn("h-5 w-5", !isCollapsed && "mr-3")} />
+                      <span className={cn(isCollapsed && "sr-only")}>Sign Out</span>
+                      </Button>
+                  </TooltipTrigger>
+                  {isCollapsed && <TooltipContent side="right"><p>Sign Out</p></TooltipContent>}
+              </Tooltip>
             </div>
           </aside>
 
