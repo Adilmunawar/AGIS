@@ -13,14 +13,19 @@ import { Badge } from '@/components/ui/badge'
 import { useGisData } from '@/context/GisDataContext'
 import dynamic from 'next/dynamic'
 import * as turf from '@turf/turf'
-import { Layers, Table as TableIcon } from 'lucide-react'
+import { Layers, Table as TableIcon, Cloud } from 'lucide-react'
 import { UploadMauzaDialog } from './UploadMauzaDialog'
 import { uploadMauzaAndParcels } from '@/firebase/services/mauza-upload'
 import { useAuth, useFirestore, useStorage } from '@/firebase';
 
 const LayerPreviewMap = dynamic(() => import('./LayerPreviewMap'), { ssr: false });
 
-const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear }: any) => {
+const GoogleDriveIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M10.4 17.6 12 16l1.6 1.6"></path><path d="m12 16-1.6-1.6"></path><path d="M8 10h1.1"></path><path d="M12.5 10h1.1"></path><path d="m17 10-1.1.1"></path></svg>
+);
+
+
+const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear, onDriveImport }: any) => {
     const [isDragging, setIsDragging] = useState(false);
 
     const handleDrop = useCallback((event: React.DragEvent) => {
@@ -54,7 +59,7 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear }: a
              <CardContent className={cn("p-2 space-y-2", !data && "cursor-pointer")}>
                 <div className="flex items-center justify-between px-1">
                      <h4 className="font-semibold text-xs">{title}</h4>
-                     {data && (
+                     {data ? (
                         <div className="flex items-center gap-1.5 z-20 relative">
                             <Badge variant="secondary" className="flex items-center gap-1.5 pl-2">
                                 <CheckCircle className="h-3.5 w-3.5 text-green-500"/> 
@@ -64,6 +69,10 @@ const FileUploader = ({ layer, title, data, onUpload, isProcessing, onClear }: a
                                 <X className="h-3.5 w-3.5"/>
                             </button>
                         </div>
+                     ) : (
+                         <Button onClick={(e) => { e.stopPropagation(); onDriveImport(layer); }} variant="ghost" size="sm" className="h-6 px-1.5 text-xs z-20 relative text-muted-foreground hover:text-primary">
+                            <GoogleDriveIcon className="h-3.5 w-3.5 mr-1"/> From Drive
+                         </Button>
                      )}
                 </div>
                  <div
@@ -108,7 +117,7 @@ const getVisibleColumns = (features: any[]) => {
 
 export type EditorTool = 'select' | 'multi-select';
 
-export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: any) {
+export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect, onDriveImport }: any) {
     const { updateToolState, importParcels: { boundaryData, parcelsData, selectedFeatureIds } } = useGisData();
     const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>(null);
     const { toast } = useToast();
@@ -288,8 +297,8 @@ export function ParcelEditorDocker({ onUpload, isProcessing, onFeatureSelect }: 
                     </div>
 
                     <TabsContent value="layers" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2 bg-muted/30">
-                        <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} onClear={handleClearLayer} />
-                        <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} onClear={handleClearLayer} />
+                        <FileUploader layer="boundary" title="Main Boundary" data={boundaryData} onUpload={onUpload} isProcessing={isProcessing['boundary']} onClear={handleClearLayer} onDriveImport={onDriveImport} />
+                        <FileUploader layer="parcels" title="Parcels Layer" data={parcelsData} onUpload={onUpload} isProcessing={isProcessing['parcels']} onClear={handleClearLayer} onDriveImport={onDriveImport} />
                     </TabsContent>
 
                     <TabsContent value="table" className="flex-1 min-h-0 overflow-auto p-1">
