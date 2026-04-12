@@ -60,9 +60,14 @@ export async function POST(req: Request) {
 
         // --- Classifications ---
         const classifiedNow = classifyLandcover(s2Current).clip(aoi);
-        const classifiedPast = classifyLandcover(s2Past).clip(aoi);
         
+        // --- Change Detection ---
+        const ndviNow = s2Current.normalizedDifference(['B8', 'B4']);
+        const ndviPast = s2Past.normalizedDifference(['B8', 'B4']);
+        const ndviChange = ndviNow.subtract(ndviPast).rename('ndvi_change');
+
         // --- Deforestation / Reforestation ---
+        const classifiedPast = classifyLandcover(s2Past).clip(aoi);
         const treesNow = classifiedNow.eq(3);
         const treesPast = classifiedPast.eq(3);
         const deforestation = treesPast.and(treesNow.not()).rename('deforestation'); // Was tree, is not tree now
@@ -100,6 +105,7 @@ export async function POST(req: Request) {
         const visParams = {
             classification: { min: 0, max: 3, palette: ['#FFFFFF', '#0000FF', '#7CFC00', '#006400'] },
             forestChange: { min: 1, max: 2, palette: ['#00FF00', '#FF0000'] },
+            timeTravel: { min: -0.3, max: 0.3, palette: ['FF0000', 'FFFFFF', '00FF00'] },
             vectorOutlines: { palette: ['#FFD700'] },
             ndvi: { min: -0.2, max: 0.8, palette: ['red', 'yellow', 'green'] },
             ndwi: { min: -0.5, max: 0.5, palette: ['brown', 'white', 'blue'] },
@@ -109,7 +115,8 @@ export async function POST(req: Request) {
 
         const tileUrls = {
             classification: await getMapUrl(classifiedNow, visParams.classification),
-            forestChange: await getMapUrl(forestChange, visParams.forestChange),
+            deforestation: await getMapUrl(forestChange, visParams.forestChange),
+            timeTravel: await getMapUrl(ndviChange.clip(aoi), visParams.timeTravel),
             vectorOutlines: await getMapUrl(vectorOutlines, visParams.vectorOutlines),
             ndvi: await getMapUrl(ndvi.clip(aoi), visParams.ndvi),
             ndwi: await getMapUrl(ndwi.clip(aoi), visParams.ndwi),

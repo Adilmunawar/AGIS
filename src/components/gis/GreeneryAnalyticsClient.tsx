@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trees, Waves, Building, Leaf } from 'lucide-react';
+import { Loader2, Trees, Waves, Building, Leaf, Timer } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { MapLegends } from './MapLegends';
@@ -26,7 +26,8 @@ interface AnalyticsStats {
 
 interface TileUrls {
   classification: string;
-  forestChange: string;
+  deforestation: string;
+  timeTravel: string;
   vectorOutlines: string;
   ndvi: string;
   ndwi: string;
@@ -36,7 +37,8 @@ interface TileUrls {
 
 const ANALYTICAL_LAYERS = [
     { id: 'classification', name: 'Land Cover Classification' },
-    { id: 'forestChange', name: 'Deforestation Hotspots (1-Yr)' },
+    { id: 'timeTravel', name: 'Time Travel (1-Yr NDVI)' },
+    { id: 'deforestation', name: 'Deforestation Hotspots' },
     { id: 'ndvi', name: 'Vegetation Health (NDVI)' },
     { id: 'ndwi', name: 'Water Presence (NDWI)' },
     { id: 'savi', name: 'Soil-Adjusted Veg. (SAVI)' },
@@ -61,20 +63,30 @@ const StatCard = ({ icon: Icon, label, value, unit, isLoading }: { icon: React.E
     </div>
 );
 
-const MapEventsComponent = ({ setCenter }: { setCenter: (center: LatLng) => void }) => {
-  const map = useMap();
-  useMapEvents({
-    moveend: () => setCenter(map.getCenter()),
-    load: () => setCenter(map.getCenter())
-  });
-  return null;
+// --- MAP CONTROLLER COMPONENT ---
+const MapAnalysisController = ({ onAnalyticsRequested }: { onAnalyticsRequested: (center: LatLng) => void }) => {
+    const [center, setCenter] = useState<LatLng | null>(null);
+    const debouncedCenter = useDebounce(center, 750);
+
+    useMapEvents({
+        moveend: (e) => setCenter(e.target.getCenter()),
+        load: (e) => setCenter(e.target.getCenter()),
+    });
+
+    useEffect(() => {
+        if (debouncedCenter) {
+            onAnalyticsRequested(debouncedCenter);
+        }
+    }, [debouncedCenter, onAnalyticsRequested]);
+
+    return null; // This component does not render anything
 };
+
 
 // --- MAIN COMPONENT ---
 export default function GreeneryAnalyticsClient() {
   const { toast } = useToast();
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
-  const debouncedCenter = useDebounce(mapCenter, 750);
 
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [tileUrls, setTileUrls] = useState<TileUrls | null>(null);
@@ -85,7 +97,7 @@ export default function GreeneryAnalyticsClient() {
   const handleRunAnalytics = useCallback(async (centerToAnalyze: LatLng) => {
     if (!centerToAnalyze) return;
     setIsAnalyzing(true);
-    setTileUrls(null); 
+    setMapCenter(centerToAnalyze);
 
     try {
       const response = await fetch('/api/gee/analytics', {
@@ -107,12 +119,6 @@ export default function GreeneryAnalyticsClient() {
       setIsAnalyzing(false);
     }
   }, [toast]);
-  
-  useEffect(() => {
-    if (debouncedCenter) {
-        handleRunAnalytics(debouncedCenter);
-    }
-  }, [debouncedCenter, handleRunAnalytics]);
 
   const displayedTileUrl = useMemo(() => {
       if (!tileUrls) return null;
@@ -179,9 +185,9 @@ export default function GreeneryAnalyticsClient() {
           <TileLayer url="https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}" subdomains={['mt0', 'mt1', 'mt2', 'mt3']} attribution="&copy; Google" zIndex={1} />
           
           {displayedTileUrl && <TileLayer key={displayedTileUrl} url={displayedTileUrl} opacity={0.65} zIndex={10} />}
-          {showVectors && tileUrls?.vectorOutlines && <TileLayer key={tileUrls.vectorOutlines} url={tileUrls.vectorOutlines} opacity={0.9} zIndex={11} />}
+          {showVectors && tileUrls?.vectorOutlines && <TileLayer key={`vectors-${tileUrls.vectorOutlines}`} url={tileUrls.vectorOutlines} opacity={0.9} zIndex={11} />}
           
-          <MapEventsComponent setCenter={setMapCenter} />
+          <MapAnalysisController onAnalyticsRequested={handleRunAnalytics} />
           <MousePositionControl />
           <MapLegends currentBand={activeLayer}/>
         </MapContainer>
