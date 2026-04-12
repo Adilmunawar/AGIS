@@ -71,7 +71,7 @@ export default function MergeJsonsClient() {
 
     // --- WORKER INITIALIZATION ---
     useEffect(() => {
-        shapefileWorkerRef.current = new Worker('/workers/shapefileWorker.js');
+        shapefileWorkerRef.current = new Worker(new URL('../../workers/shapefile.worker.ts', import.meta.url));
         shapefileWorkerRef.current.onmessage = (e: MessageEvent) => {
             const { status, geojson, error, fileId } = e.data;
             setSourceFiles(prev => prev.map(sf => {

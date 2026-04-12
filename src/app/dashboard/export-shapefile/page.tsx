@@ -182,7 +182,7 @@ export default function DataConverterPage() {
     };
     
     // SHP -> GeoJSON worker
-    shapefileWorkerRef.current = new Worker('/workers/shapefileWorker.js');
+    shapefileWorkerRef.current = new Worker(new URL('../../../workers/shapefile.worker.ts', import.meta.url));
     shapefileWorkerRef.current.onmessage = (e: MessageEvent) => {
         const { status, geojson, error } = e.data;
         if (status === 'success' && geojson) {
