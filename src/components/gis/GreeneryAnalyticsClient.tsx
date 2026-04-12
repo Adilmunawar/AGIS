@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import type { LatLngBounds } from 'leaflet';
 import { useToast } from '@/hooks/use-toast';
@@ -69,10 +69,10 @@ const StatCard = ({ icon: Icon, label, value, unit, isLoading }: { icon: React.E
 
 
 // --- MAP CONTROLLER COMPONENT ---
-const MapAnalysisController = ({ onAnalyticsRequested }: { onAnalyticsRequested: (bounds: LatLngBounds) => void }) => {
+const MapAnalysisController = ({ onBoundsChange }: { onBoundsChange: (bounds: LatLngBounds) => void }) => {
     useMapEvents({
-        moveend: (e) => onAnalyticsRequested(e.target.getBounds()),
-        load: (e) => onAnalyticsRequested(e.target.getBounds()),
+        moveend: (e) => onBoundsChange(e.target.getBounds()),
+        load: (e) => onBoundsChange(e.target.getBounds()),
     });
     return null;
 };
@@ -86,6 +86,9 @@ export default function GreeneryAnalyticsClient() {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [activeLayer, setActiveLayer] = useState('classification');
   const [showVectors, setShowVectors] = useState(true);
+
+  const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
+  const debouncedBounds = useDebounce(mapBounds, 1200);
 
   const handleRunAnalytics = useCallback((boundsToAnalyze: LatLngBounds) => {
     if (!boundsToAnalyze) return;
@@ -125,8 +128,11 @@ export default function GreeneryAnalyticsClient() {
       });
   }, [toast]);
   
-  // Debounce the analytics request to avoid spamming the API while panning
-  const debouncedAnalyticsRequest = useDebounce(handleRunAnalytics, 1200);
+  useEffect(() => {
+    if (debouncedBounds) {
+        handleRunAnalytics(debouncedBounds);
+    }
+  }, [debouncedBounds, handleRunAnalytics]);
 
   const displayedTileUrl = useMemo(() => {
       if (!tileUrls) return null;
@@ -141,7 +147,7 @@ export default function GreeneryAnalyticsClient() {
         {displayedTileUrl && <TileLayer key={displayedTileUrl} url={displayedTileUrl} opacity={0.65} zIndex={10} />}
         {showVectors && tileUrls?.vectorOutlines && <TileLayer key={`vectors-${tileUrls.vectorOutlines}`} url={tileUrls.vectorOutlines} opacity={0.9} zIndex={11} />}
         
-        <MapAnalysisController onAnalyticsRequested={debouncedAnalyticsRequest} />
+        <MapAnalysisController onBoundsChange={setMapBounds} />
         <div className="absolute top-4 left-4 z-[1000]"><LocationSearch /></div>
         <MousePositionControl />
         <MapLegends currentBand={activeLayer}/>
