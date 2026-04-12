@@ -30,6 +30,7 @@ const sidebarNavItems = [
   { href: '/dashboard/sentinel-vision', label: 'Sentinel Vision', icon: Satellite },
   { href: '/dashboard/custom-raster', label: 'Custom Raster', icon: ImageIcon },
   { href: '/dashboard/sentinel-analysis', label: 'Sentinel Analysis', icon: BarChart3 },
+  { href: '/dashboard/greenery-analytics', label: 'Greenery Analytics', icon: AreaChart },
 ];
 
 const secondaryNavItems = [
