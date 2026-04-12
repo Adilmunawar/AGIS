@@ -17,18 +17,18 @@ const classifyLandcover = (image: ee.Image) => {
     const nir = image.select('B8');
     const brightness = image.select(['B2', 'B3', 'B4']).reduce(ee.Reducer.sum());
 
-    const is_water = mndwi.gt(0.0).And(nir.lt(2000));
-    const is_veg = ndvi.gt(0.3).And(ndbi.lt(0.0)).And(is_water.Not());
+    const is_water = mndwi.gt(0.0).and(nir.lt(2000));
+    const is_veg = ndvi.gt(0.3).and(ndbi.lt(0.0)).and(is_water.not());
     
-    const raw_trees = is_veg.And(brightness.lt(2500));
-    const raw_grass = is_veg.And(brightness.gte(2500));
-    const raw_built = is_water.Not().And(is_veg.Not());
+    const raw_trees = is_veg.and(brightness.lt(2500));
+    const raw_grass = is_veg.and(brightness.gte(2500));
+    const raw_built = is_water.not().and(is_veg.not());
     
     // Noise Removal
     const clean_built_up = raw_built.focal_mode(1, 'square', 'pixels');
     const final_water = is_water.focal_mode(1, 'square', 'pixels');
-    const final_trees = raw_trees.focal_mode(1, 'square', 'pixels').And(clean_built_up.Not());
-    const final_grass = raw_grass.focal_mode(1, 'square', 'pixels').And(clean_built_up.Not()).And(final_trees.Not());
+    const final_trees = raw_trees.focal_mode(1, 'square', 'pixels').and(clean_built_up.not());
+    const final_grass = raw_grass.focal_mode(1, 'square', 'pixels').and(clean_built_up.not()).and(final_trees.not());
     
     // 0=Built, 1=Water, 2=Grass, 3=Trees
     // This chain of .where() calls establishes a precedence: Trees > Grass > Water > Built-up (default)
