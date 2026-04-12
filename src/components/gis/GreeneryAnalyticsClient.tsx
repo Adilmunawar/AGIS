@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLng } from 'leaflet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trees, Waves, LayoutGrid, BrainCircuit } from 'lucide-react';
+import { Loader2, Trees, Waves, LayoutGrid, Building, Layers } from 'lucide-react';
+import { useDebounce } from '@/hooks/use-debounce';
 import 'leaflet/dist/leaflet.css';
 
 // --- TYPE DEFINITIONS ---
@@ -58,26 +58,28 @@ const MapEventsComponent = ({ setCenter }: { setCenter: (center: LatLng) => void
 export default function GreeneryAnalyticsClient() {
   const { toast } = useToast();
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
+  const debouncedCenter = useDebounce(mapCenter, 750); // Debounce API calls
+
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [tileUrls, setTileUrls] = useState<TileUrls | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showTimeTravel, setShowTimeTravel] = useState(false);
 
-  const handleRunAnalytics = useCallback(async () => {
-    if (!mapCenter) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Map center not available.' });
+  const handleRunAnalytics = useCallback(async (centerToAnalyze: LatLng) => {
+    if (!centerToAnalyze) {
       return;
     }
     
     setIsAnalyzing(true);
-    setStats(null); // Clear previous stats
+    // Don't clear stats immediately for a smoother UX, new stats will replace them
+    // setStats(null);
     setTileUrls(null);
 
     try {
       const response = await fetch('/api/gee/analytics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: mapCenter.lat, lng: mapCenter.lng }),
+        body: JSON.stringify({ lat: centerToAnalyze.lat, lng: centerToAnalyze.lng }),
       });
 
       if (!response.ok) {
@@ -88,15 +90,21 @@ export default function GreeneryAnalyticsClient() {
       const data = await response.json();
       setStats(data.stats);
       setTileUrls(data.tileUrls);
-      toast({ title: 'Analysis Complete', description: 'Property report and map layer updated.' });
 
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Analysis Failed', description: error.message });
+      setStats(null); // Clear stats on error
     } finally {
       setIsAnalyzing(false);
     }
-  }, [mapCenter, toast]);
+  }, [toast]);
   
+  useEffect(() => {
+    if (debouncedCenter) {
+        handleRunAnalytics(debouncedCenter);
+    }
+  }, [debouncedCenter, handleRunAnalytics]);
+
   const activeTileUrl = useMemo(() => {
     if (!tileUrls) return null;
     return showTimeTravel ? tileUrls.ndviChange : tileUrls.classified;
@@ -107,19 +115,15 @@ export default function GreeneryAnalyticsClient() {
       <aside className="w-[380px] border-r bg-background flex flex-col h-full">
         <header className="p-4 border-b">
           <h1 className="text-xl font-bold tracking-tight">Greenery Analytics</h1>
-          <p className="text-sm text-muted-foreground">AI-powered land cover analysis.</p>
+          <p className="text-sm text-muted-foreground">Live, AI-powered land cover analysis.</p>
         </header>
         <div className="flex-1 p-4 space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Analysis Controls</CardTitle>
-                    <CardDescription>Run analysis on the current map center and toggle map views.</CardDescription>
+                    <CardDescription>Analysis runs automatically for the visible map area. Use the toggle to compare with last year's data.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <Button onClick={handleRunAnalytics} disabled={isAnalyzing || !mapCenter} className="w-full h-11 text-base">
-                        {isAnalyzing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <BrainCircuit className="mr-2 h-5 w-5"/>}
-                        Analyze Current View
-                    </Button>
+                <CardContent>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                         <Label htmlFor="time-travel-switch" className="flex flex-col">
                             <span className="font-semibold">Time Travel</span>
@@ -136,12 +140,25 @@ export default function GreeneryAnalyticsClient() {
                     <CardDescription>Land cover breakdown for a 1km radius around the map center.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <StatCard icon={Trees} label="Trees" value={stats?.trees ?? 0} unit="acres" isLoading={isAnalyzing} />
-                    <StatCard icon={LayoutGrid} label="Grass / Crops" value={stats?.grass ?? 0} unit="acres" isLoading={isAnalyzing} />
-                    <StatCard icon={Waves} label="Water" value={stats?.water ?? 0} unit="acres" isLoading={isAnalyzing} />
+                    <StatCard icon={Trees} label="Trees" value={stats?.trees ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={LayoutGrid} label="Grass / Crops" value={stats?.grass ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={Waves} label="Water" value={stats?.water ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={Building} label="Built-up" value={stats?.builtUp ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={Layers} label="Bare Ground" value={stats?.bare ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
                 </CardContent>
             </Card>
         </div>
+        <footer className="p-4 border-t text-center text-xs text-muted-foreground">
+            {isAnalyzing && (
+                <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin"/>
+                    <span>Analyzing new map area...</span>
+                </div>
+            )}
+            {!isAnalyzing && mapCenter && (
+                 <span>Report for Lat: {mapCenter.lat.toFixed(4)}, Lng: {mapCenter.lng.toFixed(4)}</span>
+            )}
+        </footer>
       </aside>
       <main className="flex-1 h-full bg-background relative">
         <MapContainer

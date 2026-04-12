@@ -28,25 +28,26 @@ export async function POST(req: Request) {
             .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .median();
 
-        // --- Multi-spectral Indices ---
+        // --- Multi-spectral Indices (Advanced Logic) ---
         const ndvi = s2.normalizedDifference(['B8', 'B4']);
         const ndbi = s2.normalizedDifference(['B11', 'B8']);
         const mndwi = s2.normalizedDifference(['B3', 'B11']);
-        const brightness = s2.select('B2').add(s2.select('B3')).add(s2.select('B4'));
+        const brightness = s2.select('B2').add(s2.select('B3')).add(s2.select('B4')).rename('brightness');
 
-        // --- Classification Logic (Pure Physics Model) ---
-        const isVeg = ndvi.gt(0.3);
-        const isBuiltUp = ndbi.gt(0.0);
+        // --- Classification Logic (Pure Physics Model from Python Script) ---
         const isWater = mndwi.gt(0.0).and(s2.select('B8').lt(2000));
-
+        const isBuiltUp = ndbi.gt(0.0).and(isWater.not());
+        const isVeg = ndvi.gt(0.3).and(isWater.not()).and(isBuiltUp.not());
+        
         const isTree = isVeg.and(brightness.lt(2500));
         const isGrass = isVeg.and(brightness.gte(2500));
         
+        // Final classified image with precedence
         let classified = ee.Image(4) // 4 = Bare/Other
             .where(isWater, 3) // 3 = Water
-            .where(isBuiltUp.and(isWater.not()), 2) // 2 = Built-up
-            .where(isGrass.and(isWater.not()).and(isBuiltUp.not()), 1) // 1 = Grass
-            .where(isTree.and(isWater.not()).and(isBuiltUp.not()), 0) // 0 = Trees
+            .where(isBuiltUp, 2) // 2 = Built-up
+            .where(isGrass, 1) // 1 = Grass
+            .where(isTree, 0) // 0 = Trees
             .rename('class');
         
         // Remove salt-and-pepper noise
