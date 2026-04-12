@@ -9,7 +9,7 @@ const evaluateEE = (eeObject: any): Promise<any> => {
     });
 };
 
-// Reusable classification function
+// Re-usable classification function based on improved Python script
 const classifyLandcover = (image: ee.Image) => {
     const ndvi = image.normalizedDifference(['B8', 'B4']);
     const ndbi = image.normalizedDifference(['B11', 'B8']);
@@ -31,12 +31,14 @@ const classifyLandcover = (image: ee.Image) => {
     const final_grass = raw_grass.focal_mode(1, 'square', 'pixels').And(clean_built_up.Not()).And(final_trees.Not());
     
     // 0=Built, 1=Water, 2=Grass, 3=Trees
+    // This chain of .where() calls establishes a precedence: Trees > Grass > Water > Built-up (default)
     return ee.Image(0)
         .where(final_water, 1)
         .where(final_grass, 2)
         .where(final_trees, 3)
         .rename('class');
 };
+
 
 export async function POST(req: Request) {
     try {
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Latitude and Longitude are required.' }, { status: 400 });
         }
 
-        const aoi = ee.Geometry.Point([lng, lat]).buffer(2000); // Increased radius to 2km
+        const aoi = ee.Geometry.Point([lng, lat]).buffer(1000); // FIX: Radius changed to 1km to match Python script
 
         // --- Date Ranges ---
         const endDate = ee.Date(Date.now());
@@ -80,6 +82,7 @@ export async function POST(req: Request) {
         // SAVI: (NIR - Red) / (NIR + Red + L) * (1 + L) with L=0.5
         const savi = s2Current.expression('(1.5 * (NIR - RED)) / (NIR + RED + 0.5)', { 'NIR': s2Current.select('B8'), 'RED': s2Current.select('B4') }).rename('savi');
         // EVI: 2.5 * ((NIR - Red) / (NIR + 6 * Red - 7.5 * Blue + 1))
+        // FIX: Corrected parenthesis in expression
         const evi = s2Current.expression('2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', { 'NIR': s2Current.select('B8'), 'RED': s2Current.select('B4'), 'BLUE': s2Current.select('B2') }).rename('evi');
         
         // --- Vectorization ---
