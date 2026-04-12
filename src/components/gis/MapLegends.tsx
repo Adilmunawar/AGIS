@@ -25,35 +25,35 @@ const Legend = ({ title, gradient, minLabel, maxLabel }: LegendProps) => (
 export function MapLegends({ currentBand }: { currentBand?: string }) {
   const legends: Record<string, LegendProps> = {
     'ndvi': {
-      title: 'NDVI (Crop Health)',
-      gradient: 'bg-gradient-to-r from-yellow-700 via-yellow-400 to-green-600',
-      minLabel: 'Stressed',
-      maxLabel: 'Healthy',
-    },
-    'ndmi': {
-      title: 'NDMI (Moisture Index)',
-      gradient: 'bg-gradient-to-r from-red-600 via-yellow-400 to-blue-600',
-      minLabel: 'Dry',
-      maxLabel: 'Wet',
-    },
-     'ndre': {
-      title: 'NDRE (Nitrogen Content)',
-      gradient: 'bg-gradient-to-r from-orange-400 via-yellow-300 to-teal-500',
+      title: 'NDVI (Vegetation Health)',
+      gradient: 'bg-gradient-to-r from-red-500 via-yellow-400 to-green-600',
       minLabel: 'Low',
       maxLabel: 'High',
     },
-     'ndwi': {
-      title: 'NDWI (Water Body)',
+    'ndwi': {
+      title: 'NDWI (Water Presence)',
       gradient: 'bg-gradient-to-r from-stone-400 via-cyan-300 to-blue-700',
       minLabel: 'Land',
       maxLabel: 'Water',
     },
-     'nbr': {
-      title: 'NBR (Burn Scar)',
-      gradient: 'bg-gradient-to-r from-red-600 via-yellow-400 to-green-800',
-      minLabel: 'Burned',
-      maxLabel: 'Unburned',
+    'savi': {
+      title: 'SAVI (Soil-Adjusted Vegetation)',
+      gradient: 'bg-gradient-to-r from-orange-800 via-yellow-400 to-green-700',
+      minLabel: 'Low Veg',
+      maxLabel: 'High Veg',
     },
+    'evi': {
+      title: 'EVI (Enhanced Vegetation)',
+      gradient: 'bg-gradient-to-r from-orange-600 via-lime-400 to-emerald-800',
+      minLabel: 'Low Veg',
+      maxLabel: 'High Veg',
+    },
+    'forestChange': {
+        title: 'Forest Change (1 Year)',
+        gradient: 'bg-gradient-to-r from-green-500 to-red-500',
+        minLabel: 'Reforestation',
+        maxLabel: 'Deforestation',
+    }
   };
 
   const legendProps = currentBand ? legends[currentBand] : null;
