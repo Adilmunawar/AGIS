@@ -5,7 +5,7 @@ import JSZip from 'jszip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { FileUp, Loader2, Download, MapIcon, Layers, Replace, FileJson, FileArchive, FileCode, Route, FileInput, Settings, Redo2 } from 'lucide-react';
+import { Loader2, Download, MapIcon, Layers, Replace, FileJson, FileArchive, FileCode, Route, Settings, Sheet, Upload, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as turf from '@turf/turf';
 import L, { LatLngBoundsExpression } from 'leaflet';
@@ -73,14 +73,14 @@ const MapPreview = ({ data }: { data: any }) => {
 
 
 // --- UI Components ---
-const FileUploadArea = ({ onDrop, onDrag, isDragging, onChange, accept, multiple = false, title, format }: any) => (
+const FileUploadArea = ({ onDrop, onDrag, isDragging, onChange, accept, multiple = false, title, format, icon }: any) => (
   <div
     onDragEnter={(e) => onDrag(e, 'enter')}
     onDragLeave={(e) => onDrag(e, 'leave')}
     onDragOver={(e) => onDrag(e, 'over')}
     onDrop={onDrop}
     className={cn(
-      'relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors duration-200 cursor-pointer',
+      'relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors duration-200 cursor-pointer group',
       isDragging ? 'border-primary bg-primary/10' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
     )}
   >
@@ -91,9 +91,9 @@ const FileUploadArea = ({ onDrop, onDrag, isDragging, onChange, accept, multiple
       multiple={multiple}
       onChange={(e) => onChange(e.target.files)}
     />
-    <FileUp className={cn("h-8 w-8", isDragging ? 'text-primary' : 'text-gray-400')} />
+    {icon}
     <p className="mt-2 text-center text-sm text-muted-foreground">{title}</p>
-    <p className="text-xs text-muted-foreground font-semibold mt-1">Format: {format}</p>
+    <p className="text-xs text-muted-foreground font-semibold mt-1">Allowed: {format}</p>
   </div>
 );
 
@@ -125,7 +125,7 @@ const formatOptions = [
     { value: 'shapefile', label: 'Shapefile', icon: FileArchive, accepts: ".shp,.shx,.dbf,.prj,.sbn,.sbx,.cpg,.xml", multiple: true },
     { value: 'kml', label: 'KML', icon: FileCode, accepts: ".kml" },
     { value: 'gpx', label: 'GPX', icon: Route, accepts: ".gpx" },
-    { value: 'csv', label: 'CSV', icon: FileInput, accepts: ".csv,text/csv" }
+    { value: 'csv', label: 'CSV', icon: Sheet, accepts: ".csv,text/csv" }
 ];
 
 export default function DataConverterPage() {
@@ -367,7 +367,7 @@ export default function DataConverterPage() {
   };
 
   // --- Drag & Drop Handlers ---
-  const onDrag = (event: React.DragEvent, type: 'enter' | 'leave' | 'over') => { event.preventDefault(); event.stopPropagation(); setter: setIsDragging(type === 'enter' || type === 'over'); };
+  const onDrag = (event: React.DragEvent, type: 'enter' | 'leave' | 'over') => { event.preventDefault(); event.stopPropagation(); setIsDragging(type === 'enter' || type === 'over'); };
   const onDrop = (event: React.DragEvent) => { event.preventDefault(); event.stopPropagation(); setIsDragging(false); handleFileChange(event.dataTransfer.files); };
 
   return (
@@ -379,33 +379,61 @@ export default function DataConverterPage() {
             </header>
             <div className="p-4 space-y-4 flex-1 overflow-y-auto">
                  <Card>
-                    <CardHeader><CardTitle className="text-base">1. Select Formats</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                           <ArrowRightLeft className="h-5 w-5 text-primary" />
+                           1. Select Formats
+                        </CardTitle>
+                    </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label>From</Label>
                             <Select value={inputFormat} onValueChange={v => { setInputFormat(v); resetState(); }}>
                                 <SelectTrigger><SelectValue placeholder="Select input format..." /></SelectTrigger>
-                                <SelectContent>{formatOptions.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                    {formatOptions.map(f => (
+                                        <SelectItem key={f.value} value={f.value}>
+                                            <div className="flex items-center gap-2">
+                                                <f.icon className="h-4 w-4 text-muted-foreground" />
+                                                <span>{f.label}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-1.5">
                             <Label>To</Label>
                             <Select value={outputFormat} onValueChange={setOutputFormat}>
                                 <SelectTrigger><SelectValue placeholder="Select output format..." /></SelectTrigger>
-                                <SelectContent>{allowedOutputFormats.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                    {allowedOutputFormats.map(f => (
+                                        <SelectItem key={f.value} value={f.value}>
+                                            <div className="flex items-center gap-2">
+                                                <f.icon className="h-4 w-4 text-muted-foreground" />
+                                                <span>{f.label}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
                             </Select>
                         </div>
                     </CardContent>
                  </Card>
                  
                  <Card>
-                    <CardHeader><CardTitle className="text-base">2. Upload Data</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                           <Upload className="h-5 w-5 text-primary" />
+                           2. Upload Data
+                        </CardTitle>
+                    </CardHeader>
                     <CardContent>
                         {sourceFiles.length > 0 ? (
                             <FilePreview
                                 files={sourceFiles}
                                 onRemove={resetState}
-                                icon={<selectedInputFormat.icon className="h-6 w-6" />}
+                                icon={selectedInputFormat && <selectedInputFormat.icon className="h-6 w-6" />}
                                 featureCount={featureCount}
                             />
                         ) : (
@@ -416,15 +444,21 @@ export default function DataConverterPage() {
                                 onChange={handleFileChange}
                                 accept={selectedInputFormat?.accepts}
                                 multiple={selectedInputFormat?.multiple}
-                                title={isDragging ? "Drop your file(s) here" : "Drag & drop file(s), or click"}
-                                format={selectedInputFormat?.label}
+                                title={isDragging ? "Drop your file(s) here" : `Drag & drop ${selectedInputFormat?.label} files, or click`}
+                                format={selectedInputFormat?.accepts}
+                                icon={selectedInputFormat && <selectedInputFormat.icon className="h-10 w-10 text-gray-400 group-hover:text-primary transition-colors" />}
                             />
                         )}
                     </CardContent>
                  </Card>
                  
                  <Card className={cn((inputFormat === 'csv' || processedGeoJson) ? "block" : "hidden")}>
-                    <CardHeader><CardTitle className="text-base">3. Configure (Optional)</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Settings className="h-5 w-5 text-primary" />
+                            3. Configure (Optional)
+                        </CardTitle>
+                    </CardHeader>
                     <CardContent className="space-y-4">
                         {inputFormat === 'csv' && (
                              <div className="grid grid-cols-2 gap-4">
