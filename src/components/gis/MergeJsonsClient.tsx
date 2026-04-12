@@ -133,21 +133,48 @@ export default function MergeJsonsClient() {
         
         try {
             switch(extension) {
-                case '.zip':
+                case '.zip': {
                     const zip = new JSZip();
                     const content = await zip.loadAsync(file);
                     const shpFiles: File[] = [];
                     const filePromises: Promise<void>[] = [];
-                    content.forEach((relPath, zipEntry) => {
-                       if (!zipEntry.dir) {
-                           filePromises.push(zipEntry.async('arraybuffer').then(buffer => {
-                               shpFiles.push(new File([buffer], zipEntry.name.split('/').pop() || zipEntry.name));
-                           }));
-                       }
+                    const requiredExts = ['.shp', '.shx', '.dbf'];
+                    const foundExts = new Set<string>();
+
+                    content.forEach((relativePath, zipEntry) => {
+                        // Ignore directories and macOS metadata
+                        if (zipEntry.dir || relativePath.startsWith('__MACOSX/')) {
+                            return;
+                        }
+
+                        const fileName = zipEntry.name.toLowerCase();
+                        const fileExt = fileName.slice(fileName.lastIndexOf('.'));
+
+                        if (requiredExts.includes(fileExt)) {
+                           foundExts.add(fileExt);
+                        }
+
+                        // Only process relevant shapefile components
+                        if (['.shp', '.shx', '.dbf', '.prj', '.sbn', '.sbx', '.cpg', '.xml'].includes(fileExt)) {
+                            filePromises.push(
+                                zipEntry.async('arraybuffer').then(buffer => {
+                                    const cleanFileName = zipEntry.name.split('/').pop() || zipEntry.name;
+                                    shpFiles.push(new File([buffer], cleanFileName));
+                                })
+                            );
+                        }
                     });
+
                     await Promise.all(filePromises);
+
+                    // Validate that the essential files were found
+                    if (!requiredExts.every(ext => foundExts.has(ext))) {
+                        throw new Error("Zip is missing required files (.shp, .shx, .dbf).");
+                    }
+
                     shapefileWorkerRef.current?.postMessage({ files: shpFiles, fileId: id });
                     return; // Worker will handle state update
+                }
                 case '.geojson':
                     geojson = JSON.parse(await file.text());
                     break;
