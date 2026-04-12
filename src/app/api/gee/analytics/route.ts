@@ -43,12 +43,12 @@ const classifyLandcover = (image: ee.Image) => {
 export async function POST(req: Request) {
     try {
         await initGEE();
-        const { lat, lng } = await req.json();
-        if (!lat || !lng) {
-            return NextResponse.json({ error: 'Latitude and Longitude are required.' }, { status: 400 });
+        const { bbox } = await req.json();
+        if (!bbox || !Array.isArray(bbox) || bbox.length !== 4) {
+            return NextResponse.json({ error: 'A valid bounding box (bbox) array of 4 numbers is required.' }, { status: 400 });
         }
 
-        const aoi = ee.Geometry.Point([lng, lat]).buffer(1000);
+        const aoi = ee.Geometry.Rectangle(bbox);
 
         // --- Date Ranges ---
         const endDate = ee.Date(Date.now());

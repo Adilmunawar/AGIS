@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
-import type { LatLng } from 'leaflet';
+import type { LatLngBounds } from 'leaflet';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -63,20 +63,20 @@ const StatCard = ({ icon: Icon, label, value, unit, isLoading }: { icon: React.E
 );
 
 // --- MAP CONTROLLER COMPONENT ---
-const MapAnalysisController = ({ onAnalyticsRequested }: { onAnalyticsRequested: (center: LatLng) => void }) => {
-    const [center, setCenter] = useState<LatLng | null>(null);
-    const debouncedCenter = useDebounce(center, 750);
+const MapAnalysisController = ({ onAnalyticsRequested }: { onAnalyticsRequested: (bounds: LatLngBounds) => void }) => {
+    const [bounds, setBounds] = useState<LatLngBounds | null>(null);
+    const debouncedBounds = useDebounce(bounds, 750);
 
     useMapEvents({
-        moveend: (e) => setCenter(e.target.getCenter()),
-        load: (e) => onAnalyticsRequested(e.target.getCenter()), // Trigger on initial map load
+        moveend: (e) => setBounds(e.target.getBounds()),
+        load: (e) => onAnalyticsRequested(e.target.getBounds()), // Trigger on initial map load
     });
 
     useEffect(() => {
-        if (debouncedCenter) {
-            onAnalyticsRequested(debouncedCenter);
+        if (debouncedBounds) {
+            onAnalyticsRequested(debouncedBounds);
         }
-    }, [debouncedCenter, onAnalyticsRequested]);
+    }, [debouncedBounds, onAnalyticsRequested]);
 
     return null; // This component does not render anything
 };
@@ -85,7 +85,6 @@ const MapAnalysisController = ({ onAnalyticsRequested }: { onAnalyticsRequested:
 // --- MAIN COMPONENT ---
 export default function GreeneryAnalyticsClient() {
   const { toast } = useToast();
-  const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
 
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [tileUrls, setTileUrls] = useState<TileUrls | null>(null);
@@ -93,16 +92,22 @@ export default function GreeneryAnalyticsClient() {
   const [activeLayer, setActiveLayer] = useState('classification');
   const [showVectors, setShowVectors] = useState(true);
 
-  const handleRunAnalytics = useCallback(async (centerToAnalyze: LatLng) => {
-    if (!centerToAnalyze) return;
+  const handleRunAnalytics = useCallback(async (boundsToAnalyze: LatLngBounds) => {
+    if (!boundsToAnalyze) return;
     setIsAnalyzing(true);
-    // Don't clear old data here for a smoother UX. The old layer remains while new one loads.
+    
+    const bbox = [
+        boundsToAnalyze.getWest(),
+        boundsToAnalyze.getSouth(),
+        boundsToAnalyze.getEast(),
+        boundsToAnalyze.getNorth(),
+    ];
 
     try {
       const response = await fetch('/api/gee/analytics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: centerToAnalyze.lat, lng: centerToAnalyze.lng }),
+        body: JSON.stringify({ bbox }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -111,7 +116,6 @@ export default function GreeneryAnalyticsClient() {
       const data = await response.json();
       setStats(data.stats);
       setTileUrls(data.tileUrls);
-      setMapCenter(centerToAnalyze);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Analysis Failed', description: error.message });
       setStats(null);
@@ -161,7 +165,7 @@ export default function GreeneryAnalyticsClient() {
             <AccordionItem value="item-2">
                 <AccordionTrigger>Property Report</AccordionTrigger>
                 <AccordionContent className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">Analysis for a 1km radius around map center.</p>
+                    <p className="text-xs text-muted-foreground text-center">Analysis for the current map viewport.</p>
                     <StatCard icon={Trees} label="Tree Canopy" value={stats?.trees ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
                     <StatCard icon={Leaf} label="Grass / Crops" value={stats?.grass ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
                     <StatCard icon={Waves} label="Water Bodies" value={stats?.water ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
@@ -174,10 +178,10 @@ export default function GreeneryAnalyticsClient() {
             {isAnalyzing ? (
                 <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin"/>
-                    <span>Analyzing new map area...</span>
+                    <span>Analyzing map view...</span>
                 </div>
-            ) : mapCenter ? (
-                 <span>Report for Lat: {mapCenter.lat.toFixed(4)}, Lng: {mapCenter.lng.toFixed(4)}</span>
+            ) : stats ? (
+                 <span>Analysis complete for the current view.</span>
             ) : <span>Move map to begin analysis.</span>}
         </footer>
       </aside>
