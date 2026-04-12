@@ -142,7 +142,6 @@ export default function MergeJsonsClient() {
                     const foundExts = new Set<string>();
 
                     content.forEach((relativePath, zipEntry) => {
-                        // Ignore directories and macOS metadata
                         if (zipEntry.dir || relativePath.startsWith('__MACOSX/')) {
                             return;
                         }
@@ -154,7 +153,6 @@ export default function MergeJsonsClient() {
                            foundExts.add(fileExt);
                         }
 
-                        // Only process relevant shapefile components
                         if (['.shp', '.shx', '.dbf', '.prj', '.sbn', '.sbx', '.cpg', '.xml'].includes(fileExt)) {
                             filePromises.push(
                                 zipEntry.async('arraybuffer').then(buffer => {
@@ -167,13 +165,12 @@ export default function MergeJsonsClient() {
 
                     await Promise.all(filePromises);
 
-                    // Validate that the essential files were found
                     if (!requiredExts.every(ext => foundExts.has(ext))) {
                         throw new Error("Zip is missing required files (.shp, .shx, .dbf).");
                     }
 
                     shapefileWorkerRef.current?.postMessage({ files: shpFiles, fileId: id });
-                    return; // Worker will handle state update
+                    return;
                 }
                 case '.geojson':
                     geojson = JSON.parse(await file.text());
@@ -214,15 +211,38 @@ export default function MergeJsonsClient() {
     // --- FILE HANDLING & UI ---
     const handleFileChange = (newFiles: FileList | null) => {
         if (!newFiles) return;
-        const newSourceFiles: SourceFile[] = Array.from(newFiles).map(file => ({
-            file, id: `${file.name}-${Date.now()}`, status: 'queued', geojson: null, featureCount: 0
-        }));
-        setSourceFiles(prev => [...prev, ...newSourceFiles]);
-        newSourceFiles.forEach(sf => {
-            setSourceFiles(prev => prev.map(f => f.id === sf.id ? {...f, status: 'processing'}: f));
-            parseFile(sf);
-        });
+    
+        const filesArray = Array.from(newFiles);
+        const hasShp = filesArray.some(f => f.name.toLowerCase().endsWith('.shp'));
+    
+        // If a .shp file is part of the drop, treat the entire batch as a single shapefile job.
+        if (filesArray.length > 1 && hasShp) {
+            const shpFile = filesArray.find(f => f.name.toLowerCase().endsWith('.shp'))!;
+            const sourceFileForUI: SourceFile = {
+                file: shpFile,
+                id: `${shpFile.name}-${Date.now()}`,
+                status: 'processing',
+                geojson: null,
+                featureCount: 0
+            };
+            setSourceFiles(prev => [...prev, sourceFileForUI]);
+            // Send the entire array of dropped files to the worker.
+            shapefileWorkerRef.current?.postMessage({ files: filesArray, fileId: sourceFileForUI.id });
+        } else {
+            // Otherwise, process each file individually (for zips, geojsons, etc.)
+            const newSourceFiles: SourceFile[] = filesArray.map(file => ({
+                file, id: `${file.name}-${Date.now()}`, status: 'queued', geojson: null, featureCount: 0
+            }));
+            
+            setSourceFiles(prev => [...prev, ...newSourceFiles]);
+            
+            newSourceFiles.forEach(sf => {
+                setSourceFiles(prev => prev.map(f => f.id === sf.id ? {...f, status: 'processing'} : f));
+                parseFile(sf);
+            });
+        }
     };
+
     const removeFile = (id: string) => setSourceFiles(prev => prev.filter(sf => sf.id !== id));
     const clearAll = () => setSourceFiles([]);
     
@@ -300,10 +320,10 @@ export default function MergeJsonsClient() {
                                 className={cn('relative flex flex-col items-center justify-center mt-1.5 p-8 border-2 border-dashed rounded-lg transition-colors', isDragging ? 'border-primary bg-primary/10' : 'border-gray-300 bg-gray-50')}
                             >
                                 <input type="file" id="file-upload" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" multiple
-                                    accept=".geojson,.json,.zip,.kml,.gpx,.csv" onChange={(e) => handleFileChange(e.target.files)} />
+                                    accept=".geojson,.json,.zip,.kml,.gpx,.csv,.shp,.shx,.dbf,.prj,.sbn,.sbx,.cpg,.xml" onChange={(e) => handleFileChange(e.target.files)} />
                                 <UploadCloud className={cn("h-10 w-10", isDragging ? 'text-primary' : 'text-gray-400')} />
                                 <p className="mt-4 text-sm text-center text-muted-foreground">{isDragging ? "Drop files here" : "Drag & drop files, or click"}</p>
-                                <p className="text-xs text-muted-foreground">Supports: GeoJSON, SHP (in .zip), KML, GPX, CSV</p>
+                                <p className="text-xs text-muted-foreground">Supports: GeoJSON, SHP (in .zip or as files), KML, GPX, CSV</p>
                             </div>
                         </div>
                         
