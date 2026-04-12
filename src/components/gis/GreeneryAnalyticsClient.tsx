@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import type { LatLngBounds } from 'leaflet';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
+
+// UI Imports
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -13,6 +16,8 @@ import { Switch } from '@/components/ui/switch';
 import { Loader2, Trees, Waves, Building, Leaf } from 'lucide-react';
 import { MapLegends } from './MapLegends';
 import MousePositionControl from './MousePositionControl';
+import { LocationSearch } from './LocationSearch';
+
 import 'leaflet/dist/leaflet.css';
 
 // --- TYPE DEFINITIONS ---
@@ -35,52 +40,42 @@ interface TileUrls {
 }
 
 const ANALYTICAL_LAYERS = [
-    { id: 'classification', name: 'Land Cover Classification' },
-    { id: 'timeTravel', name: 'Time Travel (1-Yr NDVI)' },
-    { id: 'deforestation', name: 'Deforestation Hotspots' },
-    { id: 'ndvi', name: 'Vegetation Health (NDVI)' },
-    { id: 'ndwi', name: 'Water Presence (NDWI)' },
-    { id: 'savi', name: 'Soil-Adjusted Veg. (SAVI)' },
-    { id: 'evi', name: 'Enhanced Veg. (EVI)' },
+    { id: 'classification', name: 'Land Cover' },
+    { id: 'timeTravel', name: '1-Yr NDVI Change' },
+    { id: 'deforestation', name: 'Forest Change' },
+    { id: 'ndvi', name: 'NDVI' },
+    { id: 'ndwi', name: 'NDWI' },
+    { id: 'savi', name: 'SAVI' },
+    { id: 'evi', name: 'EVI' },
 ];
 
-// --- UI SUB-COMPONENTS ---
-const StatCard = ({ icon: Icon, label, value, unit, isLoading }: { icon: React.ElementType, label: string, value: number, unit: string, isLoading: boolean }) => (
-    <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
-        <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" />
+// --- UI SUB-COMPONENTS (More Compact) ---
+const StatCard = ({ icon: Icon, label, value, unit, isLoading }: { icon: React.ElementType, label: string, value?: number, unit: string, isLoading: boolean }) => (
+    <div className="flex items-center justify-between rounded-md border bg-muted/50 p-2">
+        <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Icon className="h-4 w-4" />
             </div>
-            <span className="text-sm font-medium">{label}</span>
+            <span className="text-xs font-semibold">{label}</span>
         </div>
-        {isLoading ? <Skeleton className="h-5 w-16"/> : 
+        {isLoading || value === undefined ? <Skeleton className="h-4 w-12"/> : 
             <div className="text-right">
-                <span className="text-lg font-bold">{value.toLocaleString()}</span>
-                <span className="ml-1 text-xs text-muted-foreground">{unit}</span>
+                <span className="text-base font-bold">{value.toLocaleString()}</span>
+                <span className="ml-1 text-[10px] text-muted-foreground">{unit}</span>
             </div>
         }
     </div>
 );
 
+
 // --- MAP CONTROLLER COMPONENT ---
 const MapAnalysisController = ({ onAnalyticsRequested }: { onAnalyticsRequested: (bounds: LatLngBounds) => void }) => {
-    const [bounds, setBounds] = useState<LatLngBounds | null>(null);
-    const debouncedBounds = useDebounce(bounds, 750);
-
     useMapEvents({
-        moveend: (e) => setBounds(e.target.getBounds()),
-        load: (e) => onAnalyticsRequested(e.target.getBounds()), // Trigger on initial map load
+        moveend: (e) => onAnalyticsRequested(e.target.getBounds()),
+        load: (e) => onAnalyticsRequested(e.target.getBounds()),
     });
-
-    useEffect(() => {
-        if (debouncedBounds) {
-            onAnalyticsRequested(debouncedBounds);
-        }
-    }, [debouncedBounds, onAnalyticsRequested]);
-
-    return null; // This component does not render anything
+    return null;
 };
-
 
 // --- MAIN COMPONENT ---
 export default function GreeneryAnalyticsClient() {
@@ -88,14 +83,15 @@ export default function GreeneryAnalyticsClient() {
 
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [tileUrls, setTileUrls] = useState<TileUrls | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(true); // Start analyzing on load
+  const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [activeLayer, setActiveLayer] = useState('classification');
   const [showVectors, setShowVectors] = useState(true);
 
-  const handleRunAnalytics = useCallback(async (boundsToAnalyze: LatLngBounds) => {
+  const handleRunAnalytics = useCallback((boundsToAnalyze: LatLngBounds) => {
     if (!boundsToAnalyze) return;
     setIsAnalyzing(true);
-    
+    setStats(null); // Clear old stats to show skeleton loaders, but keep old tiles visible
+
     const bbox = [
         boundsToAnalyze.getWest(),
         boundsToAnalyze.getSouth(),
@@ -103,27 +99,34 @@ export default function GreeneryAnalyticsClient() {
         boundsToAnalyze.getNorth(),
     ];
 
-    try {
-      const response = await fetch('/api/gee/analytics', {
+    fetch('/api/gee/analytics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bbox }),
+      })
+      .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || 'Failed to run analytics.');
+            });
+        }
+        return response.json();
+      })
+      .then(data => {
+        setStats(data.stats);
+        setTileUrls(data.tileUrls);
+      })
+      .catch((error: any) => {
+        toast({ variant: 'destructive', title: 'Analysis Failed', description: error.message });
+        setStats(null); // Clear stats on error
+      })
+      .finally(() => {
+        setIsAnalyzing(false);
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to run analytics.');
-      }
-      const data = await response.json();
-      setStats(data.stats);
-      setTileUrls(data.tileUrls);
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Analysis Failed', description: error.message });
-      setStats(null);
-      setTileUrls(null); // Explicitly nullify on error
-    } finally {
-      setIsAnalyzing(false);
-    }
   }, [toast]);
+  
+  // Debounce the analytics request to avoid spamming the API while panning
+  const debouncedAnalyticsRequest = useDebounce(handleRunAnalytics, 1200);
 
   const displayedTileUrl = useMemo(() => {
       if (!tileUrls) return null;
@@ -131,72 +134,61 @@ export default function GreeneryAnalyticsClient() {
   }, [tileUrls, activeLayer]);
 
   return (
-    <div className="flex h-full w-full bg-muted/30">
-      <aside className="w-[420px] border-r bg-background flex flex-col h-full">
-        <header className="p-4 border-b">
-          <h1 className="text-xl font-bold tracking-tight">Greenery Analytics</h1>
-          <p className="text-sm text-muted-foreground">Live, AI-powered land cover intelligence.</p>
-        </header>
+    <div className="h-full w-full relative bg-background">
+      <MapContainer center={[31.5204, 74.3587]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false} scrollWheelZoom={true}>
+        <TileLayer url="https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}" subdomains={['mt0', 'mt1', 'mt2', 'mt3']} attribution="&copy; Google" zIndex={1} />
+        
+        {displayedTileUrl && <TileLayer key={displayedTileUrl} url={displayedTileUrl} opacity={0.65} zIndex={10} />}
+        {showVectors && tileUrls?.vectorOutlines && <TileLayer key={`vectors-${tileUrls.vectorOutlines}`} url={tileUrls.vectorOutlines} opacity={0.9} zIndex={11} />}
+        
+        <MapAnalysisController onAnalyticsRequested={debouncedAnalyticsRequest} />
+        <div className="absolute top-4 left-4 z-[1000]"><LocationSearch /></div>
+        <MousePositionControl />
+        <MapLegends currentBand={activeLayer}/>
 
-        <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full px-4 py-2 flex-1 overflow-y-auto">
-            <AccordionItem value="item-1">
-                <AccordionTrigger>Display Layers</AccordionTrigger>
-                <AccordionContent className="space-y-4">
-                    <div>
-                        <Label className="text-xs font-semibold text-muted-foreground">Base Analysis Layer</Label>
-                        <RadioGroup value={activeLayer} onValueChange={setActiveLayer} className="mt-2 grid grid-cols-1 gap-2">
-                            {ANALYTICAL_LAYERS.map(layer => (
-                                <Label key={layer.id} htmlFor={layer.id} className="flex items-center justify-between p-3 rounded-lg border has-[:checked]:bg-accent has-[:checked]:border-primary transition-colors cursor-pointer">
-                                    <span className="font-semibold text-sm">{layer.name}</span>
-                                    <RadioGroupItem value={layer.id} id={layer.id} />
-                                </Label>
-                            ))}
-                        </RadioGroup>
-                    </div>
-                    <div>
-                         <Label className="text-xs font-semibold text-muted-foreground">Vector Overlay</Label>
-                        <div className="flex items-center justify-between p-3 mt-2 rounded-lg border">
-                            <Label htmlFor="vector-switch" className="font-semibold text-sm">Vectorized Trees</Label>
+        <Card className="absolute top-4 right-4 z-[1000] w-80 bg-card/80 backdrop-blur-xl shadow-2xl border-border/50">
+            <CardHeader className="p-3 border-b flex-row items-center justify-between">
+                <div className="space-y-0.5">
+                    <CardTitle className="text-base">Greenery Analytics</CardTitle>
+                    <p className="text-xs text-muted-foreground">Live land cover intelligence.</p>
+                </div>
+                {isAnalyzing && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+            </CardHeader>
+
+            <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full">
+                <AccordionItem value="item-1" className="border-b">
+                    <AccordionTrigger className="px-3 py-2 text-xs font-bold hover:no-underline">Display Layers</AccordionTrigger>
+                    <AccordionContent className="px-3 space-y-3">
+                        <div>
+                            <Label className="text-xs font-semibold text-muted-foreground">Base Analysis Layer</Label>
+                             <RadioGroup value={activeLayer} onValueChange={setActiveLayer} className="mt-1 grid grid-cols-2 gap-2">
+                                {ANALYTICAL_LAYERS.map(layer => (
+                                    <Label key={layer.id} htmlFor={layer.id} className="flex items-center gap-2 p-1.5 rounded-md border has-[:checked]:bg-accent has-[:checked]:border-primary/50 has-[:checked]:ring-1 has-[:checked]:ring-primary transition-colors cursor-pointer">
+                                        <RadioGroupItem value={layer.id} id={layer.id} className="h-3.5 w-3.5"/>
+                                        <span className="text-xs font-semibold">{layer.name}</span>
+                                    </Label>
+                                ))}
+                            </RadioGroup>
+                        </div>
+                        <div className="flex items-center justify-between p-2 rounded-md border">
+                            <Label htmlFor="vector-switch" className="text-xs font-semibold">Vectorized Trees</Label>
                             <Switch id="vector-switch" checked={showVectors} onCheckedChange={setShowVectors} disabled={!tileUrls} />
                         </div>
-                    </div>
-                </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="item-2">
-                <AccordionTrigger>Property Report</AccordionTrigger>
-                <AccordionContent className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">Analysis for the current map viewport.</p>
-                    <StatCard icon={Trees} label="Tree Canopy" value={stats?.trees ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                    <StatCard icon={Leaf} label="Grass / Crops" value={stats?.grass ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                    <StatCard icon={Waves} label="Water Bodies" value={stats?.water ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                    <StatCard icon={Building} label="Built-up / Roads" value={stats?.builtUp ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-        
-        <footer className="p-4 border-t text-center text-xs text-muted-foreground">
-            {isAnalyzing ? (
-                <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin"/>
-                    <span>Analyzing map view...</span>
-                </div>
-            ) : stats ? (
-                 <span>Analysis complete for the current view.</span>
-            ) : <span>Move map to begin analysis.</span>}
-        </footer>
-      </aside>
-      <main className="flex-1 h-full bg-background relative">
-        <MapContainer center={[31.5204, 74.3587]} zoom={14} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
-          <TileLayer url="https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}" subdomains={['mt0', 'mt1', 'mt2', 'mt3']} attribution="&copy; Google" zIndex={1} />
-          
-          {displayedTileUrl && <TileLayer key={displayedTileUrl} url={displayedTileUrl} opacity={0.65} zIndex={10} />}
-          {showVectors && tileUrls?.vectorOutlines && <TileLayer key={`vectors-${tileUrls.vectorOutlines}`} url={tileUrls.vectorOutlines} opacity={0.9} zIndex={11} />}
-          
-          <MapAnalysisController onAnalyticsRequested={handleRunAnalytics} />
-          <MousePositionControl />
-          <MapLegends currentBand={activeLayer}/>
-        </MapContainer>
-      </main>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2" className="border-b-0">
+                    <AccordionTrigger className="px-3 py-2 text-xs font-bold hover:no-underline">Property Report</AccordionTrigger>
+                    <AccordionContent className="px-3 space-y-1.5">
+                        <p className="text-[11px] text-muted-foreground text-center -mt-1 pb-1">Analysis for the current map viewport.</p>
+                        <StatCard icon={Trees} label="Tree Canopy" value={stats?.trees} unit="acres" isLoading={!stats} />
+                        <StatCard icon={Leaf} label="Grass / Crops" value={stats?.grass} unit="acres" isLoading={!stats} />
+                        <StatCard icon={Waves} label="Water Bodies" value={stats?.water} unit="acres" isLoading={!stats} />
+                        <StatCard icon={Building} label="Built-up Area" value={stats?.builtUp} unit="acres" isLoading={!stats} />
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
+        </Card>
+      </MapContainer>
     </div>
   );
 }
