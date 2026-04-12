@@ -16,10 +16,9 @@ import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
-// New conversion libraries
+// Conversion libraries
 import { kml as toKml } from '@tmcw/togeojson';
 import tokml from 'tokml';
-import { gpx as toGpx } from '@tmcw/togeojson';
 import togpx from 'togpx';
 import Papa from 'papaparse';
 
@@ -124,7 +123,7 @@ const FilePreview = ({ files, onRemove, icon, featureCount }: { files: File[], o
 
 const formatOptions = [
     { value: 'geojson', label: 'GeoJSON', icon: FileJson, accepts: ".geojson,application/json" },
-    { value: 'shapefile', label: 'Shapefile', icon: FileArchive, accepts: ".shp,.shx,.dbf,.prj,.sbn,.sbx,.cpg,.xml", multiple: true },
+    { value: 'shapefile', label: 'Shapefile (.zip)', icon: FileArchive, accepts: ".shp,.shx,.dbf,.prj,.sbn,.sbx,.cpg,.xml,.zip,application/zip", multiple: true },
     { value: 'kml', label: 'KML', icon: FileCode, accepts: ".kml" },
     { value: 'gpx', label: 'GPX', icon: Route, accepts: ".gpx" },
     { value: 'csv', label: 'CSV', icon: Sheet, accepts: ".csv,text/csv" }
@@ -234,6 +233,22 @@ export default function DataConverterPage() {
   
   const featureCount = useMemo(() => simplifiedGeoJson?.features?.length || processedGeoJson?.features?.length || 0, [processedGeoJson, simplifiedGeoJson]);
 
+  const uploadTitle = useMemo(() => {
+    if (isDragging) return "Drop your file(s) here";
+    if (inputFormat === 'shapefile') {
+        return `Drag & drop Shapefile components or a single .zip file, or click`;
+    }
+    return `Drag & drop ${selectedInputFormat?.label} files, or click`;
+}, [isDragging, inputFormat, selectedInputFormat]);
+
+  const uploadFormatString = useMemo(() => {
+      if (inputFormat === 'shapefile') {
+          return ".shp, .dbf, .zip, etc.";
+      }
+      return selectedInputFormat?.accepts;
+  }, [inputFormat, selectedInputFormat]);
+
+
   // --- FILE HANDLING ---
   const resetState = () => {
     setSourceFiles([]);
@@ -250,40 +265,108 @@ export default function DataConverterPage() {
     setIsProcessing(true);
     toast({ title: "Processing Upload", description: "Reading and converting input file..." });
 
-    const file = files[0];
-    const fileText = await file.text();
-    const domParser = new DOMParser();
+    const firstFile = files[0];
+    
+    // --- NEW ZIP HANDLING LOGIC ---
+    if (inputFormat === 'shapefile' && firstFile.name.toLowerCase().endsWith('.zip')) {
+        if (files.length > 1) {
+            toast({ title: "Multiple Files Detected", description: "Processing the first zip file only." });
+        }
+        try {
+            const zip = new JSZip();
+            const content = await zip.loadAsync(firstFile);
+            const shpFiles: File[] = [];
+            const filePromises: Promise<void>[] = [];
 
+            const requiredExts = ['.shp', '.shx', '.dbf'];
+            const foundExts = new Set<string>();
+
+            content.forEach((relativePath, zipEntry) => {
+                if (zipEntry.dir || relativePath.startsWith('__MACOSX/')) {
+                    return;
+                }
+                
+                const fileName = zipEntry.name.toLowerCase();
+                const fileExt = fileName.slice(fileName.lastIndexOf('.'));
+
+                if (requiredExts.includes(fileExt)) {
+                   foundExts.add(fileExt);
+                }
+
+                if (['.shp', '.shx', '.dbf', '.prj', '.sbn', '.sbx', '.cpg', '.xml'].includes(fileExt)) {
+                    filePromises.push(
+                        zipEntry.async('arraybuffer').then(buffer => {
+                            const cleanFileName = zipEntry.name.split('/').pop() || zipEntry.name;
+                            const blob = new Blob([buffer]);
+                            const file = new File([blob], cleanFileName);
+                            shpFiles.push(file);
+                        })
+                    );
+                }
+            });
+
+            await Promise.all(filePromises);
+
+            if (!requiredExts.every(ext => foundExts.has(ext))) {
+                throw new Error("The zip file is missing required shapefile components (.shp, .shx, .dbf).");
+            }
+
+            shapefileWorkerRef.current?.postMessage({ files: shpFiles, layer: 'parcels' });
+            return; // Worker will handle isProcessing state
+
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Zip Processing Error', description: e.message });
+            resetState();
+            setIsProcessing(false);
+            return;
+        }
+    }
+
+    // --- REFACTORED LOGIC FOR OTHER FILE TYPES ---
     try {
         let geojson: any;
         switch (inputFormat) {
             case 'geojson':
-                geojson = JSON.parse(fileText);
+                geojson = JSON.parse(await firstFile.text());
                 break;
             case 'kml':
-                geojson = toKml(domParser.parseFromString(fileText, 'text/xml'));
+                const kmlText = await firstFile.text();
+                geojson = toKml(new DOMParser().parseFromString(kmlText, 'text/xml'));
                 break;
             case 'gpx':
-                geojson = toGpx(domParser.parseFromString(fileText, 'text/xml'));
+                 const gpxText = await firstFile.text();
+                 geojson = togpx(new DOMParser().parseFromString(gpxText, 'text/xml'));
                 break;
             case 'csv':
-                 Papa.parse(fileText, {
+                 Papa.parse(await firstFile.text(), {
                     header: true,
                     skipEmptyLines: true,
                     complete: (results) => {
-                        const features = results.data.map((row: any) => {
-                            const lat = parseFloat(row[csvLatField]);
-                            const lon = parseFloat(row[csvLonField]);
-                            if (isNaN(lat) || isNaN(lon)) return null;
-                            return turf.point([lon, lat], row);
-                        }).filter(Boolean); // Filter out nulls
-                        geojson = turf.featureCollection(features as any);
-                        if (geojson.features.length === 0) throw new Error("No valid coordinates found. Check CSV column names.");
-                        setProcessedGeoJson(geojson);
+                        try {
+                            const features = results.data.map((row: any) => {
+                                const lat = parseFloat(row[csvLatField]);
+                                const lon = parseFloat(row[csvLonField]);
+                                if (isNaN(lat) || isNaN(lon)) return null;
+                                return turf.point([lon, lat], row);
+                            }).filter(Boolean);
+                            geojson = turf.featureCollection(features as any);
+                            if (geojson.features.length === 0) {
+                                throw new Error("No valid coordinates found in CSV. Check column names.");
+                            }
+                            setProcessedGeoJson(geojson);
+                            setIsProcessing(false);
+                        } catch (e: any) {
+                            toast({ variant: 'destructive', title: 'File Processing Error', description: e.message });
+                            resetState();
+                        }
+                    },
+                    error: (err) => {
+                        throw new Error(`CSV parsing error: ${err.message}`);
                     }
                 });
-                break;
+                return; // PapaParse is async and will handle state updates
             case 'shapefile':
+                // Handles multi-file drop
                 shapefileWorkerRef.current?.postMessage({ files: Array.from(files), layer: 'parcels' });
                 return; // Worker will handle setting state
             default:
@@ -295,7 +378,9 @@ export default function DataConverterPage() {
         toast({ variant: 'destructive', title: 'File Processing Error', description: e.message });
         resetState();
     } finally {
-        if(inputFormat !== 'shapefile') setIsProcessing(false);
+        if(inputFormat !== 'shapefile' && inputFormat !== 'csv') {
+          setIsProcessing(false);
+        }
     }
   }, [inputFormat, csvLatField, csvLonField, toast]);
   
@@ -446,8 +531,8 @@ export default function DataConverterPage() {
                                 onChange={handleFileChange}
                                 accept={selectedInputFormat?.accepts}
                                 multiple={selectedInputFormat?.multiple}
-                                title={isDragging ? "Drop your file(s) here" : `Drag & drop ${selectedInputFormat?.label} files, or click`}
-                                format={selectedInputFormat?.accepts}
+                                title={uploadTitle}
+                                format={uploadFormatString}
                                 icon={selectedInputFormat && <selectedInputFormat.icon className="h-10 w-10 text-gray-400 group-hover:text-primary transition-colors" />}
                             />
                         )}
