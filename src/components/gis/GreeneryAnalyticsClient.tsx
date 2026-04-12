@@ -1,17 +1,16 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import type { LatLng } from 'leaflet';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trees, Waves, Building, Leaf, Timer } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Trees, Waves, Building, Leaf } from 'lucide-react';
 import { MapLegends } from './MapLegends';
 import MousePositionControl from './MousePositionControl';
 import 'leaflet/dist/leaflet.css';
@@ -70,7 +69,7 @@ const MapAnalysisController = ({ onAnalyticsRequested }: { onAnalyticsRequested:
 
     useMapEvents({
         moveend: (e) => setCenter(e.target.getCenter()),
-        load: (e) => setCenter(e.target.getCenter()),
+        load: (e) => onAnalyticsRequested(e.target.getCenter()), // Trigger on initial map load
     });
 
     useEffect(() => {
@@ -90,14 +89,14 @@ export default function GreeneryAnalyticsClient() {
 
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [tileUrls, setTileUrls] = useState<TileUrls | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(true); // Start analyzing on load
   const [activeLayer, setActiveLayer] = useState('classification');
   const [showVectors, setShowVectors] = useState(true);
 
   const handleRunAnalytics = useCallback(async (centerToAnalyze: LatLng) => {
     if (!centerToAnalyze) return;
     setIsAnalyzing(true);
-    setMapCenter(centerToAnalyze);
+    // Don't clear old data here for a smoother UX. The old layer remains while new one loads.
 
     try {
       const response = await fetch('/api/gee/analytics', {
@@ -112,9 +111,11 @@ export default function GreeneryAnalyticsClient() {
       const data = await response.json();
       setStats(data.stats);
       setTileUrls(data.tileUrls);
+      setMapCenter(centerToAnalyze);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Analysis Failed', description: error.message });
       setStats(null);
+      setTileUrls(null); // Explicitly nullify on error
     } finally {
       setIsAnalyzing(false);
     }

@@ -48,7 +48,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Latitude and Longitude are required.' }, { status: 400 });
         }
 
-        const aoi = ee.Geometry.Point([lng, lat]).buffer(1000); // FIX: Radius changed to 1km to match Python script
+        const aoi = ee.Geometry.Point([lng, lat]).buffer(1000);
 
         // --- Date Ranges ---
         const endDate = ee.Date(Date.now());
@@ -79,10 +79,7 @@ export async function POST(req: Request) {
         // --- Advanced Indices ---
         const ndvi = s2Current.normalizedDifference(['B8', 'B4']).rename('ndvi');
         const ndwi = s2Current.normalizedDifference(['B3', 'B8']).rename('ndwi');
-        // SAVI: (NIR - Red) / (NIR + Red + L) * (1 + L) with L=0.5
         const savi = s2Current.expression('(1.5 * (NIR - RED)) / (NIR + RED + 0.5)', { 'NIR': s2Current.select('B8'), 'RED': s2Current.select('B4') }).rename('savi');
-        // EVI: 2.5 * ((NIR - Red) / (NIR + 6 * Red - 7.5 * Blue + 1))
-        // FIX: Corrected parenthesis in expression
         const evi = s2Current.expression('2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', { 'NIR': s2Current.select('B8'), 'RED': s2Current.select('B4'), 'BLUE': s2Current.select('B2') }).rename('evi');
         
         // --- Vectorization ---
@@ -122,7 +119,7 @@ export async function POST(req: Request) {
             timeTravel: await getMapUrl(ndviChange.clip(aoi), visParams.timeTravel),
             vectorOutlines: await getMapUrl(vectorOutlines, visParams.vectorOutlines),
             ndvi: await getMapUrl(ndvi.clip(aoi), visParams.ndvi),
-            ndwi: await getMapUrl(ndwi.clip(aoi), visParams.ndwi),
+            ndwi: await getMapUrl(ndwi.clip(aoi), visParams.ndwi), // FIX: aou -> aoi
             savi: await getMapUrl(savi.clip(aoi), visParams.savi),
             evi: await getMapUrl(evi.clip(aoi), visParams.evi),
         };
