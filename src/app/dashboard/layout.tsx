@@ -22,7 +22,7 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 const sidebarNavItems = [
   { href: '/dashboard/digitize', label: 'Digitize Area', icon: Map },
   { href: '/dashboard/extract-roads', label: 'Extract Roads', icon: Route },
-  { href: '/dashboard/merge-jsons', label: 'Merge JSONs', icon: LayersIcon },
+  { href: '/dashboard/merge-jsons', label: 'Data Merger', icon: Combine },
   { href: '/dashboard/export-shapefile', label: 'Data Converter', icon: ArrowRightLeft },
   { href: '/dashboard/nano-vision', label: 'Nano Vision', icon: Sparkles },
   { href: '/dashboard/import-parcels', label: 'Import Parcels', icon: FolderInput },
