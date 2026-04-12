@@ -46,7 +46,7 @@ export function GisControlBar({
     if (!hasSelection) return 'Please draw a polygon on the map to enable extraction.';
     switch(activeTab) {
       case 'standard':
-        return isDigitizePage ? 'Extracts building footprints using standard open-source data. Good for general use.' : 'Extracts road networks using GEE data. Ideal for quick analysis.';
+        return isDigitizePage ? 'Extracts building footprints using Google Open Buildings data. Good for general use.' : 'Extracts road networks from OpenStreetMap data. Ideal for quick analysis.';
       case 'realtime':
         return !colabUrl ? 'AGIS Realtime engine is unavailable. Please configure it on the Server Config page.' : 'Leverages the connected AGIS engine for higher accuracy and more comprehensive data.';
       default:

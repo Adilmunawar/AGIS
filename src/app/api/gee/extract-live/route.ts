@@ -21,18 +21,17 @@ const getDownloadUrlAsync = (featureCollection: any, filename: string): Promise<
 
 export async function POST(req: Request) {
   try {
-    await initGEE();
-
     const { bbox, type } = await req.json();
     if (!bbox || bbox.length !== 4) {
       return NextResponse.json({ error: "Invalid bounding box" }, { status: 400 });
     }
-
     const [w, s, e, n] = bbox;
-    const currentViewROI = ee.Geometry.Rectangle([w, s, e, n]);
 
     // --- HANDLE BUILDINGS (Fast, Native GEE) ---
     if (type === 'buildings') {
+      await initGEE(); // GEE is now initialized only when needed for buildings
+      const currentViewROI = ee.Geometry.Rectangle([w, s, e, n]);
+      
       const buildings = ee.FeatureCollection('GOOGLE/Research/open-buildings/v3/polygons')
         .filterBounds(currentViewROI)
         .filter(ee.Filter.gte('confidence', 0.75));
@@ -42,9 +41,8 @@ export async function POST(req: Request) {
     }
 
     // --- HANDLE ROADS (OSM Overpass API) ---
-    // FIX 2: Bypassing the missing BigQuery Node.js function using native OSM
+    // This block is now completely independent of GEE initialization.
     if (type === 'roads') {
-      // Overpass expects bounding box as: [South, West, North, East]
       const overpassBbox = `${s},${w},${n},${e}`;
       const query = `
         [out:json][timeout:30];
@@ -64,7 +62,6 @@ export async function POST(req: Request) {
       const osmData = await osmResponse.json();
       const roadGeoJson = osmtogeojson(osmData);
 
-      // Return the raw GeoJSON directly to the frontend
       return NextResponse.json({ success: true, geoJson: roadGeoJson });
     }
 
