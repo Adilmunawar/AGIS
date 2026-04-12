@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -6,14 +5,26 @@ import JSZip from 'jszip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { FileJson, UploadCloud, Loader2, Download, CheckCircle, Archive, FileArchive, ArrowRightLeft, MapIcon, Layers } from 'lucide-react';
+import { FileUp, Loader2, Download, MapIcon, Layers, Replace, FileJson, FileArchive, FileCode, Route, FileInput, Settings, Redo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as turf from '@turf/turf';
 import L, { LatLngBoundsExpression } from 'leaflet';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
+
+// New conversion libraries
+import { kml as toKml } from '@tmcw/togeojson';
+import tokml from 'tokml';
+import { gpx as toGpx } from '@tmcw/togeojson';
+import togpx from 'togpx';
+import Papa from 'papaparse';
+
 
 // Dynamically import map components to avoid SSR issues
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
+import { useDebounce } from '@/hooks/use-debounce';
 
 // --- LEAFLET HELPER COMPONENTS ---
 
@@ -62,14 +73,14 @@ const MapPreview = ({ data }: { data: any }) => {
 
 
 // --- UI Components ---
-const FileUploadArea = ({ onDrop, onDrag, isDragging, onChange, accept, multiple = false, title }: any) => (
+const FileUploadArea = ({ onDrop, onDrag, isDragging, onChange, accept, multiple = false, title, format }: any) => (
   <div
     onDragEnter={(e) => onDrag(e, 'enter')}
     onDragLeave={(e) => onDrag(e, 'leave')}
     onDragOver={(e) => onDrag(e, 'over')}
     onDrop={onDrop}
     className={cn(
-      'relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-colors duration-200 cursor-pointer',
+      'relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors duration-200 cursor-pointer',
       isDragging ? 'border-primary bg-primary/10' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
     )}
   >
@@ -80,8 +91,9 @@ const FileUploadArea = ({ onDrop, onDrag, isDragging, onChange, accept, multiple
       multiple={multiple}
       onChange={(e) => onChange(e.target.files)}
     />
-    <UploadCloud className={cn("h-10 w-10", isDragging ? 'text-primary' : 'text-gray-400')} />
-    <p className="mt-4 text-center text-sm text-muted-foreground">{title}</p>
+    <FileUp className={cn("h-8 w-8", isDragging ? 'text-primary' : 'text-gray-400')} />
+    <p className="mt-2 text-center text-sm text-muted-foreground">{title}</p>
+    <p className="text-xs text-muted-foreground font-semibold mt-1">Format: {format}</p>
   </div>
 );
 
@@ -108,32 +120,45 @@ const FilePreview = ({ files, onRemove, icon, featureCount }: { files: File[], o
   </div>
 );
 
+const formatOptions = [
+    { value: 'geojson', label: 'GeoJSON', icon: FileJson, accepts: ".geojson,application/json" },
+    { value: 'shapefile', label: 'Shapefile', icon: FileArchive, accepts: ".shp,.shx,.dbf,.prj,.sbn,.sbx,.cpg,.xml", multiple: true },
+    { value: 'kml', label: 'KML', icon: FileCode, accepts: ".kml" },
+    { value: 'gpx', label: 'GPX', icon: Route, accepts: ".gpx" },
+    { value: 'csv', label: 'CSV', icon: FileInput, accepts: ".csv,text/csv" }
+];
+
 export default function DataConverterPage() {
   const { toast } = useToast();
-  const [previewData, setPreviewData] = useState<any | null>(null);
-
-  // --- State for GeoJSON -> Shapefile ---
-  const [geojsonFile, setGeojsonFile] = useState<File | null>(null);
-  const [isProcessingG2S, setIsProcessingG2S] = useState(false);
-  const [isDraggingG2S, setIsDraggingG2S] = useState(false);
-  const exportWorkerRef = useRef<Worker | null>(null);
   
-  // --- State for Shapefile -> GeoJSON ---
-  const [shapefiles, setShapefiles] = useState<File[]>([]);
-  const [isProcessingS2G, setIsProcessingS2G] = useState(false);
-  const [isDraggingS2G, setIsDraggingS2G] = useState(false);
+  // --- STATE MANAGEMENT ---
+  const [inputFormat, setInputFormat] = useState('geojson');
+  const [outputFormat, setOutputFormat] = useState('shapefile');
+  const [sourceFiles, setSourceFiles] = useState<File[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const [processedGeoJson, setProcessedGeoJson] = useState<any | null>(null);
+  const [simplifiedGeoJson, setSimplifiedGeoJson] = useState<any | null>(null);
+
+  const [csvLatField, setCsvLatField] = useState('latitude');
+  const [csvLonField, setCsvLonField] = useState('longitude');
+  
+  const [simplifyTolerance, setSimplifyTolerance] = useState(0);
+  const debouncedTolerance = useDebounce(simplifyTolerance, 300);
+
+  // --- WORKER REFS (for existing Shapefile logic) ---
+  const exportWorkerRef = useRef<Worker | null>(null);
   const shapefileWorkerRef = useRef<Worker | null>(null);
 
-  // --- Worker Setup Effect ---
+  // --- WORKER INITIALIZATION ---
   useEffect(() => {
     // GeoJSON -> SHP worker
     exportWorkerRef.current = new Worker('/workers/exportWorker.js');
     exportWorkerRef.current.onmessage = async (e: MessageEvent) => {
       const { status, message, action, payload } = e.data;
-
-      if (status === 'info') {
-        toast({ title: 'Python Engine', description: message });
-      } else if (status === 'success' && action === 'CONVERT_SHAPEFILE') {
+      if (status === 'info') toast({ title: 'Python Engine', description: message });
+      else if (status === 'success' && action === 'CONVERT_SHAPEFILE') {
         toast({ title: 'Conversion Successful', description: 'Zipping files for download.' });
         try {
           const { shp, shx, dbf, prj } = payload;
@@ -142,24 +167,16 @@ export default function DataConverterPage() {
           zip.file('export.shx', shx);
           zip.file('export.dbf', dbf);
           zip.file('export.prj', prj);
-
           const zipBlob = await zip.generateAsync({ type: 'blob' });
-          const url = URL.createObjectURL(zipBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'shapefile_export.zip';
-          document.body.appendChild(a);
-a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          downloadBlob(zipBlob, `converted.zip`);
           toast({ title: 'Download Started', description: 'Your shapefile has been downloaded.' });
         } catch (zipError: any) {
            toast({ variant: 'destructive', title: 'Zipping Error', description: zipError.message });
         }
-        setIsProcessingG2S(false);
+        setIsProcessing(false);
       } else if (status === 'error') {
         toast({ variant: 'destructive', title: 'Processing Error', description: message });
-        setIsProcessingG2S(false);
+        setIsProcessing(false);
       }
     };
     
@@ -168,23 +185,12 @@ a.click();
     shapefileWorkerRef.current.onmessage = (e: MessageEvent) => {
         const { status, geojson, error } = e.data;
         if (status === 'success' && geojson) {
-            toast({ title: 'Conversion Successful', description: `Found ${geojson.features.length} features.` });
-            setPreviewData(geojson);
-            const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "converted_from_shapefile.geojson";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            toast({ title: 'Download Started', description: 'Your GeoJSON file has been downloaded.' });
+            setProcessedGeoJson(geojson);
         } else {
             toast({ variant: 'destructive', title: 'Processing Error', description: error || 'Failed to parse the shapefile.' });
-            setPreviewData(null);
+            setProcessedGeoJson(null);
         }
-        setIsProcessingS2G(false);
+        setIsProcessing(false);
     };
 
     return () => {
@@ -192,141 +198,268 @@ a.click();
         shapefileWorkerRef.current?.terminate();
     };
   }, [toast]);
+  
+  // --- GEOMETRY SIMPLIFICATION ---
+  useEffect(() => {
+    if (!processedGeoJson) {
+      setSimplifiedGeoJson(null);
+      return;
+    }
+    if (debouncedTolerance === 0) {
+      setSimplifiedGeoJson(processedGeoJson);
+      return;
+    }
+    try {
+        const simplified = turf.simplify(processedGeoJson, { tolerance: debouncedTolerance, highQuality: true });
+        setSimplifiedGeoJson(simplified);
+    } catch(e) {
+        console.error("Simplification error:", e);
+        setSimplifiedGeoJson(processedGeoJson); // fallback to original
+    }
+  }, [processedGeoJson, debouncedTolerance]);
 
-  // --- Handlers for GeoJSON -> Shapefile ---
-  const handleG2SFileChange = (files: FileList | null) => {
+
+  // --- DYNAMIC UI LOGIC ---
+  const selectedInputFormat = useMemo(() => formatOptions.find(f => f.value === inputFormat), [inputFormat]);
+  const allowedOutputFormats = useMemo(() => {
+      if (inputFormat === 'shapefile' || inputFormat === 'geojson') return formatOptions.filter(f => f.value !== inputFormat);
+      return formatOptions.filter(f => f.value === 'geojson'); // Can only convert KML/GPX/CSV to GeoJSON for now
+  }, [inputFormat]);
+
+  useEffect(() => {
+    setOutputFormat(allowedOutputFormats[0].value);
+  }, [inputFormat, allowedOutputFormats]);
+  
+  const featureCount = useMemo(() => simplifiedGeoJson?.features?.length || processedGeoJson?.features?.length || 0, [processedGeoJson, simplifiedGeoJson]);
+
+  // --- FILE HANDLING ---
+  const resetState = () => {
+    setSourceFiles([]);
+    setProcessedGeoJson(null);
+    setSimplifiedGeoJson(null);
+    setSimplifyTolerance(0);
+    setIsProcessing(false);
+  }
+  
+  const handleFileChange = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    resetState();
+    setSourceFiles(Array.from(files));
+    setIsProcessing(true);
+    toast({ title: "Processing Upload", description: "Reading and converting input file..." });
+
     const file = files[0];
-    if (file.name.endsWith('.geojson') || file.type === 'application/json') {
-      setGeojsonFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const json = JSON.parse(e.target?.result as string);
-          setPreviewData(json);
-        } catch (err) {
-          toast({ variant: 'destructive', title: 'Invalid JSON', description: 'Could not parse the GeoJSON file for preview.' });
-          setPreviewData(null);
+    const fileText = await file.text();
+    const domParser = new DOMParser();
+
+    try {
+        let geojson: any;
+        switch (inputFormat) {
+            case 'geojson':
+                geojson = JSON.parse(fileText);
+                break;
+            case 'kml':
+                geojson = toKml(domParser.parseFromString(fileText, 'text/xml'));
+                break;
+            case 'gpx':
+                geojson = toGpx(domParser.parseFromString(fileText, 'text/xml'));
+                break;
+            case 'csv':
+                 Papa.parse(fileText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        const features = results.data.map((row: any) => {
+                            const lat = parseFloat(row[csvLatField]);
+                            const lon = parseFloat(row[csvLonField]);
+                            if (isNaN(lat) || isNaN(lon)) return null;
+                            return turf.point([lon, lat], row);
+                        }).filter(Boolean); // Filter out nulls
+                        geojson = turf.featureCollection(features as any);
+                        if (geojson.features.length === 0) throw new Error("No valid coordinates found. Check CSV column names.");
+                        setProcessedGeoJson(geojson);
+                    }
+                });
+                break;
+            case 'shapefile':
+                shapefileWorkerRef.current?.postMessage({ files: Array.from(files), layer: 'parcels' });
+                return; // Worker will handle setting state
+            default:
+                throw new Error("Unsupported input format");
         }
-      };
-      reader.readAsText(file);
-    } else {
-      toast({ variant: 'destructive', title: 'Invalid File Type', description: 'Please upload a valid .geojson file.' });
+        setProcessedGeoJson(geojson);
+        
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'File Processing Error', description: e.message });
+        resetState();
+    } finally {
+        if(inputFormat !== 'shapefile') setIsProcessing(false);
+    }
+  }, [inputFormat, csvLatField, csvLonField, toast]);
+  
+  // --- CONVERSION LOGIC ---
+  const downloadBlob = (blob: Blob, filename: string) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  };
+  
+  const handleConvert = () => {
+    if (!simplifiedGeoJson) {
+        toast({ variant: 'destructive', title: 'No Data', description: 'Please upload a file first.' });
+        return;
+    }
+    
+    setIsProcessing(true);
+    toast({ title: `Converting to ${outputFormat.toUpperCase()}`, description: 'Please wait...' });
+
+    try {
+        let blob: Blob;
+        let filename: string;
+        
+        switch (outputFormat) {
+            case 'geojson':
+                blob = new Blob([JSON.stringify(simplifiedGeoJson, null, 2)], { type: "application/json" });
+                filename = 'converted.geojson';
+                break;
+            case 'kml':
+                const kmlString = tokml(simplifiedGeoJson);
+                blob = new Blob([kmlString], { type: "application/vnd.google-earth.kml+xml" });
+                filename = 'converted.kml';
+                break;
+            case 'gpx':
+                const gpxString = togpx(simplifiedGeoJson);
+                blob = new Blob([gpxString], { type: 'application/gpx+xml' });
+                filename = 'converted.gpx';
+                break;
+            case 'csv':
+                const csvData = simplifiedGeoJson.features.map((f: any) => ({
+                    ...f.properties,
+                    longitude: f.geometry.coordinates[0],
+                    latitude: f.geometry.coordinates[1]
+                }));
+                const csvString = Papa.unparse(csvData);
+                blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                filename = 'converted.csv';
+                break;
+            case 'shapefile':
+                 exportWorkerRef.current?.postMessage({
+                    action: 'CONVERT_SHAPEFILE',
+                    payload: JSON.stringify(simplifiedGeoJson),
+                });
+                return; // Worker handles the rest
+            default:
+                throw new Error("Unsupported output format selected.");
+        }
+        
+        downloadBlob(blob, filename);
+        
+    } catch(e: any) {
+        toast({ variant: 'destructive', title: 'Conversion Error', description: e.message });
+    } finally {
+        if (outputFormat !== 'shapefile') setIsProcessing(false);
     }
   };
-  
-  const handleConvertG2S = () => {
-    if (!geojsonFile) return;
-    setIsProcessingG2S(true);
-    toast({ title: 'Processing GeoJSON...', description: 'Sending file to the conversion engine.' });
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        exportWorkerRef.current?.postMessage({
-            action: 'CONVERT_SHAPEFILE',
-            payload: e.target?.result as string,
-        });
-    };
-    reader.readAsText(geojsonFile);
-  };
 
-  // --- Handlers for Shapefile -> GeoJSON ---
-  const handleS2GFileChange = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const requiredFiles = ['shp', 'dbf'];
-    const uploadedExtensions = Array.from(files).map(f => f.name.split('.').pop()?.toLowerCase());
-    const hasRequired = requiredFiles.every(ext => uploadedExtensions.includes(ext));
-
-    if (hasRequired) {
-        setShapefiles(Array.from(files));
-        setPreviewData(null); // Clear previous preview
-    } else {
-        toast({ variant: 'destructive', title: 'Incomplete Shapefile', description: 'Please make sure to upload at least the .shp and .dbf files together.' });
-    }
-  };
-  
-  const handleConvertS2G = () => {
-      if(shapefiles.length === 0) return;
-      setIsProcessingS2G(true);
-      toast({ title: 'Processing Shapefile...', description: 'Sending files to the conversion engine.' });
-      shapefileWorkerRef.current?.postMessage({ files: shapefiles, layer: 'parcels' });
-  };
-  
   // --- Drag & Drop Handlers ---
-  const onDrag = (event: React.DragEvent, type: 'enter' | 'leave' | 'over', setter: React.Dispatch<React.SetStateAction<boolean>>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (type === 'enter' || type === 'over') setter(true); else setter(false);
-  };
-  
-  const onDropG2S = (event: React.DragEvent) => { event.preventDefault(); event.stopPropagation(); setIsDraggingG2S(false); handleG2SFileChange(event.dataTransfer.files); };
-  const onDropS2G = (event: React.DragEvent) => { event.preventDefault(); event.stopPropagation(); setIsDraggingS2G(false); handleS2GFileChange(event.dataTransfer.files); };
-
-  const featureCount = useMemo(() => previewData?.features?.length || 0, [previewData]);
+  const onDrag = (event: React.DragEvent, type: 'enter' | 'leave' | 'over') => { event.preventDefault(); event.stopPropagation(); setter: setIsDragging(type === 'enter' || type === 'over'); };
+  const onDrop = (event: React.DragEvent) => { event.preventDefault(); event.stopPropagation(); setIsDragging(false); handleFileChange(event.dataTransfer.files); };
 
   return (
     <div className="flex h-full w-full bg-muted/30">
         <aside className="w-[450px] border-r bg-background flex flex-col h-full">
              <header className="p-4 border-b">
                 <h1 className="text-xl font-bold tracking-tight">GIS Data Converter</h1>
-                <p className="text-sm text-muted-foreground">Two-way conversion between GeoJSON and Shapefile formats.</p>
+                <p className="text-sm text-muted-foreground">Advanced conversion between geospatial formats.</p>
             </header>
-            <div className="p-4">
-                 <Tabs defaultValue="g2s" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="g2s">GeoJSON to Shapefile</TabsTrigger>
-                    <TabsTrigger value="s2g">Shapefile to GeoJSON</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="g2s" className="pt-6 space-y-4">
-                        {!geojsonFile ? (
-                            <FileUploadArea 
-                                onDrag={(e: React.DragEvent, type: 'enter' | 'leave' | 'over') => onDrag(e, type, setIsDraggingG2S)}
-                                onDrop={onDropG2S}
-                                isDragging={isDraggingG2S}
-                                onChange={handleG2SFileChange}
-                                accept=".geojson,application/json"
-                                title="Drag & drop a GeoJSON file, or click"
-                            />
-                        ) : (
+            <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+                 <Card>
+                    <CardHeader><CardTitle className="text-base">1. Select Formats</CardTitle></CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label>From</Label>
+                            <Select value={inputFormat} onValueChange={v => { setInputFormat(v); resetState(); }}>
+                                <SelectTrigger><SelectValue placeholder="Select input format..." /></SelectTrigger>
+                                <SelectContent>{formatOptions.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>To</Label>
+                            <Select value={outputFormat} onValueChange={setOutputFormat}>
+                                <SelectTrigger><SelectValue placeholder="Select output format..." /></SelectTrigger>
+                                <SelectContent>{allowedOutputFormats.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </CardContent>
+                 </Card>
+                 
+                 <Card>
+                    <CardHeader><CardTitle className="text-base">2. Upload Data</CardTitle></CardHeader>
+                    <CardContent>
+                        {sourceFiles.length > 0 ? (
                             <FilePreview
-                                files={[geojsonFile]}
-                                onRemove={() => { setGeojsonFile(null); setPreviewData(null); }}
-                                icon={<FileJson className="h-6 w-6" />}
+                                files={sourceFiles}
+                                onRemove={resetState}
+                                icon={<selectedInputFormat.icon className="h-6 w-6" />}
                                 featureCount={featureCount}
                             />
-                        )}
-                        <Button onClick={handleConvertG2S} disabled={isProcessingG2S || !geojsonFile} className="w-full h-12 text-base">
-                            {isProcessingG2S ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Converting...</> : <><Archive className="mr-2 h-5 w-5"/> Convert to Shapefile (.zip)</>}
-                        </Button>
-                    </TabsContent>
-                    <TabsContent value="s2g" className="pt-6 space-y-4">
-                        {shapefiles.length === 0 ? (
-                            <FileUploadArea 
-                                onDrag={(e: React.DragEvent, type: 'enter' | 'leave' | 'over') => onDrag(e, type, setIsDraggingS2G)}
-                                onDrop={onDropS2G}
-                                isDragging={isDraggingS2G}
-                                onChange={handleS2GFileChange}
-                                accept=".shp,.shx,.dbf,.prj,.sbn,.sbx,.cpg,.xml"
-                                multiple={true}
-                                title="Drag & drop Shapefile parts (.shp, .dbf, etc)"
-                            />
                         ) : (
-                            <FilePreview
-                                files={shapefiles}
-                                onRemove={() => { setShapefiles([]); setPreviewData(null); }}
-                                icon={<FileArchive className="h-6 w-6" />}
-                                featureCount={featureCount}
+                            <FileUploadArea 
+                                onDrag={onDrag}
+                                onDrop={onDrop}
+                                isDragging={isDragging}
+                                onChange={handleFileChange}
+                                accept={selectedInputFormat?.accepts}
+                                multiple={selectedInputFormat?.multiple}
+                                title={isDragging ? "Drop your file(s) here" : "Drag & drop file(s), or click"}
+                                format={selectedInputFormat?.label}
                             />
                         )}
-                        <Button onClick={handleConvertS2G} disabled={isProcessingS2G || shapefiles.length === 0} className="w-full h-12 text-base">
-                            {isProcessingS2G ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Converting...</> : <><Download className="mr-2 h-5 w-5"/> Convert & Download GeoJSON</>}
-                        </Button>
-                    </TabsContent>
-                </Tabs>
+                    </CardContent>
+                 </Card>
+                 
+                 <Card className={cn((inputFormat === 'csv' || processedGeoJson) ? "block" : "hidden")}>
+                    <CardHeader><CardTitle className="text-base">3. Configure (Optional)</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        {inputFormat === 'csv' && (
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="lat-field">Latitude Field</Label>
+                                    <Input id="lat-field" value={csvLatField} onChange={e => setCsvLatField(e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="lon-field">Longitude Field</Label>
+                                    <Input id="lon-field" value={csvLonField} onChange={e => setCsvLonField(e.target.value)} />
+                                </div>
+                            </div>
+                        )}
+                        {processedGeoJson && (
+                            <div className="space-y-2">
+                                <Label>Geometry Simplification (Tolerance: {simplifyTolerance})</Label>
+                                <div className="flex items-center gap-2">
+                                    <Slider value={[simplifyTolerance]} onValueChange={([v]) => setSimplifyTolerance(v)} min={0} max={0.01} step={0.0001} />
+                                </div>
+                                <p className="text-xs text-muted-foreground">Higher values reduce detail and file size. Useful for web maps. Set to 0 to disable.</p>
+                            </div>
+                        )}
+                    </CardContent>
+                 </Card>
+
             </div>
+             <footer className="p-4 border-t">
+                 <Button onClick={handleConvert} disabled={isProcessing || !processedGeoJson} className="w-full h-12 text-base">
+                    {isProcessing ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Converting...</> : <><Replace className="mr-2 h-5 w-5"/> Convert & Download</>}
+                </Button>
+            </footer>
         </aside>
         <main className="flex-1 h-full bg-background relative">
-            {previewData ? (
-                <MapPreview data={previewData} />
+            {simplifiedGeoJson ? (
+                <MapPreview data={simplifiedGeoJson} />
             ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
                     <MapIcon className="h-16 w-16 text-gray-300 mb-4" />
