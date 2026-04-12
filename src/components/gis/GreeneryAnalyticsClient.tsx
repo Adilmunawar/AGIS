@@ -161,7 +161,7 @@ export default function GreeneryAnalyticsClient() {
             <AccordionItem value="item-2">
                 <AccordionTrigger>Property Report</AccordionTrigger>
                 <AccordionContent className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">Analysis for a 2km radius around map center.</p>
+                    <p className="text-xs text-muted-foreground text-center">Analysis for a 1km radius around map center.</p>
                     <StatCard icon={Trees} label="Tree Canopy" value={stats?.trees ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
                     <StatCard icon={Leaf} label="Grass / Crops" value={stats?.grass ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
                     <StatCard icon={Waves} label="Water Bodies" value={stats?.water ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
