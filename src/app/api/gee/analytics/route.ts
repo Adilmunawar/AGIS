@@ -60,7 +60,7 @@ export async function POST(req: Request) {
         const s2Current = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED').filterDate(startDate, endDate).filterBounds(aoi).filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)).mosaic();
         const s2Past = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED').filterDate(pastStartDate, pastEndDate).filterBounds(aoi).filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 25)).mosaic();
 
-        // --- Classifications ---
+        // --- Classifications (Clipped immediately) ---
         const classifiedNow = classifyLandcover(s2Current).clip(aoi);
         
         // --- Change Detection ---
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
         const ndviPast = s2Past.normalizedDifference(['B8', 'B4']);
         const ndviChange = ndviNow.subtract(ndviPast).rename('ndvi_change');
 
-        // --- Deforestation / Reforestation ---
+        // --- Deforestation / Reforestation (Clipped immediately) ---
         const classifiedPast = classifyLandcover(s2Past).clip(aoi);
         const treesNow = classifiedNow.eq(3);
         const treesPast = classifiedPast.eq(3);
@@ -101,25 +101,25 @@ export async function POST(req: Request) {
             });
         }
 
-        // --- Tile Layer URL Generation ---
+        // --- Tile Layer URL Generation (with Hex Palettes and Clipping) ---
         const visParams = {
             classification: { min: 0, max: 3, palette: ['#FFFFFF', '#0000FF', '#7CFC00', '#006400'] },
             forestChange: { min: 1, max: 2, palette: ['#00FF00', '#FF0000'] },
-            timeTravel: { min: -0.3, max: 0.3, palette: ['FF0000', 'FFFFFF', '00FF00'] },
+            timeTravel: { min: -0.3, max: 0.3, palette: ['#FF0000', '#FFFFFF', '#00FF00'] },
             vectorOutlines: { palette: ['#FFD700'] },
-            ndvi: { min: -0.2, max: 0.8, palette: ['red', 'yellow', 'green'] },
-            ndwi: { min: -0.5, max: 0.5, palette: ['brown', 'white', 'blue'] },
-            savi: { min: -0.2, max: 0.8, palette: ['red', 'yellow', 'green'] },
-            evi: { min: -0.2, max: 1, palette: ['red', 'yellow', 'green'] },
+            ndvi: { min: -0.2, max: 0.8, palette: ['#FF0000', '#FFFF00', '#00FF00'] },
+            ndwi: { min: -0.5, max: 0.5, palette: ['#A52A2A', '#FFFFFF', '#0000FF'] },
+            savi: { min: -0.2, max: 0.8, palette: ['#FF0000', '#FFFF00', '#00FF00'] },
+            evi: { min: -0.2, max: 1, palette: ['#FF0000', '#FFFF00', '#00FF00'] },
         };
 
         const tileUrls = {
-            classification: await getMapUrl(classifiedNow, visParams.classification),
-            deforestation: await getMapUrl(forestChange, visParams.forestChange),
+            classification: await getMapUrl(classifiedNow.clip(aoi), visParams.classification),
+            deforestation: await getMapUrl(forestChange.clip(aoi), visParams.forestChange),
             timeTravel: await getMapUrl(ndviChange.clip(aoi), visParams.timeTravel),
-            vectorOutlines: await getMapUrl(vectorOutlines, visParams.vectorOutlines),
+            vectorOutlines: await getMapUrl(vectorOutlines.clip(aoi), visParams.vectorOutlines),
             ndvi: await getMapUrl(ndvi.clip(aoi), visParams.ndvi),
-            ndwi: await getMapUrl(ndwi.clip(aoi), visParams.ndwi), // FIX: aou -> aoi
+            ndwi: await getMapUrl(ndwi.clip(aoi), visParams.ndwi),
             savi: await getMapUrl(savi.clip(aoi), visParams.savi),
             evi: await getMapUrl(evi.clip(aoi), visParams.evi),
         };
