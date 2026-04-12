@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trees, Waves, LayoutGrid, Building, Layers } from 'lucide-react';
+import { Loader2, Trees, Waves, Building, Layers, Wheat, GitBranch } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import 'leaflet/dist/leaflet.css';
 
@@ -18,12 +18,12 @@ interface AnalyticsStats {
   grass: number;
   water: number;
   builtUp: number;
-  bare: number;
 }
 
 interface TileUrls {
   classified: string;
   ndviChange: string;
+  vectorOutlines: string;
 }
 
 // --- UI SUB-COMPONENTS ---
@@ -64,6 +64,7 @@ export default function GreeneryAnalyticsClient() {
   const [tileUrls, setTileUrls] = useState<TileUrls | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showTimeTravel, setShowTimeTravel] = useState(false);
+  const [showVectors, setShowVectors] = useState(true);
 
   const handleRunAnalytics = useCallback(async (centerToAnalyze: LatLng) => {
     if (!centerToAnalyze) {
@@ -71,9 +72,7 @@ export default function GreeneryAnalyticsClient() {
     }
     
     setIsAnalyzing(true);
-    // Don't clear stats immediately for a smoother UX, new stats will replace them
-    // setStats(null);
-    setTileUrls(null);
+    setTileUrls(null); // Clear tiles to show loading state
 
     try {
       const response = await fetch('/api/gee/analytics', {
@@ -120,14 +119,21 @@ export default function GreeneryAnalyticsClient() {
         <div className="flex-1 p-4 space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Analysis Controls</CardTitle>
-                    <CardDescription>Analysis runs automatically for the visible map area. Use the toggle to compare with last year's data.</CardDescription>
+                    <CardTitle>Display Controls</CardTitle>
+                    <CardDescription>Toggle visualization layers. Analysis runs automatically for the visible map area.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <Label htmlFor="vector-switch" className="flex flex-col">
+                            <span className="font-semibold">Vectorized Trees</span>
+                            <span className="text-xs text-muted-foreground">Show AI-drawn tree outlines.</span>
+                        </Label>
+                        <Switch id="vector-switch" checked={showVectors} onCheckedChange={setShowVectors} disabled={!tileUrls} />
+                    </div>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                         <Label htmlFor="time-travel-switch" className="flex flex-col">
                             <span className="font-semibold">Time Travel</span>
-                            <span className="text-xs text-muted-foreground">Show 1-year NDVI change.</span>
+                            <span className="text-xs text-muted-foreground">Show 1-year vegetation change.</span>
                         </Label>
                         <Switch id="time-travel-switch" checked={showTimeTravel} onCheckedChange={setShowTimeTravel} disabled={!tileUrls} />
                     </div>
@@ -140,11 +146,10 @@ export default function GreeneryAnalyticsClient() {
                     <CardDescription>Land cover breakdown for a 1km radius around the map center.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    <StatCard icon={Trees} label="Trees" value={stats?.trees ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                    <StatCard icon={LayoutGrid} label="Grass / Crops" value={stats?.grass ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                    <StatCard icon={Waves} label="Water" value={stats?.water ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                    <StatCard icon={Building} label="Built-up" value={stats?.builtUp ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
-                    <StatCard icon={Layers} label="Bare Ground" value={stats?.bare ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={Trees} label="Tree Canopy" value={stats?.trees ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={Wheat} label="Grass / Fields" value={stats?.grass ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={Waves} label="Water Bodies" value={stats?.water ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
+                    <StatCard icon={Building} label="Built-up / Bare" value={stats?.builtUp ?? 0} unit="acres" isLoading={isAnalyzing && !stats} />
                 </CardContent>
             </Card>
         </div>
@@ -177,8 +182,16 @@ export default function GreeneryAnalyticsClient() {
             <TileLayer
               key={activeTileUrl} // Force re-render on URL change
               url={activeTileUrl}
-              opacity={0.7}
+              opacity={0.65}
               zIndex={10}
+            />
+          )}
+          {showVectors && tileUrls?.vectorOutlines && (
+            <TileLayer
+                key={tileUrls.vectorOutlines}
+                url={tileUrls.vectorOutlines}
+                opacity={0.9}
+                zIndex={11}
             />
           )}
           <MapEventsComponent setCenter={setMapCenter} />
