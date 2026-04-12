@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 // New conversion libraries
 import { kml as toKml } from '@tmcw/togeojson';
@@ -373,62 +375,62 @@ export default function DataConverterPage() {
   return (
     <div className="flex h-full w-full bg-muted/30">
         <aside className="w-[450px] border-r bg-background flex flex-col h-full">
-             <header className="p-4 border-b">
+            <header className="p-4 border-b">
                 <h1 className="text-xl font-bold tracking-tight">GIS Data Converter</h1>
                 <p className="text-sm text-muted-foreground">Advanced conversion between geospatial formats.</p>
             </header>
-            <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
+            
+            <ScrollArea className="flex-1">
+                <div className="p-4 space-y-6">
+                    
+                    <div className="space-y-3">
+                        <Label className="flex items-center gap-2 text-base font-semibold">
                            <ArrowRightLeft className="h-5 w-5 text-primary" />
-                           1. Select Formats
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label>From</Label>
-                            <Select value={inputFormat} onValueChange={v => { setInputFormat(v); resetState(); }}>
-                                <SelectTrigger><SelectValue placeholder="Select input format..." /></SelectTrigger>
-                                <SelectContent>
-                                    {formatOptions.map(f => (
-                                        <SelectItem key={f.value} value={f.value}>
-                                            <div className="flex items-center gap-2">
-                                                <f.icon className="h-4 w-4 text-muted-foreground" />
-                                                <span>{f.label}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                           1. Select Conversion Formats
+                        </Label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label>From</Label>
+                                <Select value={inputFormat} onValueChange={v => { setInputFormat(v); resetState(); }}>
+                                    <SelectTrigger><SelectValue placeholder="Select input format..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {formatOptions.map(f => (
+                                            <SelectItem key={f.value} value={f.value}>
+                                                <div className="flex items-center gap-2">
+                                                    <f.icon className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{f.label}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>To</Label>
+                                <Select value={outputFormat} onValueChange={setOutputFormat}>
+                                    <SelectTrigger><SelectValue placeholder="Select output format..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {allowedOutputFormats.map(f => (
+                                            <SelectItem key={f.value} value={f.value}>
+                                                <div className="flex items-center gap-2">
+                                                    <f.icon className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{f.label}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>To</Label>
-                            <Select value={outputFormat} onValueChange={setOutputFormat}>
-                                <SelectTrigger><SelectValue placeholder="Select output format..." /></SelectTrigger>
-                                <SelectContent>
-                                    {allowedOutputFormats.map(f => (
-                                        <SelectItem key={f.value} value={f.value}>
-                                            <div className="flex items-center gap-2">
-                                                <f.icon className="h-4 w-4 text-muted-foreground" />
-                                                <span>{f.label}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardContent>
-                 </Card>
-                 
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
+                    </div>
+                    
+                    <Separator />
+
+                    <div className="space-y-3">
+                        <Label className="flex items-center gap-2 text-base font-semibold">
                            <Upload className="h-5 w-5 text-primary" />
-                           2. Upload Data
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                           2. Upload Source Data
+                        </Label>
                         {sourceFiles.length > 0 ? (
                             <FilePreview
                                 files={sourceFiles}
@@ -449,43 +451,42 @@ export default function DataConverterPage() {
                                 icon={selectedInputFormat && <selectedInputFormat.icon className="h-10 w-10 text-gray-400 group-hover:text-primary transition-colors" />}
                             />
                         )}
-                    </CardContent>
-                 </Card>
-                 
-                 <Card className={cn((inputFormat === 'csv' || processedGeoJson) ? "block" : "hidden")}>
-                    <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Settings className="h-5 w-5 text-primary" />
-                            3. Configure (Optional)
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {inputFormat === 'csv' && (
-                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="lat-field">Latitude Field</Label>
-                                    <Input id="lat-field" value={csvLatField} onChange={e => setCsvLatField(e.target.value)} />
+                    </div>
+                    
+                    {(inputFormat === 'csv' || processedGeoJson) && <Separator />}
+                    {(inputFormat === 'csv' || processedGeoJson) && (
+                        <div className="space-y-3">
+                             <Label className="flex items-center gap-2 text-base font-semibold">
+                                <Settings className="h-5 w-5 text-primary" />
+                                3. Configure (Optional)
+                            </Label>
+                            {inputFormat === 'csv' && (
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="lat-field">Latitude Field</Label>
+                                        <Input id="lat-field" value={csvLatField} onChange={e => setCsvLatField(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="lon-field">Longitude Field</Label>
+                                        <Input id="lon-field" value={csvLonField} onChange={e => setCsvLonField(e.target.value)} />
+                                    </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="lon-field">Longitude Field</Label>
-                                    <Input id="lon-field" value={csvLonField} onChange={e => setCsvLonField(e.target.value)} />
+                            )}
+                            {processedGeoJson && (
+                                <div className="space-y-2">
+                                    <Label>Geometry Simplification (Tolerance: {simplifyTolerance})</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Slider value={[simplifyTolerance]} onValueChange={([v]) => setSimplifyTolerance(v)} min={0} max={0.01} step={0.0001} />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Higher values reduce detail and file size. Useful for web maps. Set to 0 to disable.</p>
                                 </div>
-                            </div>
-                        )}
-                        {processedGeoJson && (
-                            <div className="space-y-2">
-                                <Label>Geometry Simplification (Tolerance: {simplifyTolerance})</Label>
-                                <div className="flex items-center gap-2">
-                                    <Slider value={[simplifyTolerance]} onValueChange={([v]) => setSimplifyTolerance(v)} min={0} max={0.01} step={0.0001} />
-                                </div>
-                                <p className="text-xs text-muted-foreground">Higher values reduce detail and file size. Useful for web maps. Set to 0 to disable.</p>
-                            </div>
-                        )}
-                    </CardContent>
-                 </Card>
-
-            </div>
-             <footer className="p-4 border-t">
+                            )}
+                        </div>
+                    )}
+                </div>
+            </ScrollArea>
+            
+             <footer className="p-4 border-t bg-background">
                  <Button onClick={handleConvert} disabled={isProcessing || !processedGeoJson} className="w-full h-12 text-base">
                     {isProcessing ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Converting...</> : <><Replace className="mr-2 h-5 w-5"/> Convert & Download</>}
                 </Button>
